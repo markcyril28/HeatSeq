@@ -18,25 +18,26 @@ THREADS="${user_threads:-64}"
 #Eggplant_V4_1_transcripts_function_FASTA_FILE="00_INPUTS/Eggplant_V4_1_transcripts_function.fa"
 
 ALL_FASTA_FILES=(
-	"00_INPUTS/TEST.fa"
-	#"00_INPUTS/All_Control.fa"
-	#"00_INPUTS/SmelGRF.fasta"
-	#"00_INPUTS/SmelGIF.fasta"
+	"00_INPUTS/TEST.fasta"
+	"00_INPUTS/SmelDMP_CDS_Control_Best.fasta"
+	"00_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
+	"00_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
+	"00_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
 )
 
 SRR_LIST_PRJNA328564=(
-	#SRR3884631 # Fruits Â¯ 6 cm
+	SRR3884631 # Fruits Â¯ 6 cm
 	#SRR3884664 # Fruits Calyx Stage 2
 	#SRR3884653 # Fruits Flesh Stage 2
-	#SRR3884677 # Cotyledons
-	#SRR3884679 # Pistils /
-	#SRR3884597 # Flowers
+	SRR3884677 # Cotyledons
+	SRR3884679 # Pistils /
+	SRR3884597 # Flowers
 	SRR3884686 # Buds Â¯ 0\,7 cm /
-	#SRR3884687 # Buds, Opened Buds
-	#SRR3884689 # Leaves
-	#SRR3884690 # Stems
-	#SRR3884685 # Radicles
-	#SRR3884675 # Roots
+	SRR3884687 # Buds, Opened Buds
+	SRR3884689 # Leaves
+	SRR3884690 # Stems
+	SRR3884685 # Radicles
+	SRR3884675 # Roots
 )
 
 RAW_DIR_ROOT="00_Raw_Files_and_FastQC/PRJNA328564"
@@ -48,8 +49,8 @@ STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 
 # Testing Essentials
 #rm -rf $TRIM_DIR_ROOT	
-#rm -rf $HISAT2_ROOT
-#rm -rf $HISAT2_INDEX_DIR
+rm -rf $HISAT2_ROOT
+rm -rf $HISAT2_INDEX_DIR
 rm -rf $STRINGTIE_ROOT
 
 
@@ -75,9 +76,9 @@ setup_logging() {
 
 	mkdir -p "$LOG_DIR"
 	#rm -f "$LOG_DIR"/*.log
-	echo "Choose log output:"
-	echo "1) Console and file"
-	echo "2) File only"
+	#echo "Choose log output:"
+	#echo "1) Console and file"
+	#echo "2) File only"
 	#read -p "Enter 1 or 2 [default: 1]: " log_choice
 	log_choice="${log_choice:-1}"
 	if [[ "$log_choice" == "2" ]]; then
