@@ -90,7 +90,7 @@ run_with_time_to_log() {
 # ==============================================================================
 require_tools() {
 	log_info "Ensuring conda environment 'GEA_ENV' and required tools..."
-	local env_name="GEA_ENV"
+	local env_name="GEA_env"
 	local required_cmds=(fasterq-dump trim_galore hisat2 samtools stringtie)
 	if ! conda env list | awk '{print $1}' | grep -qx "$env_name"; then
 		log_info "Creating environment '$env_name' ..."
