@@ -8,5 +8,7 @@ LOG_FILE="${LOG_FILE:-$LOG_DIR/pipeline_${RUN_ID}_script_log.log}"
 mkdir -p "$LOG_DIR"
 rm -f "$LOG_DIR"/*.log
 
+chmod +x ./02_GEA_script_v9.sh
+
 # Run the main pipeline script and log resource usage
 /usr/bin/time -v ./02_GEA_script_v9.sh >> "$LOG_FILE" 2>&1
