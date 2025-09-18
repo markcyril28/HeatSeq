@@ -286,7 +286,7 @@ hisat2_index_align_sort() {
 			samtools sort -@ "${THREADS}" -o "$bam" "$sam"
 		run_with_time_to_log \
 			samtools index -@ "${THREADS}" "$bam"
-		#rm -f "$sam"
+		rm -f "$sam"
 		log_info "Done aligning $fasta_tag with $SRR."
 	done
 }
