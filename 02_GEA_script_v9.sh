@@ -47,8 +47,9 @@ HISAT2_INDEX_DIR="02_HISAT2/index"
 # Testing Essentials
 #rm -rf $TRIM_DIR_ROOT	
 #rm -rf $HISAT2_ROOT
+#rm -rf $HISAT2_INDEX_DIR
 rm -rf $STRINGTIE_ROOT
-rm -rf $HISAT2_INDEX_DIR
+
 
 # ==============================================================================
 # LOGGING
@@ -483,8 +484,6 @@ run_all() {
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
 done
-
-
 
 # Zip all the content of this folder: STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 #tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver
