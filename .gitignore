@@ -7,3 +7,6 @@
 02_HISAT2/index/TEST_index.6.ht2
 02_HISAT2/index/TEST_index.7.ht2
 02_HISAT2/index/TEST_index.8.ht2
+02_HISAT2/*
+00_Raw_Files_and_FastQC/*
+01_Trimmed_TrimGalore_Ver/*
