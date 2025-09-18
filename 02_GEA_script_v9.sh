@@ -46,8 +46,8 @@ HISAT2_INDEX_DIR="02_HISAT2/index"
 
 # Testing Essentials
 #rm -rf $TRIM_DIR_ROOT	
-#rm -rf $HISAT2_ROOT
-#rm -rf $HISAT2_INDEX_DIR
+rm -rf $HISAT2_ROOT
+rm -rf $HISAT2_INDEX_DIR
 rm -rf $STRINGTIE_ROOT
 
 
