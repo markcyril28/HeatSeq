@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "Starting main pipeline script..."
+
 set -euo pipefail
 
 chmod +x ./02_GEA_run.sh
