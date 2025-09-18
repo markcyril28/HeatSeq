@@ -308,8 +308,6 @@ stringtie_assemble() {
 	done
 
 	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
-	log_info "Running StringTie assembly with CORES=$CORES, THREADS=$THREADS, MAX_JOBS=$MAX_JOBS"
-
 	for SRR in "${rnaseq_list[@]}"; do
 		local out_dir="$STRINGTIE_ROOT/$fasta_tag/$SRR"
 		local bam="$HISAT2_ROOT/$fasta_tag/$SRR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
