@@ -49,11 +49,10 @@ HISAT2_INDEX_DIR="02_HISAT2/index"
 STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
-rm -rf $TRIM_DIR_ROOT
-rm -rf $HISAT2_ROOT      # Remove previous HISAT2 results
-rm -rf $HISAT2_INDEX_DIR # Remove previous HISAT2 index
-rm -rf $STRINGTIE_ROOT   # Remove previous StringTie results
-
+#rm -rf $TRIM_DIR_ROOT
+#rm -rf $HISAT2_ROOT      # Remove previous HISAT2 results
+#rm -rf $HISAT2_INDEX_DIR # Remove previous HISAT2 index
+#rm -rf $STRINGTIE_ROOT   # Remove previous StringTie results
 
 # ==============================================================================
 # LOGGING
@@ -385,7 +384,6 @@ stringtie_quantify() {
 				-C "$STRINGTIE_DIR/${SRR}_${fasta_tag}_transcripts_with_coverage_de_novo.gtf"
 	done
 }
-
 
 cleanup_bam_files() {
 	# Optionally clean up BAM files after processing
