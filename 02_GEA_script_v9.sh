@@ -408,7 +408,16 @@ stringtie_quantify() {
 
 cleanup_bam_files() {
 	# Optionally clean up BAM files after processing
-	# Use the global keep_bam_global variable set after logging setup
+	# Accepts --FASTA argument for per-fasta cleanup
+	local fasta=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA)
+				fasta="$2"; shift 2;;
+			*)
+				shift;;
+		esac
+	done
 	local keep_bam="$keep_bam_global"
 	if [[ ! "$keep_bam" =~ ^[yYnN]$ ]]; then
 		log_error "Invalid input for BAM cleanup: $keep_bam. Please enter 'y' or 'n'."
@@ -416,10 +425,15 @@ cleanup_bam_files() {
 	fi
 	keep_bam="${keep_bam,,}"
 
+	local fasta_base fasta_tag
+	fasta_base="$(basename "$fasta")"
+	fasta_tag="${fasta_base%.*}"
+	local bam_dir="$HISAT2_ROOT/$fasta_tag"
+
 	if [[ "$keep_bam" == "n" ]]; then
 		log_info "Deleting BAM files as per user request..."
-		run_with_time_to_log find "$HISAT2_ROOT" -type f -name "*.bam" -exec rm -f {} +
-		run_with_time_to_log find "$HISAT2_ROOT" -type f -name "*.bam.bai" -exec rm -f {} +
+		run_with_time_to_log find "$bam_dir" -type f -name "*.bam" -exec rm -f {} +
+		run_with_time_to_log find "$bam_dir" -type f -name "*.bam.bai" -exec rm -f {} +
 		log_info "BAM files deleted."
 	else
 		log_info "Keeping BAM files as per user request."
@@ -470,7 +484,7 @@ run_all() {
 		stringtie_merge --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 		stringtie_quantify --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 
-		cleanup_bam_files
+		cleanup_bam_files --FASTA "$fasta"
 
 		end_time=$(date +%s)
 		log_step "Final timing"
