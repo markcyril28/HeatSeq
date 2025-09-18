@@ -481,4 +481,4 @@ for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 done
 
 # Zip all the content of this folder: STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
-#tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver
+tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver
