@@ -28,7 +28,7 @@ SRR_LIST_PRJNA328564=(
 	#SRR3884664 # Fruits Calyx Stage 2
 	#SRR3884653 # Fruits Flesh Stage 2
 	#SRR3884677 # Cotyledons
-	#SRR3884679 # Pistils /
+	SRR3884679 # Pistils /
 	#SRR3884597 # Flowers
 	SRR3884686 # Buds Â¯ 0\,7 cm /
 	#SRR3884687 # Buds, Opened Buds
