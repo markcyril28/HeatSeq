@@ -49,7 +49,7 @@ HISAT2_INDEX_DIR="02_HISAT2/index"
 STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
-#rm -rf $TRIM_DIR_ROOT
+rm -rf $TRIM_DIR_ROOT
 rm -rf $HISAT2_ROOT      # Remove previous HISAT2 results
 rm -rf $HISAT2_INDEX_DIR # Remove previous HISAT2 index
 rm -rf $STRINGTIE_ROOT   # Remove previous StringTie results
