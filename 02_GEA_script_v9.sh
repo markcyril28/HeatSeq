@@ -41,8 +41,9 @@ SRR_LIST_PRJNA328564=(
 RAW_DIR_ROOT="00_Raw_Files_and_FastQC/PRJNA328564"
 TRIM_DIR_ROOT="01_Trimmed_TrimGalore_Ver/PRJNA328564"
 HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
-STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 HISAT2_INDEX_DIR="02_HISAT2/index"
+STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
+
 
 # Testing Essentials
 #rm -rf $TRIM_DIR_ROOT	
@@ -382,85 +383,6 @@ cleanup_bam_files() {
 	if [[ ! "$keep_bam" =~ ^[yYnN]$ ]]; then
 		log_error "Invalid input for BAM cleanup: $keep_bam. Please enter 'y' or 'n'."
 		exit 1
-	fi
-	keep_bam="${keep_bam,,}"
-
-	local fasta_base fasta_tag
-	fasta_base="$(basename "$fasta")"
-	fasta_tag="${fasta_base%.*}"
-	local bam_dir="$HISAT2_ROOT/$fasta_tag"
-
-	if [[ "$keep_bam" == "n" ]]; then
-		log_info "Deleting BAM files as per user request..."
-		run_with_time_to_log find "$bam_dir" -type f -name "*.bam" -exec rm -f {} +
-		run_with_time_to_log find "$bam_dir" -type f -name "*.bam.bai" -exec rm -f {} +
-		log_info "BAM files deleted."
-	else
-		log_info "Keeping BAM files as per user request."
-	fi
-}
-
-# ==============================================================================
-# RUN / ENTRYPOINT
-# ==============================================================================
-run_all() {
-	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
-		local fasta=""
-		local rnaseq_list=()
-		# Parse arguments
-		while [[ $# -gt 0 ]]; do
-			case "$1" in
-				--FASTA)
-					fasta="$2"; shift 2;;
-				--RNASEQ_LIST)
-					shift
-					while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-						rnaseq_list+=("$1")
-						shift
-					done
-					;;
-				*)
-					shift;;
-			esac
-		done
-
-		local start_time end_time elapsed formatted_elapsed
-		start_time=$(date +%s)
-		setup_logging
-		log_step "Script started at: $(date -d @$start_time)"
-		require_tools
-
-		log_step "STEP 00: Download SRR files"
-		download_srrs "${rnaseq_list[@]}"
-
-		log_step "STEP 01: Trimming"
-		trim_reads "${rnaseq_list[@]}"
-
-		log_step "STEP 02: Build HISAT2 index and align"
-		hisat2_index_align_sort --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-
-		log_step "STEP 03: StringTie assembly, merge, and quantification"
-		stringtie_assemble --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-		stringtie_merge --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-		stringtie_quantify --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-
-		cleanup_bam_files --FASTA "$fasta"
-
-		end_time=$(date +%s)
-		log_step "Final timing"
-		log_info "Script ended at: $(date -d @$end_time)"
-		elapsed=$((end_time - start_time))
-		formatted_elapsed=$(date -u -d @${elapsed} +%H:%M:%S)
-		log_info "Elapsed time: $formatted_elapsed"
-}
-
-# Run the pipeline for each FASTA input and SRR list.
-for fasta_input in "${ALL_FASTA_FILES[@]}"; do
-	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
-done
-
-# Zip all the content of this folder: STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
-#tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver
 	fi
 	keep_bam="${keep_bam,,}"
 
