@@ -283,75 +283,114 @@ hisat2_index_align_sort() {
 }
 
 stringtie_assemble() {
-	# De novo stringtie
-	for fasta in "${ALL_FASTA_FILES[@]}"; do
-		local fasta_base fasta_tag
-		fasta_base="$(basename "$fasta")"
-		fasta_tag="${fasta_base%.*}"
-		for SRR in "${SRR_LIST_PRJNA328564[@]}"; do
-			local stringtie_chr_DIR="$STRINGTIE_ROOT/$fasta_tag/$SRR"
-			local HISAT2_DIR="$HISAT2_ROOT/$fasta_tag/$SRR"
-			local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
-			local out_gtf="$stringtie_chr_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf"
-			mkdir -p "$stringtie_chr_DIR"
-			if [[ -f "$out_gtf" ]]; then
-				log_info "StringTie assembly exists for $fasta_tag/$SRR. Skipping."
-				continue
-			fi
-			run_with_time_to_log \
-				stringtie \
-					-p "$THREADS" "$bam" \
-					-o "$out_gtf" \
-					-A "$stringtie_chr_DIR/${SRR}_${fasta_tag}_gene_abundances_de_novo_v1.tsv"
-		done
+	local fasta=""
+	local rnaseq_list=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA)
+				fasta="$2"; shift 2;;
+			--RNASEQ_LIST)
+				shift
+				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+					rnaseq_list+=("$1")
+					shift
+				done
+				;;
+			*)
+				shift;;
+		esac
+	done
+	local fasta_base fasta_tag
+	fasta_base="$(basename "$fasta")"
+	fasta_tag="${fasta_base%.*}"
+	for SRR in "${rnaseq_list[@]}"; do
+		local stringtie_chr_DIR="$STRINGTIE_ROOT/$fasta_tag/$SRR"
+		local HISAT2_DIR="$HISAT2_ROOT/$fasta_tag/$SRR"
+		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
+		local out_gtf="$stringtie_chr_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf"
+		mkdir -p "$stringtie_chr_DIR"
+		if [[ -f "$out_gtf" ]]; then
+			log_info "StringTie assembly exists for $fasta_tag/$SRR. Skipping."
+			continue
+		fi
+		run_with_time_to_log \
+			stringtie \
+				-p "$THREADS" "$bam" \
+				-o "$out_gtf" \
+				-A "$stringtie_chr_DIR/${SRR}_${fasta_tag}_gene_abundances_de_novo_v1.tsv"
 	done
 }
 
 stringtie_merge() {
-	for fasta in "${ALL_FASTA_FILES[@]}"; do
-		local fasta_base fasta_tag
-		fasta_base="$(basename "$fasta")"
-		fasta_tag="${fasta_base%.*}"
-		local MERGELIST="$STRINGTIE_ROOT/mergelist_${fasta_tag}.txt"
-		mkdir -p "$STRINGTIE_ROOT"
-		find "$(realpath "$STRINGTIE_ROOT/$fasta_tag")" -type f -name "*${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf" > "$MERGELIST"
-		local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
-		if [[ -s "$merged_gtf" ]]; then
-			log_info "Merged transcripts GTF for $fasta_tag already exists. Skipping merge."
-			continue
-		fi
-		log_info "Merging transcripts listed in $MERGELIST for $fasta_tag ..."
-		run_with_time_to_log \
-			stringtie --merge -p "$THREADS" -o "$merged_gtf" "$MERGELIST"
+	local fasta=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA)
+				fasta="$2"; shift 2;;
+			--RNASEQ_LIST)
+				shift
+				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do shift; done;;
+			*)
+				shift;;
+		esac
 	done
+	local fasta_base fasta_tag
+	fasta_base="$(basename "$fasta")"
+	fasta_tag="${fasta_base%.*}"
+	local MERGELIST="$STRINGTIE_ROOT/mergelist_${fasta_tag}.txt"
+	mkdir -p "$STRINGTIE_ROOT"
+	find "$(realpath "$STRINGTIE_ROOT/$fasta_tag")" -type f -name "*${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf" > "$MERGELIST"
+	local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
+	if [[ -s "$merged_gtf" ]]; then
+		log_info "Merged transcripts GTF for $fasta_tag already exists. Skipping merge."
+		return
+	fi
+	log_info "Merging transcripts listed in $MERGELIST for $fasta_tag ..."
+	run_with_time_to_log \
+		stringtie --merge -p "$THREADS" -o "$merged_gtf" "$MERGELIST"
 }
 
 stringtie_quantify() {
-	for fasta in "${ALL_FASTA_FILES[@]}"; do
-		local fasta_base fasta_tag
-		fasta_base="$(basename "$fasta")"
-		fasta_tag="${fasta_base%.*}"
-		local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
-		if [[ ! -s "$merged_gtf" ]]; then
-			log_error "Merged GTF not found at $merged_gtf for $fasta_tag. Run stringtie_merge first."
+	local fasta=""
+	local rnaseq_list=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA)
+				fasta="$2"; shift 2;;
+			--RNASEQ_LIST)
+				shift
+				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+					rnaseq_list+=("$1")
+					shift
+				done
+				;;
+			*)
+				shift;;
+		esac
+	done
+	local fasta_base fasta_tag
+	fasta_base="$(basename "$fasta")"
+	fasta_tag="${fasta_base%.*}"
+	local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
+	if [[ ! -s "$merged_gtf" ]]; then
+		log_error "Merged GTF not found at $merged_gtf for $fasta_tag. Run stringtie_merge first."
+		return
+	fi
+	for SRR in "${rnaseq_list[@]}"; do
+		local HISAT2_DIR="$HISAT2_ROOT/$fasta_tag/$SRR"
+		local STRINGTIE_DIR="$STRINGTIE_ROOT/$fasta_tag/$SRR"
+		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
+		mkdir -p "$STRINGTIE_DIR"
+		local out_gtf="$STRINGTIE_DIR/${SRR}_${fasta_tag}_expression_estimates_de_novo_v2.gtf"
+		if [[ -f "$out_gtf" ]]; then
+			log_info "StringTie quantify exists for $fasta_tag/$SRR. Skipping."
 			continue
 		fi
-		for SRR in "${SRR_LIST_PRJNA328564[@]}"; do
-			local HISAT2_DIR="$HISAT2_ROOT/$fasta_tag/$SRR"
-			local STRINGTIE_DIR="$STRINGTIE_ROOT/$fasta_tag/$SRR"
-			local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
-			mkdir -p "$STRINGTIE_DIR"
-			local out_gtf="$STRINGTIE_DIR/${SRR}_${fasta_tag}_expression_estimates_de_novo_v2.gtf"
-			if [[ -f "$out_gtf" ]]; then
-				log_info "StringTie quantify exists for $fasta_tag/$SRR. Skipping."
-				continue
-			fi
-			run_with_time_to_log stringtie -p "$THREADS" -e -B "$bam" \
-				-G "$merged_gtf" \
-				-o "$out_gtf" \
-				-A "$STRINGTIE_DIR/${SRR}_${fasta_tag}_gene_abundances_de_novo_v2.tsv" \
-				-C "$STRINGTIE_DIR/${SRR}_${fasta_tag}_transcripts_with_coverage_de_novo.gtf"
-		done
+		run_with_time_to_log stringtie -p "$THREADS" -e -B "$bam" \
+			-G "$merged_gtf" \
+			-o "$out_gtf" \
+			-A "$STRINGTIE_DIR/${SRR}_${fasta_tag}_gene_abundances_de_novo_v2.tsv" \
+			-C "$STRINGTIE_DIR/${SRR}_${fasta_tag}_transcripts_with_coverage_de_novo.gtf"
 	done
 }
 
@@ -378,38 +417,60 @@ cleanup_bam_files() {
 # RUN / ENTRYPOINT
 # ==============================================================================
 run_all() {
-	local start_time end_time elapsed formatted_elapsed
-	start_time=$(date +%s)
-	setup_logging
-	log_step "Script started at: $(date -d @$start_time)"
-	require_tools
+		local fasta=""
+		local rnaseq_list=()
+		# Parse arguments
+		while [[ $# -gt 0 ]]; do
+			case "$1" in
+				--FASTA)
+					fasta="$2"; shift 2;;
+				--RNASEQ_LIST)
+					shift
+					while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+						rnaseq_list+=("$1")
+						shift
+					done
+					;;
+				*)
+					shift;;
+			esac
+		done
 
-	log_step "STEP 00: Download SRR files"
-	download_srrs "${SRR_LIST_PRJNA328564[@]}"
+		local start_time end_time elapsed formatted_elapsed
+		start_time=$(date +%s)
+		setup_logging
+		log_step "Script started at: $(date -d @$start_time)"
+		require_tools
 
-	log_step "STEP 01: Trimming"
-	trim_reads "${SRR_LIST_PRJNA328564[@]}"
+		log_step "STEP 00: Download SRR files"
+		download_srrs "${rnaseq_list[@]}"
 
-	log_step "STEP 02: Build HISAT2 index and align"
-	for fasta in "${ALL_FASTA_FILES[@]}"; do
-		hisat2_index_align_sort --FASTA "$fasta" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
-	done
-	log_step "STEP 03: StringTie assembly, merge, and quantification"
-	stringtie_assemble
-	stringtie_merge
-	stringtie_quantify
+		log_step "STEP 01: Trimming"
+		trim_reads "${rnaseq_list[@]}"
 
-	cleanup_bam_files
+		log_step "STEP 02: Build HISAT2 index and align"
+		hisat2_index_align_sort --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 
-	end_time=$(date +%s)
-	log_step "Final timing"
-	log_info "Script ended at: $(date -d @$end_time)"
-	elapsed=$((end_time - start_time))
-	formatted_elapsed=$(date -u -d @${elapsed} +%H:%M:%S)
-	log_info "Elapsed time: $formatted_elapsed"
+		log_step "STEP 03: StringTie assembly, merge, and quantification"
+		stringtie_assemble --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		stringtie_merge --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		stringtie_quantify --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+
+		cleanup_bam_files
+
+		end_time=$(date +%s)
+		log_step "Final timing"
+		log_info "Script ended at: $(date -d @$end_time)"
+		elapsed=$((end_time - start_time))
+		formatted_elapsed=$(date -u -d @${elapsed} +%H:%M:%S)
+		log_info "Elapsed time: $formatted_elapsed"
 }
 
-run_all
+for fasta_input in "${ALL_FASTA_FILES[@]}"; do
+	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
+done
+
+
 
 # Zip all the content of this folder: STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver
