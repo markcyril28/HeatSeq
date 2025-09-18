@@ -18,9 +18,9 @@ THREADS="${user_threads:-64}"
 
 ALL_FASTA_FILES=(
 	"00_INPUTS/TEST.fa"
-	#"00_INPUTS/All_Control.fa"
-	#"00_INPUTS/SmelGRF.fasta"
-	#"00_INPUTS/SmelGIF.fasta"
+	"00_INPUTS/All_Control.fa"
+	"00_INPUTS/SmelGRF.fasta"
+	"00_INPUTS/SmelGIF.fasta"
 )
 
 SRR_LIST_PRJNA328564=(
@@ -28,7 +28,7 @@ SRR_LIST_PRJNA328564=(
 	#SRR3884664 # Fruits Calyx Stage 2
 	#SRR3884653 # Fruits Flesh Stage 2
 	#SRR3884677 # Cotyledons
-	SRR3884679 # Pistils /
+	#SRR3884679 # Pistils /
 	#SRR3884597 # Flowers
 	SRR3884686 # Buds Â¯ 0\,7 cm /
 	#SRR3884687 # Buds, Opened Buds
