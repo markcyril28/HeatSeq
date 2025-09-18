@@ -6,7 +6,7 @@ set -euo pipefail
 # CONFIGURATION
 # ============================================================================== 
 #read -p "How many CPU threads to use? [default: 4]: " user_threads
-THREADS="${user_threads:-32}"
+THREADS="${user_threads:-64}"
 
 # ==============================================================================
 # INPUT FILES
