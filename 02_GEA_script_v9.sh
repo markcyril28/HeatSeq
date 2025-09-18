@@ -293,8 +293,13 @@ hisat2_index_align_sort() {
 }
 
 stringtie_assemble() {
-	# StringTie assembly for multiple RNA-seq samples, run in parallel
-	local fasta rnaseq_list=() MAX_JOBS="${MAX_JOBS:-$((THREADS/2))}"
+	# StringTie assembly for multiple RNA-seq samples, run in parallel (hybrid mode)
+	local fasta rnaseq_list=()
+	local CORES; CORES=$(nproc --all); (( CORES > 64 )) && CORES=64
+	local MAX_JOBS="${MAX_JOBS:-4}"                          # default concurrent jobs
+	local THREADS="${THREADS:-$((CORES / MAX_JOBS))}"        # threads per job
+
+	# Parse arguments
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--FASTA) fasta="$2"; shift 2;;
@@ -302,15 +307,23 @@ stringtie_assemble() {
 			*) shift;;
 		esac
 	done
+
 	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
+	log_info "Running StringTie assembly with CORES=$CORES, THREADS=$THREADS, MAX_JOBS=$MAX_JOBS"
+
 	for SRR in "${rnaseq_list[@]}"; do
 		(
 			local out_dir="$STRINGTIE_ROOT/$fasta_tag/$SRR"
 			local bam="$HISAT2_ROOT/$fasta_tag/$SRR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 			local out_gtf="$out_dir/${SRR}_${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf"
+
 			mkdir -p "$out_dir"
-			[[ -f "$out_gtf" ]] && log_info "StringTie assembly exists for $fasta_tag/$SRR. Skipping." && exit 0
-			run_with_time_to_log stringtie -p "$THREADS" "$bam" -o "$out_gtf" -A "$out_dir/${SRR}_${fasta_tag}_gene_abundances_de_novo_v1.tsv"
+			[[ -f "$out_gtf" ]] && log_info "Assembly exists for $fasta_tag/$SRR. Skipping." && exit 0
+
+			run_with_time_to_log \
+				stringtie -p "$THREADS" "$bam" \
+					-o "$out_gtf" \
+					-A "$out_dir/${SRR}_${fasta_tag}_gene_abundances_de_novo_v1.tsv"
 		) &
 		[[ $(jobs -r -p | wc -l) -ge "$MAX_JOBS" ]] && wait -n
 	done
@@ -327,20 +340,32 @@ stringtie_merge() {
 			*) shift;;
 		esac
 	done
+
 	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
 	local MERGELIST="$STRINGTIE_ROOT/mergelist_${fasta_tag}.txt"
 	mkdir -p "$STRINGTIE_ROOT"
-	find "$(realpath "$STRINGTIE_ROOT/$fasta_tag")" -type f -name "*${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf" > "$MERGELIST"
+	find "$(realpath "$STRINGTIE_ROOT/$fasta_tag")" -type f \
+		-name "*${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf" > "$MERGELIST"
+
 	local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
-	[[ -s "$merged_gtf" ]] && log_info "Merged transcripts GTF for $fasta_tag already exists. Skipping merge." && return
-	log_info "Merging transcripts listed in $MERGELIST for $fasta_tag ..."
-	run_with_time_to_log stringtie --merge -p "$THREADS" -o "$merged_gtf" "$MERGELIST"
+	[[ -s "$merged_gtf" ]] && log_info "Merged GTF for $fasta_tag already exists. Skipping." && return
+
+	local CORES; CORES=$(nproc --all); (( CORES > 64 )) && CORES=64
+	local THREADS="${THREADS:-$CORES}"
+	log_info "Merging transcripts with THREADS=$THREADS (CORES capped at $CORES)"
+
+	run_with_time_to_log \
+		stringtie --merge -p "$THREADS" -o "$merged_gtf" "$MERGELIST"
 }
 
 stringtie_quantify() {
-	# Quantify expression using merged GTF for each sample (parallelized)
-	local fasta rnaseq_list=() MAX_JOBS="${MAX_JOBS:-$((THREADS/2))}"
-	local CORES; CORES=$(nproc --all); (( MAX_JOBS > CORES )) && MAX_JOBS=$CORES
+	# Quantify expression using merged GTF for each sample (hybrid mode)
+	local fasta rnaseq_list=()
+	local CORES; CORES=$(nproc --all); (( CORES > 64 )) && CORES=64
+	local MAX_JOBS="${MAX_JOBS:-4}"                          # default concurrent jobs
+	local THREADS="${THREADS:-$((CORES / MAX_JOBS))}"        # threads per job
+
+	# Parse arguments
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--FASTA) fasta="$2"; shift 2;;
@@ -348,19 +373,29 @@ stringtie_quantify() {
 			*) shift;;
 		esac
 	done
+
 	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
 	local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
-	[[ ! -s "$merged_gtf" ]] && log_error "Merged GTF not found at $merged_gtf for $fasta_tag. Run stringtie_merge first." && return 1
-	log_info "Running StringTie quantification with THREADS=$THREADS, MAX_JOBS=$MAX_JOBS"
+	[[ ! -s "$merged_gtf" ]] && log_error "Merged GTF not found at $merged_gtf. Run stringtie_merge first." && return 1
+
+	log_info "Running StringTie quantification with CORES=$CORES, THREADS=$THREADS, MAX_JOBS=$MAX_JOBS"
+
 	for SRR in "${rnaseq_list[@]}"; do
 		(
 			local HISAT2_DIR="$HISAT2_ROOT/$fasta_tag/$SRR"
 			local STRINGTIE_DIR="$STRINGTIE_ROOT/$fasta_tag/$SRR"
 			local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 			local out_gtf="$STRINGTIE_DIR/${SRR}_${fasta_tag}_expression_estimates_de_novo_v2.gtf"
+
 			mkdir -p "$STRINGTIE_DIR"
-			[[ -f "$out_gtf" ]] && log_info "StringTie quantify exists for $fasta_tag/$SRR. Skipping." && exit 0
-			run_with_time_to_log stringtie -p "$THREADS" -e -B "$bam" -G "$merged_gtf" -o "$out_gtf" -A "$STRINGTIE_DIR/${SRR}_${fasta_tag}_gene_abundances_de_novo_v2.tsv" -C "$STRINGTIE_DIR/${SRR}_${fasta_tag}_transcripts_with_coverage_de_novo.gtf"
+			[[ -f "$out_gtf" ]] && log_info "Quantification exists for $fasta_tag/$SRR. Skipping." && exit 0
+
+			run_with_time_to_log \
+				stringtie -p "$THREADS" -e -B "$bam" \
+					-G "$merged_gtf" \
+					-o "$out_gtf" \
+					-A "$STRINGTIE_DIR/${SRR}_${fasta_tag}_gene_abundances_de_novo_v2.tsv" \
+					-C "$STRINGTIE_DIR/${SRR}_${fasta_tag}_transcripts_with_coverage_de_novo.gtf"
 		) &
 		[[ $(jobs -r -p | wc -l) -ge "$MAX_JOBS" ]] && wait -n
 	done
