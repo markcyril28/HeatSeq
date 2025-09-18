@@ -256,7 +256,7 @@ hisat2_index_align_sort() {
 		fi
 		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 		local sam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped.sam"
-		if [[ -f "$bam" && -f "${bam}.bai" && -f "${sam}"]]; then
+		if [[ -f "$bam" && -f "${bam}.bai" && -f "${sam}" ]]; then
 			log_info "BAM for $SRR and $fasta_tag already exists. Skipping alignment."
 			continue
 		fi
