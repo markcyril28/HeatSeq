@@ -69,7 +69,7 @@ setup_logging() {
 	# Set up logging and output redirection
 	# Prompt for BAM cleanup option after logging setup
 	#read -p "Do you want to keep the BAM files after StringTie assembly? (y/n) [default: y]: " keep_bam_global
-	keep_bam_global="${keep_bam_global:-n}"
+	keep_bam_global="${keep_bam_global:-y}"
 
 	mkdir -p "$LOG_DIR"
 	#rm -f "$LOG_DIR"/*.log
@@ -286,7 +286,7 @@ hisat2_index_align_sort() {
 			samtools sort -@ "${THREADS}" -o "$bam" "$sam"
 		run_with_time_to_log \
 			samtools index -@ "${THREADS}" "$bam"
-		rm -f "$sam"
+		#rm -f "$sam"
 		log_info "Done aligning $fasta_tag with $SRR."
 	done
 }
