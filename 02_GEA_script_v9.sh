@@ -18,9 +18,9 @@ THREADS="${user_threads:-64}"
 
 ALL_FASTA_FILES=(
 	"00_INPUTS/TEST.fa"
-	"00_INPUTS/All_Control.fa"
-	"00_INPUTS/SmelGRF.fasta"
-	"00_INPUTS/SmelGIF.fasta"
+	#"00_INPUTS/All_Control.fa"
+	#"00_INPUTS/SmelGRF.fasta"
+	#"00_INPUTS/SmelGIF.fasta"
 )
 
 SRR_LIST_PRJNA328564=(
@@ -46,7 +46,7 @@ HISAT2_INDEX_DIR="02_HISAT2/index"
 
 # Testing Essentials
 #rm -rf $TRIM_DIR_ROOT	
-#rm -rf $HISAT2_ROOT
+rm -rf $HISAT2_ROOT
 rm -rf $HISAT2_INDEX_DIR
 rm -rf $STRINGTIE_ROOT
 
@@ -271,7 +271,7 @@ hisat2_index_align_sort() {
 		fi
 		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 		local sam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped.sam"
-		if [[ -f "$bam" && -f "${bam}.bai" && -f "${sam}" ]]; then
+		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
 			log_info "BAM for $SRR and $fasta_tag already exists. Skipping alignment."
 			continue
 		fi
