@@ -72,7 +72,7 @@ setup_logging() {
 	# Set up logging and output redirection
 	# Prompt for BAM cleanup option after logging setup
 	#read -p "Do you want to keep the BAM files after StringTie assembly? (y/n) [default: y]: " keep_bam_global
-	keep_bam_global="${keep_bam_global:-y}"
+	keep_bam_global="${keep_bam_global:-n}"
 
 	mkdir -p "$LOG_DIR"
 	#rm -f "$LOG_DIR"/*.log
