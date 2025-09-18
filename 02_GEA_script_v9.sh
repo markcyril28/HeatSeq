@@ -1,11 +1,10 @@
 #!/bin/bash
 
-echo "Starting main pipeline script..."
-
 set -euo pipefail
 
+# Chmod and Converts the file to Unix line endings
 chmod +x ./02_GEA_run.sh
-
+dos2unix 02_GEA_run.sh
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
