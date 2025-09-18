@@ -41,6 +41,10 @@ TRIM_DIR_ROOT="01_Trimmed_TrimGalore_Ver/PRJNA328564"
 HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
 STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 HISAT2_INDEX_DIR="02_HISAT2/index"
+rm -r $TRIM_DIR_ROOT
+rm -r $HISAT2_ROOT
+rm -r $STRINGTIE_ROOT
+rm -r $HISAT2_INDEX_DIR
 
 # ==============================================================================
 # LOGGING
