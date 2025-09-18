@@ -43,8 +43,10 @@ TRIM_DIR_ROOT="01_Trimmed_TrimGalore_Ver/PRJNA328564"
 HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
 STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
 HISAT2_INDEX_DIR="02_HISAT2/index"
-rm -rf $TRIM_DIR_ROOT	
-rm -rf $HISAT2_ROOT
+
+# Testing Essentials
+#rm -rf $TRIM_DIR_ROOT	
+#rm -rf $HISAT2_ROOT
 rm -rf $STRINGTIE_ROOT
 rm -rf $HISAT2_INDEX_DIR
 
@@ -63,6 +65,7 @@ log_error() { log ERROR "$@"; }
 log_step() { log INFO "===== $* ====="; }
 
 setup_logging() {
+	# Set up logging and output redirection
 	# Prompt for BAM cleanup option after logging setup
 	#read -p "Do you want to keep the BAM files after StringTie assembly? (y/n) [default: y]: " keep_bam_global
 	keep_bam_global="${keep_bam_global:-n}"
@@ -88,6 +91,7 @@ trap 'log_error "Command failed (rc=$?) at line $LINENO: ${BASH_COMMAND:-unknown
 trap 'log_info "Script finished. See log: $LOG_FILE"' EXIT
 
 run_with_time_to_log() {
+	# Run a command and log resource usage
     /usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
 }
 
@@ -95,6 +99,7 @@ run_with_time_to_log() {
 # TOOLING
 # ==============================================================================
 require_tools() {
+	# Ensure required tools and conda environment are available
 	log_info "Ensuring conda environment 'GEA_ENV' and required tools..."
 	local env_name="GEA_env"
 	local required_cmds=(fasterq-dump trim_galore hisat2 samtools stringtie)
@@ -147,6 +152,7 @@ require_tools() {
 # FUNCTIONS
 # ==============================================================================
 download_srrs() {
+	# Download RNA-seq data for each SRR sample
 	local SRR_LIST=("$@")
 	if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
 		SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
@@ -167,6 +173,7 @@ download_srrs() {
 }
 
 trim_reads() {
+	# Trim reads for each sample using Trim Galore
 	local SRR_LIST=("$@")
 	if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
 		SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
@@ -199,6 +206,7 @@ trim_reads() {
 }
 
 hisat2_index_align_sort() {
+	# Build HISAT2 index and align reads for each sample
 	# Build HISAT2 index and align SRR reads
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -283,6 +291,7 @@ hisat2_index_align_sort() {
 }
 
 stringtie_assemble() {
+	# Run StringTie assembly for each sample
 	local fasta=""
 	local rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -322,6 +331,7 @@ stringtie_assemble() {
 }
 
 stringtie_merge() {
+	# Merge StringTie assemblies for each FASTA
 	local fasta=""
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -351,6 +361,7 @@ stringtie_merge() {
 }
 
 stringtie_quantify() {
+	# Quantify expression using merged GTF for each sample
 	local fasta=""
 	local rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -395,6 +406,7 @@ stringtie_quantify() {
 }
 
 cleanup_bam_files() {
+	# Optionally clean up BAM files after processing
 	# Use the global keep_bam_global variable set after logging setup
 	local keep_bam="$keep_bam_global"
 	if [[ ! "$keep_bam" =~ ^[yYnN]$ ]]; then
@@ -417,6 +429,7 @@ cleanup_bam_files() {
 # RUN / ENTRYPOINT
 # ==============================================================================
 run_all() {
+	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
 		local fasta=""
 		local rnaseq_list=()
 		# Parse arguments
@@ -466,6 +479,7 @@ run_all() {
 		log_info "Elapsed time: $formatted_elapsed"
 }
 
+# Run the pipeline for each FASTA input and SRR list.
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
 done
