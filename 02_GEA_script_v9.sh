@@ -3,13 +3,13 @@
 set -euo pipefail
 
 # Chmod and Converts the file to Unix line endings
-chmod +x ./02_GEA_run.sh
-dos2unix 02_GEA_run.sh
+chmod +x ./02_GEA_run.sh   # Ensure the run script is executable
+dos2unix 02_GEA_run.sh     # Convert Windows line endings to Unix
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
 #read -p "How many CPU threads to use? [default: 4]: " user_threads
-THREADS="${user_threads:-64}"
+THREADS="${user_threads:-64}"  # Number of threads to use for parallel operations
 
 # ==============================================================================
 # INPUT FILES
@@ -18,6 +18,7 @@ THREADS="${user_threads:-64}"
 #Eggplant_V4_1_transcripts_function_FASTA_FILE="00_INPUTS/Eggplant_V4_1_transcripts_function.fa"
 
 ALL_FASTA_FILES=(
+	# List of FASTA files to process
 	"00_INPUTS/TEST.fasta"
 	"00_INPUTS/SmelDMP_CDS_Control_Best.fasta"
 	"00_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
@@ -26,13 +27,14 @@ ALL_FASTA_FILES=(
 )
 
 SRR_LIST_PRJNA328564=(
-	SRR3884631 # Fruits Â¯ 6 cm
+	# List of SRR sample IDs to process
+	SRR3884631 # Fruits 6 cm
 	#SRR3884664 # Fruits Calyx Stage 2
 	#SRR3884653 # Fruits Flesh Stage 2
 	SRR3884677 # Cotyledons
-	SRR3884679 # Pistils /
+	SRR3884679 # Pistils
 	SRR3884597 # Flowers
-	SRR3884686 # Buds Â¯ 0\,7 cm /
+	SRR3884686 # Buds 0.7 cm
 	SRR3884687 # Buds, Opened Buds
 	SRR3884689 # Leaves
 	SRR3884690 # Stems
@@ -45,13 +47,12 @@ TRIM_DIR_ROOT="01_Trimmed_TrimGalore_Ver/PRJNA328564"
 HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
 HISAT2_INDEX_DIR="02_HISAT2/index"
 STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
-
-
-# Testing Essentials
-#rm -rf $TRIM_DIR_ROOT	
-rm -rf $HISAT2_ROOT
-rm -rf $HISAT2_INDEX_DIR
-rm -rf $STRINGTIE_ROOT
+# ==============================================================================
+# CLEANUP OPTIONS and Testing Essentials
+#rm -rf $TRIM_DIR_ROOT
+rm -rf $HISAT2_ROOT      # Remove previous HISAT2 results
+rm -rf $HISAT2_INDEX_DIR # Remove previous HISAT2 index
+rm -rf $STRINGTIE_ROOT   # Remove previous StringTie results
 
 
 # ==============================================================================
@@ -95,8 +96,8 @@ trap 'log_error "Command failed (rc=$?) at line $LINENO: ${BASH_COMMAND:-unknown
 trap 'log_info "Script finished. See log: $LOG_FILE"' EXIT
 
 run_with_time_to_log() {
-	# Run a command and log resource usage
-    /usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
+	# Run a command and log resource usage (tracks time and memory)
+	/usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
 }
 
 # ==============================================================================
@@ -156,7 +157,7 @@ require_tools() {
 # FUNCTIONS
 # ==============================================================================
 download_srrs() {
-	# Download RNA-seq data for each SRR sample
+	# Download RNA-seq data for each SRR sample using fasterq-dump
 	local SRR_LIST=("$@")
 	if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
 		SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
@@ -210,8 +211,7 @@ trim_reads() {
 }
 
 hisat2_index_align_sort() {
-	# Build HISAT2 index and align reads for each sample
-	# Build HISAT2 index and align SRR reads
+	# Build HISAT2 index from FASTA and align trimmed reads for each sample
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -296,7 +296,7 @@ hisat2_index_align_sort() {
 }
 
 stringtie_assemble() {
-	# StringTie assembly for multiple RNA-seq samples, run sequentially
+	# Assemble transcripts for each sample using StringTie
 	local fasta rnaseq_list=()
 
 	# Parse arguments
@@ -326,7 +326,7 @@ stringtie_assemble() {
 }
 
 stringtie_merge() {
-	# Merge StringTie assemblies for each FASTA
+	# Merge all StringTie assemblies for a given FASTA into a single GTF
 	local fasta
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -351,7 +351,7 @@ stringtie_merge() {
 }
 
 stringtie_quantify() {
-	# Quantify expression using merged GTF for each sample, run sequentially
+	# Quantify gene expression for each sample using merged GTF
 	local fasta rnaseq_list=()
 
 	# Parse arguments
@@ -426,6 +426,7 @@ cleanup_bam_files() {
 # ==============================================================================
 run_all() {
 	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
+	# Steps: logging, tool check, download, trim, align, assemble, merge, quantify, cleanup
 		local fasta=""
 		local rnaseq_list=()
 		# Parse arguments
@@ -477,8 +478,9 @@ run_all() {
 
 # Run the pipeline for each FASTA input and SRR list.
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
+	# Run the pipeline for each FASTA file and all SRR samples
 	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
 done
 
 # Zip all the content of this folder: STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
-tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver
+tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver  # Archive all StringTie results for sharing or backup
