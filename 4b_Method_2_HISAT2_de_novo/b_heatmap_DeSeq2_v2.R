@@ -507,7 +507,23 @@ process_group <- function(file) {
     gene_vars[na_genes] <- median_var
   }
   
-  all_genes <- 1:nrow(mat)  # Use ALL genes (no filtering to top genes)
+  # --------------------------------------------------------------------------
+  # STEP 6.5: SORT GENES BY OVERALL EXPRESSION LEVEL
+  # --------------------------------------------------------------------------
+  
+  cat("  🔄 Sorting genes by overall expression level (low to high)...\n")
+  
+  # Calculate mean expression across all samples for each gene
+  gene_mean_expression <- rowMeans(mat, na.rm = TRUE)
+  
+  # Sort genes by mean expression level (low to high expression)
+  # This will put low expression genes on the left, high expression genes on the right
+  gene_order <- order(gene_mean_expression, decreasing = FALSE)  # FALSE = ascending (low to high)
+  all_genes <- gene_order
+  
+  cat("  ✅ Genes sorted by mean expression level:", length(all_genes), "genes\n")
+  cat("  📊 Expression range (mean across samples):", 
+      round(min(gene_mean_expression), 2), "to", round(max(gene_mean_expression), 2), "\n")
   
   cat("  📉 Matrix ready:", nrow(mat), "genes x", ncol(mat), "samples\n")
   
