@@ -1,0 +1,38 @@
+# stringtie -p 64 -e -B 02_HISAT2/TrimGalore_Ver/SmelGRF_with_Best_Control_Cyclo/SRR3884690/SRR3884690_SmelGRF_with_Best_Control_Cyclo_trimmed_mapped_sorted.bam -G 03_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_SmelGRF_with_Best_Control_Cyclo.gtf -o 03_stringtie/TrimGalore_Ver/SmelGRF_with_Best_Control_Cyclo/SRR3884690/SRR3884690_SmelGRF_with_Best_Control_Cyclo_expression_estimates_de_novo_v2.gtf -A 03_stringtie/TrimGalore_Ver/SmelGRF_with_Best_Control_Cyclo/SRR3884690/SRR3884690_SmelGRF_with_Best_Control_Cyclo_gene_abundances_de_novo_v2.tsv -C 03_stringtie/TrimGalore_Ver/SmelGRF_with_Best_Control_Cyclo/SRR3884690/SRR3884690_SmelGRF_with_Best_Control_Cyclo_transcripts_with_coverage_de_novo.gtf
+# StringTie version 3.0.0
+SmelGRF_01.230	StringTie	transcript	1	1260	1000	.	.	gene_id "MSTRG.10"; transcript_id "MSTRG.10.1"; cov "1.253968"; FPKM "300.164673"; TPM "164.265457";
+SmelGRF_01.230	StringTie	exon	1	1260	1000	.	.	gene_id "MSTRG.10"; transcript_id "MSTRG.10.1"; exon_number "1"; cov "1.253968";
+SmelGRF_10.710	StringTie	transcript	1	1032	1000	.	.	gene_id "MSTRG.6"; transcript_id "MSTRG.6.1"; cov "2.468992"; FPKM "591.007263"; TPM "323.429382";
+SmelGRF_10.710	StringTie	exon	1	1032	1000	.	.	gene_id "MSTRG.6"; transcript_id "MSTRG.6.1"; exon_number "1"; cov "2.468992";
+SmelGRF_10.940	StringTie	transcript	1	840	1000	.	.	gene_id "MSTRG.5"; transcript_id "MSTRG.5.1"; cov "3.613095"; FPKM "864.873413"; TPM "473.302917";
+SmelGRF_10.940	StringTie	exon	1	840	1000	.	.	gene_id "MSTRG.5"; transcript_id "MSTRG.5.1"; exon_number "1"; cov "3.613095";
+SmelGRF_02	StringTie	transcript	1	1713	1000	.	.	gene_id "MSTRG.11"; transcript_id "MSTRG.11.1"; cov "0.295972"; FPKM "70.847374"; TPM "38.771305";
+SmelGRF_02	StringTie	exon	1	1713	1000	.	.	gene_id "MSTRG.11"; transcript_id "MSTRG.11.1"; exon_number "1"; cov "0.295972";
+SmelGRF_03	StringTie	transcript	1	1437	.	+	.	gene_id "MSTRG.7"; transcript_id "MSTRG.7.2"; cov "0.0"; FPKM "0.000000"; TPM "0.000000";
+SmelGRF_03	StringTie	exon	1	937	.	+	.	gene_id "MSTRG.7"; transcript_id "MSTRG.7.2"; exon_number "1"; cov "0.0";
+SmelGRF_03	StringTie	exon	1113	1437	.	+	.	gene_id "MSTRG.7"; transcript_id "MSTRG.7.2"; exon_number "2"; cov "0.0";
+SmelGRF_03	StringTie	transcript	1	1437	1000	+	.	gene_id "MSTRG.7"; transcript_id "MSTRG.7.1"; cov "0.232429"; FPKM "55.636967"; TPM "30.447392";
+SmelGRF_03	StringTie	exon	1	1437	1000	+	.	gene_id "MSTRG.7"; transcript_id "MSTRG.7.1"; exon_number "1"; cov "0.232429";
+SmelGRF_04	StringTie	transcript	1	1797	1000	.	.	gene_id "MSTRG.2"; transcript_id "MSTRG.2.1"; cov "3.591542"; FPKM "859.714172"; TPM "470.479523";
+SmelGRF_04	StringTie	exon	1	1797	1000	.	.	gene_id "MSTRG.2"; transcript_id "MSTRG.2.1"; exon_number "1"; cov "3.591542";
+SmelGRF_07	StringTie	transcript	1	996	1000	.	.	gene_id "MSTRG.14"; transcript_id "MSTRG.14.1"; cov "0.596386"; FPKM "142.758041"; TPM "78.124496";
+SmelGRF_07	StringTie	exon	1	996	1000	.	.	gene_id "MSTRG.14"; transcript_id "MSTRG.14.1"; exon_number "1"; cov "0.596386";
+SmelGRF_08.800	StringTie	transcript	1	1128	1000	.	.	gene_id "MSTRG.12"; transcript_id "MSTRG.12.1"; cov "1.352837"; FPKM "323.831146"; TPM "177.216949";
+SmelGRF_08.800	StringTie	exon	1	1128	1000	.	.	gene_id "MSTRG.12"; transcript_id "MSTRG.12.1"; exon_number "1"; cov "1.352837";
+SmelGRF_05	StringTie	transcript	1	1841	.	-	.	gene_id "MSTRG.13"; transcript_id "MSTRG.13.2"; cov "0.0"; FPKM "0.000000"; TPM "0.000000";
+SmelGRF_05	StringTie	exon	1	545	.	-	.	gene_id "MSTRG.13"; transcript_id "MSTRG.13.2"; exon_number "1"; cov "0.0";
+SmelGRF_05	StringTie	exon	1299	1841	.	-	.	gene_id "MSTRG.13"; transcript_id "MSTRG.13.2"; exon_number "2"; cov "0.0";
+SmelGRF_05	StringTie	transcript	1	1841	1000	-	.	gene_id "MSTRG.13"; transcript_id "MSTRG.13.1"; cov "4.170202"; FPKM "998.229065"; TPM "546.281982";
+SmelGRF_05	StringTie	exon	1	1841	1000	-	.	gene_id "MSTRG.13"; transcript_id "MSTRG.13.1"; exon_number "1"; cov "4.170202";
+SmelGRF_08.140	StringTie	transcript	51	1548	1000	+	.	gene_id "MSTRG.9"; transcript_id "MSTRG.9.1"; cov "6.085996"; FPKM "1456.816406"; TPM "797.244324";
+SmelGRF_08.140	StringTie	exon	51	206	1000	+	.	gene_id "MSTRG.9"; transcript_id "MSTRG.9.1"; exon_number "1"; cov "0.179487";
+SmelGRF_08.140	StringTie	exon	672	1548	1000	+	.	gene_id "MSTRG.9"; transcript_id "MSTRG.9.1"; exon_number "2"; cov "7.136640";
+SmelGRF_08.890	StringTie	transcript	1	924	1000	.	.	gene_id "MSTRG.3"; transcript_id "MSTRG.3.1"; cov "11.825758"; FPKM "2830.754150"; TPM "1549.133301";
+SmelGRF_08.890	StringTie	exon	1	924	1000	.	.	gene_id "MSTRG.3"; transcript_id "MSTRG.3.1"; exon_number "1"; cov "11.825758";
+SmelGRF_09.160	StringTie	transcript	27	1095	1000	.	.	gene_id "MSTRG.4"; transcript_id "MSTRG.4.1"; cov "0.419083"; FPKM "100.316689"; TPM "54.898418";
+SmelGRF_09.160	StringTie	exon	27	1095	1000	.	.	gene_id "MSTRG.4"; transcript_id "MSTRG.4.1"; exon_number "1"; cov "0.419083";
+SmelCyclo01	StringTie	transcript	1	516	1000	.	.	gene_id "MSTRG.1"; transcript_id "MSTRG.1.1"; cov "7597.883789"; FPKM "1818719.750000"; TPM "995296.437500";
+SmelCyclo01	StringTie	exon	1	516	1000	.	.	gene_id "MSTRG.1"; transcript_id "MSTRG.1.1"; exon_number "1"; cov "7597.883789";
+SmelGRF_01.300	StringTie	transcript	1	891	.	+	.	gene_id "MSTRG.8"; transcript_id "MSTRG.8.1"; cov "0.0"; FPKM "0.0"; TPM "0.0";
+SmelGRF_01.300	StringTie	exon	1	393	.	+	.	gene_id "MSTRG.8"; transcript_id "MSTRG.8.1"; exon_number "1"; cov "0.0";
+SmelGRF_01.300	StringTie	exon	421	891	.	+	.	gene_id "MSTRG.8"; transcript_id "MSTRG.8.1"; exon_number "2"; cov "0.0";

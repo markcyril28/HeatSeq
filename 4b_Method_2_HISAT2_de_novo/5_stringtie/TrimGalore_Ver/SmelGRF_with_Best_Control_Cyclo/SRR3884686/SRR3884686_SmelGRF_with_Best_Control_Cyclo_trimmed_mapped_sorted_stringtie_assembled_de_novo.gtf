@@ -1,0 +1,35 @@
+# stringtie -p 64 02_HISAT2/TrimGalore_Ver/SmelGRF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGRF_with_Best_Control_Cyclo_trimmed_mapped_sorted.bam -o 03_stringtie/TrimGalore_Ver/SmelGRF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGRF_with_Best_Control_Cyclo_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf -A 03_stringtie/TrimGalore_Ver/SmelGRF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGRF_with_Best_Control_Cyclo_gene_abundances_de_novo_v1.tsv
+# StringTie version 3.0.0
+SmelGRF_01.230	StringTie	transcript	51	1260	1000	.	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "50.240498"; FPKM "10902.717773"; TPM "6202.838867";
+SmelGRF_01.230	StringTie	exon	51	1260	1000	.	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "50.240498";
+SmelGRF_10.710	StringTie	transcript	1	1031	1000	.	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; cov "34.392822"; FPKM "7463.604980"; TPM "4246.238770";
+SmelGRF_10.710	StringTie	exon	1	1031	1000	.	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "1"; cov "34.392822";
+SmelGRF_10.940	StringTie	transcript	1	840	1000	.	.	gene_id "STRG.3"; transcript_id "STRG.3.1"; cov "7.354762"; FPKM "1596.060913"; TPM "908.040466";
+SmelGRF_10.940	StringTie	exon	1	840	1000	.	.	gene_id "STRG.3"; transcript_id "STRG.3.1"; exon_number "1"; cov "7.354762";
+SmelGRF_02	StringTie	transcript	3	1713	1000	.	.	gene_id "STRG.4"; transcript_id "STRG.4.1"; cov "51.252483"; FPKM "11122.329102"; TPM "6327.781738";
+SmelGRF_02	StringTie	exon	3	1713	1000	.	.	gene_id "STRG.4"; transcript_id "STRG.4.1"; exon_number "1"; cov "51.252483";
+SmelGRF_03	StringTie	transcript	1	1437	1000	.	.	gene_id "STRG.5"; transcript_id "STRG.5.1"; cov "13.909358"; FPKM "3018.477295"; TPM "1717.290039";
+SmelGRF_03	StringTie	exon	1	1437	1000	.	.	gene_id "STRG.5"; transcript_id "STRG.5.1"; exon_number "1"; cov "13.909358";
+SmelGRF_03	StringTie	transcript	1	1437	1000	+	.	gene_id "STRG.6"; transcript_id "STRG.6.1"; cov "2.092118"; FPKM "454.011658"; TPM "258.299011";
+SmelGRF_03	StringTie	exon	1	937	1000	+	.	gene_id "STRG.6"; transcript_id "STRG.6.1"; exon_number "1"; cov "1.809040";
+SmelGRF_03	StringTie	exon	1113	1437	1000	+	.	gene_id "STRG.6"; transcript_id "STRG.6.1"; exon_number "2"; cov "2.908253";
+SmelGRF_04	StringTie	transcript	1	1797	1000	.	.	gene_id "STRG.7"; transcript_id "STRG.7.1"; cov "79.953812"; FPKM "17350.820312"; TPM "9871.331055";
+SmelGRF_04	StringTie	exon	1	1797	1000	.	.	gene_id "STRG.7"; transcript_id "STRG.7.1"; exon_number "1"; cov "79.953812";
+SmelGRF_05	StringTie	transcript	1	1783	1000	.	.	gene_id "STRG.8"; transcript_id "STRG.8.1"; cov "19.756315"; FPKM "4287.328613"; TPM "2439.172607";
+SmelGRF_05	StringTie	exon	1	1783	1000	.	.	gene_id "STRG.8"; transcript_id "STRG.8.1"; exon_number "1"; cov "19.756315";
+SmelGRF_05	StringTie	transcript	1	1783	1000	-	.	gene_id "STRG.9"; transcript_id "STRG.9.1"; cov "1.802533"; FPKM "391.168671"; TPM "222.546005";
+SmelGRF_05	StringTie	exon	1	545	1000	-	.	gene_id "STRG.9"; transcript_id "STRG.9.1"; exon_number "1"; cov "1.366300";
+SmelGRF_05	StringTie	exon	1299	1783	1000	-	.	gene_id "STRG.9"; transcript_id "STRG.9.1"; exon_number "2"; cov "2.292732";
+SmelGRF_07	StringTie	transcript	1	987	1000	.	.	gene_id "STRG.10"; transcript_id "STRG.10.1"; cov "105.859169"; FPKM "22972.556641"; TPM "13069.682617";
+SmelGRF_07	StringTie	exon	1	987	1000	.	.	gene_id "STRG.10"; transcript_id "STRG.10.1"; exon_number "1"; cov "105.859169";
+SmelGRF_08.800	StringTie	transcript	1	1128	1000	.	.	gene_id "STRG.11"; transcript_id "STRG.11.1"; cov "40.742020"; FPKM "8841.448242"; TPM "5030.128906";
+SmelGRF_08.800	StringTie	exon	1	1128	1000	.	.	gene_id "STRG.11"; transcript_id "STRG.11.1"; exon_number "1"; cov "40.742020";
+SmelGRF_08.140	StringTie	transcript	86	1548	1000	+	.	gene_id "STRG.12"; transcript_id "STRG.12.1"; cov "26.620573"; FPKM "5776.945312"; TPM "3286.654053";
+SmelGRF_08.140	StringTie	exon	86	206	1000	+	.	gene_id "STRG.12"; transcript_id "STRG.12.1"; exon_number "1"; cov "13.837462";
+SmelGRF_08.140	StringTie	exon	672	1548	1000	+	.	gene_id "STRG.12"; transcript_id "STRG.12.1"; exon_number "2"; cov "28.384264";
+SmelGRF_08.890	StringTie	transcript	1	924	1000	.	.	gene_id "STRG.13"; transcript_id "STRG.13.1"; cov "40.186146"; FPKM "8720.817383"; TPM "4961.499023";
+SmelGRF_08.890	StringTie	exon	1	924	1000	.	.	gene_id "STRG.13"; transcript_id "STRG.13.1"; exon_number "1"; cov "40.186146";
+SmelGRF_09.160	StringTie	transcript	37	1095	1000	.	.	gene_id "STRG.14"; transcript_id "STRG.14.1"; cov "20.308783"; FPKM "4407.220215"; TPM "2507.381592";
+SmelGRF_09.160	StringTie	exon	37	1095	1000	.	.	gene_id "STRG.14"; transcript_id "STRG.14.1"; exon_number "1"; cov "20.308783";
+SmelCyclo01	StringTie	transcript	1	516	1000	.	.	gene_id "STRG.15"; transcript_id "STRG.15.1"; cov "7569.550293"; FPKM "1642672.250000"; TPM "934558.875000";
+SmelCyclo01	StringTie	exon	1	516	1000	.	.	gene_id "STRG.15"; transcript_id "STRG.15.1"; exon_number "1"; cov "7569.550293";

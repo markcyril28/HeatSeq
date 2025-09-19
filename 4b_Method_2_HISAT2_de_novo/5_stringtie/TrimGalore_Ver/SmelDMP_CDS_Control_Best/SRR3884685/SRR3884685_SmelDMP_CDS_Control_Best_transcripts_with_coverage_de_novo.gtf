@@ -1,0 +1,12 @@
+SmelDMP_01.990	StringTie	transcript	1	537	1000	.	.	ID=MSTRG.8.1;geneID=MSTRG.8;coverage=1.67
+SmelDMP_01.990	StringTie	exon	1	537	1000	.	.	Parent=MSTRG.8.1
+SmelDMP_01.730	StringTie	transcript	1	687	1000	.	.	ID=MSTRG.10.1;geneID=MSTRG.10;coverage=39.83
+SmelDMP_01.730	StringTie	exon	1	687	1000	.	.	Parent=MSTRG.10.1
+SmelDMP_02_SMEL4.1_02g015810.1.01	StringTie	transcript	1	630	1000	.	.	ID=MSTRG.9.1;geneID=MSTRG.9;coverage=3.47
+SmelDMP_02_SMEL4.1_02g015810.1.01	StringTie	exon	1	630	1000	.	.	Parent=MSTRG.9.1
+SmelDMP_12	StringTie	transcript	1	636	1000	.	.	ID=MSTRG.7.1;geneID=MSTRG.7;coverage=4.04
+SmelDMP_12	StringTie	exon	1	636	1000	.	.	Parent=MSTRG.7.1
+Smel18s_06.900	StringTie	transcript	1	966	1000	.	.	ID=MSTRG.2.1;geneID=MSTRG.2;coverage=50.48
+Smel18s_06.900	StringTie	exon	1	966	1000	.	.	Parent=MSTRG.2.1
+SmelCyclo_01	StringTie	transcript	1	516	1000	.	.	ID=MSTRG.3.1;geneID=MSTRG.3;coverage=6528.51
+SmelCyclo_01	StringTie	exon	1	516	1000	.	.	Parent=MSTRG.3.1
