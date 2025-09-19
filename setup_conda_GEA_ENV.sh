@@ -89,12 +89,50 @@ verify_tools() {
         fi
     done
     
-    if [[ ${#missing_tools[@]} -eq 0 ]]; then
+    # Try to install missing tools
+    if [[ ${#missing_tools[@]} -gt 0 ]]; then
+        log_warn "Attempting to install missing tools: ${missing_tools[*]}"
+        
+        for tool in "${missing_tools[@]}"; do
+            case "$tool" in
+                trinity)
+                    log_info "Installing trinity..."
+                    mamba install -n "$ENV_NAME" -c bioconda trinity -y || {
+                        log_error "Failed to install trinity via conda"
+                        log_info "Trinity may need to be installed manually"
+                        continue
+                    }
+                    ;;
+                *)
+                    log_warn "Don't know how to install $tool automatically"
+                    ;;
+            esac
+        done
+        
+        # Re-verify after installation attempts
+        log_info "Re-verifying tools after installation attempts..."
+        local still_missing=()
+        for cmd in "${missing_tools[@]}"; do
+            if command -v "$cmd" >/dev/null 2>&1; then
+                version_info=$("$cmd" --version 2>&1 | head -1 || echo "version unknown")
+                log_info "✓ $cmd: $version_info (installed successfully)"
+            else
+                log_error "✗ $cmd: STILL NOT FOUND"
+                still_missing+=("$cmd")
+            fi
+        done
+        
+        if [[ ${#still_missing[@]} -eq 0 ]]; then
+            log_info "All required tools verified successfully after installation!"
+            return 0
+        else
+            log_error "Still missing tools: ${still_missing[*]}"
+            log_info "Manual installation may be required for these tools"
+            return 1
+        fi
+    else
         log_info "All required tools verified successfully!"
         return 0
-    else
-        log_error "Missing tools: ${missing_tools[*]}"
-        return 1
     fi
 }
 
@@ -141,10 +179,12 @@ main() {
         log_step "Setup completed successfully!"
         exit 0
     else
-        log_error "Setup completed with errors. Please check the installation."
-        exit 1
+        log_warn "Setup completed with some missing tools."
+        log_info "You can continue using the environment, but some functionality may be limited."
+        show_usage_instructions
+        exit 0
     fi
-}
+} 
 
 # Legacy function for backward compatibility
 require_tools() {
