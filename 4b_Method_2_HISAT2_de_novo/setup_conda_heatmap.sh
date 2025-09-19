@@ -109,7 +109,7 @@ install_r_packages() {
         }
     }
     
-    # Install DESeq2 via BiocManager as primary method
+    # Install DESeq2 via BiocManager with simplified approach
     log_info "Installing DESeq2 via BiocManager..."
     Rscript -e "
     # Install BiocManager if not available
@@ -117,11 +117,9 @@ install_r_packages() {
         install.packages('BiocManager', repos='https://cran.r-project.org/')
     }
     
-    # Update Bioconductor
-    BiocManager::install(version = '3.16', ask = FALSE, update = FALSE)
-    
-    # Install DESeq2
-    BiocManager::install('DESeq2', ask = FALSE, update = FALSE, force = TRUE)
+    # Install DESeq2 without specifying Bioconductor version
+    cat('Installing DESeq2...\n')
+    BiocManager::install('DESeq2', ask = FALSE, update = FALSE)
     
     # Verify installation
     if (requireNamespace('DESeq2', quietly = TRUE)) {
@@ -130,11 +128,17 @@ install_r_packages() {
         cat('✗ DESeq2 installation failed\n')
         quit(status = 1)
     }
-    " || {
-        log_warn "BiocManager installation failed, trying conda approach..."
+    " 2>&1 | tee /tmp/deseq2_install.log || {
+        log_warn "BiocManager installation failed. Log:"
+        cat /tmp/deseq2_install.log
+        log_info "Trying conda approach as fallback..."
         mamba install -n "$DEFAULT_ENV" -c bioconda bioconductor-deseq2 -y || {
             log_error "All DESeq2 installation methods failed"
-            exit 1
+            log_error "You may need to install DESeq2 manually after setup completes"
+            log_info "Manual installation command:"
+            log_info "conda activate $DEFAULT_ENV"
+            log_info "Rscript -e \"BiocManager::install('DESeq2')\""
+            # Don't exit here, continue with other packages
         }
     }
     
