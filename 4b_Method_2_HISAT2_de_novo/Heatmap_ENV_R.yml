@@ -1,4 +1,4 @@
-name: heatmap_r_env
+name: Heatmap_ENV
 channels:
   - conda-forge
   - bioconda
@@ -15,4 +15,5 @@ dependencies:
   - r-rcolorbrewer
   - r-pheatmap
   - r-viridis
+  - r-biocmanager
   - bioconductor-deseq2
