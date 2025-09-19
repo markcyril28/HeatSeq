@@ -1,0 +1,2 @@
+e_id	chr	strand	start	end	rcount	ucount	mrcount	cov	cov_sd	mcov	mcov_sd
+1	SmelCyclo06	.	1	966	615	615	615.00	57.7484	29.4641	57.7484	29.4641

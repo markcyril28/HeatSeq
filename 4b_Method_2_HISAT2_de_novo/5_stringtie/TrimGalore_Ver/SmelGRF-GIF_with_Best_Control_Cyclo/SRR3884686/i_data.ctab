@@ -1,0 +1,5 @@
+i_id	chr	strand	start	end	rcount	ucount	mrcount
+1	SmelGRF_01.300	+	394	420	0	0	0.00
+2	SmelGRF_03	+	938	1112	4	4	4.00
+3	SmelGRF_05	-	546	1298	3	3	3.00
+4	SmelGRF_08.140	+	207	671	3	3	3.00

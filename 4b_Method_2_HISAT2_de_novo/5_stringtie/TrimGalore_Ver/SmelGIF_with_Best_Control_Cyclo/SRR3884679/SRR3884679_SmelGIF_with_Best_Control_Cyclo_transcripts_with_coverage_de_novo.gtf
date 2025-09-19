@@ -1,0 +1,10 @@
+SmelGIF_11.650	StringTie	transcript	1	687	1000	.	.	ID=MSTRG.5.1;geneID=MSTRG.5;coverage=0.59
+SmelGIF_11.650	StringTie	exon	1	687	1000	.	.	Parent=MSTRG.5.1
+SmelGIF_11.070	StringTie	transcript	1	630	1000	.	.	ID=MSTRG.4.1;geneID=MSTRG.4;coverage=345.37
+SmelGIF_11.070	StringTie	exon	1	630	1000	.	.	Parent=MSTRG.4.1
+SmelGIF_03	StringTie	transcript	1	609	1000	.	.	ID=MSTRG.2.1;geneID=MSTRG.2;coverage=134.10
+SmelGIF_03	StringTie	exon	1	609	1000	.	.	Parent=MSTRG.2.1
+SmelGIF_04	StringTie	transcript	1	600	1000	.	.	ID=MSTRG.3.1;geneID=MSTRG.3;coverage=115.26
+SmelGIF_04	StringTie	exon	1	600	1000	.	.	Parent=MSTRG.3.1
+SmelCyclo01	StringTie	transcript	1	516	1000	.	.	ID=MSTRG.1.1;geneID=MSTRG.1;coverage=13020.12
+SmelCyclo01	StringTie	exon	1	516	1000	.	.	Parent=MSTRG.1.1

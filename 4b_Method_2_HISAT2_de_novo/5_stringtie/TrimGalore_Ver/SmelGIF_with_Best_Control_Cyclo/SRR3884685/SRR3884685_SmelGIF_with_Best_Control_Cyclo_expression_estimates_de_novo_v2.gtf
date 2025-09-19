@@ -1,0 +1,12 @@
+# stringtie -p 64 -e -B 02_HISAT2/TrimGalore_Ver/SmelGIF_with_Best_Control_Cyclo/SRR3884685/SRR3884685_SmelGIF_with_Best_Control_Cyclo_trimmed_mapped_sorted.bam -G 03_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_SmelGIF_with_Best_Control_Cyclo.gtf -o 03_stringtie/TrimGalore_Ver/SmelGIF_with_Best_Control_Cyclo/SRR3884685/SRR3884685_SmelGIF_with_Best_Control_Cyclo_expression_estimates_de_novo_v2.gtf -A 03_stringtie/TrimGalore_Ver/SmelGIF_with_Best_Control_Cyclo/SRR3884685/SRR3884685_SmelGIF_with_Best_Control_Cyclo_gene_abundances_de_novo_v2.tsv -C 03_stringtie/TrimGalore_Ver/SmelGIF_with_Best_Control_Cyclo/SRR3884685/SRR3884685_SmelGIF_with_Best_Control_Cyclo_transcripts_with_coverage_de_novo.gtf
+# StringTie version 3.0.0
+SmelGIF_11.070	StringTie	transcript	1	630	1000	.	.	gene_id "MSTRG.4"; transcript_id "MSTRG.4.1"; cov "33.758732"; FPKM "9760.289062"; TPM "5098.681641";
+SmelGIF_11.070	StringTie	exon	1	630	1000	.	.	gene_id "MSTRG.4"; transcript_id "MSTRG.4.1"; exon_number "1"; cov "33.758732";
+SmelGIF_11.650	StringTie	transcript	1	687	1000	.	.	gene_id "MSTRG.5"; transcript_id "MSTRG.5.1"; cov "10.117905"; FPKM "2925.277832"; TPM "1528.137329";
+SmelGIF_11.650	StringTie	exon	1	687	1000	.	.	gene_id "MSTRG.5"; transcript_id "MSTRG.5.1"; exon_number "1"; cov "10.117905";
+SmelGIF_03	StringTie	transcript	1	609	1000	.	.	gene_id "MSTRG.2"; transcript_id "MSTRG.2.1"; cov "40.228245"; FPKM "11630.748047"; TPM "6075.791504";
+SmelGIF_03	StringTie	exon	1	609	1000	.	.	gene_id "MSTRG.2"; transcript_id "MSTRG.2.1"; exon_number "1"; cov "40.228245";
+SmelGIF_04	StringTie	transcript	1	600	1000	.	.	gene_id "MSTRG.3"; transcript_id "MSTRG.3.1"; cov "60.818333"; FPKM "17583.732422"; TPM "9185.573242";
+SmelGIF_04	StringTie	exon	1	600	1000	.	.	gene_id "MSTRG.3"; transcript_id "MSTRG.3.1"; exon_number "1"; cov "60.818333";
+SmelCyclo01	StringTie	transcript	1	516	1000	.	.	gene_id "MSTRG.1"; transcript_id "MSTRG.1.1"; cov "6476.147461"; FPKM "1872377.000000"; TPM "978111.875000";
+SmelCyclo01	StringTie	exon	1	516	1000	.	.	gene_id "MSTRG.1"; transcript_id "MSTRG.1.1"; exon_number "1"; cov "6476.147461";

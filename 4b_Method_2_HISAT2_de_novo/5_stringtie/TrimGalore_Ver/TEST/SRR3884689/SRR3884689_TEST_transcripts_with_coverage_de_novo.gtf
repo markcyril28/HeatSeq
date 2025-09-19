@@ -1,0 +1,2 @@
+SmelCyclo06	StringTie	transcript	1	966	1000	.	.	ID=MSTRG.1.1;geneID=MSTRG.1;coverage=55.14
+SmelCyclo06	StringTie	exon	1	966	1000	.	.	Parent=MSTRG.1.1
