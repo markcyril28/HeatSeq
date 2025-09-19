@@ -1,7 +1,52 @@
 #!/usr/bin/env Rscript
 
 # ===============================================
-# Libraries
+# Package Installation and Loading
+# ===============================================
+# Function to install and load packages
+install_and_load <- function(packages) {
+  for (pkg in packages) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      cat("Installing package:", pkg, "\n")
+      
+      # Check if it's a Bioconductor package
+      if (pkg %in% c("DESeq2", "edgeR", "limma", "GenomicFeatures", "GenomicAlignments")) {
+        # Install BiocManager if not available
+        if (!requireNamespace("BiocManager", quietly = TRUE)) {
+          install.packages("BiocManager", repos = "https://cran.r-project.org/")
+        }
+        BiocManager::install(pkg, ask = FALSE, update = FALSE)
+      } else {
+        # Regular CRAN package
+        install.packages(pkg, repos = "https://cran.r-project.org/")
+      }
+    }
+    
+    # Load the package
+    library(pkg, character.only = TRUE)
+    cat("✓ Loaded:", pkg, "\n")
+  }
+}
+
+# Define required packages
+required_packages <- c(
+  "tidyverse",    # Data manipulation and visualization
+  "DESeq2",       # Differential expression analysis
+  "pheatmap",     # Heatmap generation
+  "RColorBrewer", # Color palettes
+  "viridis"       # Color palettes
+)
+
+cat("Checking and installing required packages...\n")
+cat("Required packages:", paste(required_packages, collapse = ", "), "\n\n")
+
+# Install and load packages
+install_and_load(required_packages)
+
+cat("\n✓ All packages loaded successfully!\n\n")
+
+# ===============================================
+# Libraries (now redundant but kept for compatibility)
 # ===============================================
 suppressPackageStartupMessages({
   library(tidyverse)
