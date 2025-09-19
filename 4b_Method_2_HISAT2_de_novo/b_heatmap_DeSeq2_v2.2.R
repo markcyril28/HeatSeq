@@ -537,8 +537,8 @@ process_group <- function(file) {
     "SRR3884677" = "Cotyledons", 
     "SRR3884679" = "Pistils",
     "SRR3884597" = "Flowers",
-    "SRR3884686" = "Buds 0.7 cm",
     "SRR3884687" = "Buds, Opened Buds",
+    "SRR3884686" = "Buds 0.7 cm",
     "SRR3884689" = "Leaves",
     "SRR3884690" = "Stems", 
     "SRR3884685" = "Radicles",
@@ -607,90 +607,290 @@ process_group <- function(file) {
   cat("  🌈 Eggplant violet color palette configured\n")
   
   # --------------------------------------------------------------------------
-  # STEP 8: HEATMAP GENERATION
+  # STEP 8: HEATMAP GENERATION WITH CONDITIONAL WIDTH VARIATIONS
   # --------------------------------------------------------------------------
   
-  cat("\n🖼️  Generating publication-quality heatmaps...\n")
+  cat("\n🖼️  Generating publication-quality heatmaps with conditional width variations...\n")
   
   # Create timestamp for unique file naming
   timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
   base_name <- paste0(clean_name, "_", timestamp)
   
-  # === HEATMAP 1: DETAILED VIEW WITH GENE NAMES ===
-  cat("  🆪 Generating detailed heatmap (with gene names)...\n")
+  # Define all available width configurations
+  all_width_configs <- list(
+    compact = list(width = 1200, height_multiplier = 8, suffix = "compact"),
+    semi_compact = list(width = 1500, height_multiplier = 9, suffix = "semi_compact"),
+    intermediate = list(width = 1700, height_multiplier = 9.5, suffix = "intermediate"),
+    standard = list(width = 2000, height_multiplier = 10, suffix = "standard"),
+    wide = list(width = 2800, height_multiplier = 12, suffix = "wide"),
+    ultrawide = list(width = 3600, height_multiplier = 15, suffix = "ultrawide")
+  )
+  
+  # Determine which width configurations to generate based on group name
+  cat("  🔍 Determining width configurations for group:", group_name, "\n")
+  
+  selected_configs <- list()
+  
+  if (grepl("SmelGRF-GIF_with_Best_Control_Cyclo", group_name, ignore.case = TRUE)) {
+    cat("    📏 Pattern: SmelGRF-GIF_with_Best_Control_Cyclo -> WIDE width\n")
+    selected_configs[["wide"]] <- all_width_configs[["wide"]]
+  } else if (grepl("SmelGRF_with_Best_Control_Cyclo", group_name, ignore.case = TRUE)) {
+    cat("    📏 Pattern: SmelGRF_with_Best_Control_Cyclo -> STANDARD width\n")
+    selected_configs[["standard"]] <- all_width_configs[["standard"]]
+  } else if (grepl("SmelGIF_with_Best_Control_Cyclo", group_name, ignore.case = TRUE)) {
+    cat("    📏 Pattern: SmelGIF_with_Best_Control_Cyclo -> SEMI-COMPACT width\n")
+    selected_configs[["semi_compact"]] <- all_width_configs[["semi_compact"]]
+  } else if (grepl("SmelDMP_CDS_Control_Best", group_name, ignore.case = TRUE)) {
+    cat("    📏 Pattern: SmelDMP_CDS_Control_Best -> INTERMEDIATE width\n")
+    selected_configs[["intermediate"]] <- all_width_configs[["intermediate"]]
+  } else {
+    cat("    📏 No specific pattern matched -> Using ALL width configurations\n")
+    selected_configs <- all_width_configs
+  }
+  
+  cat("  📋 Selected configurations:", paste(names(selected_configs), collapse = ", "), "\n")
+  
+  # Create width-specific subfolders only for selected configurations
+  width_dirs <- list()
+  for (config_name in names(selected_configs)) {
+    width_dir <- file.path(individual_out_dir, paste0("width_", config_name))
+    dir.create(width_dir, showWarnings = FALSE, recursive = TRUE)
+    width_dirs[[config_name]] <- width_dir
+    cat("  📁 Created width subfolder:", basename(width_dir), 
+        " (", selected_configs[[config_name]]$width, "px)\n")
+  }
+  
+  # === GENERATE HEATMAPS FOR EACH SELECTED WIDTH CONFIGURATION ===
+  
+  # Loop through each selected width configuration
+  for (config_name in names(selected_configs)) {
+    config <- selected_configs[[config_name]]
+    width_dir <- width_dirs[[config_name]]
+    
+    cat("\n  🎨 Generating", toupper(config_name), "width heatmaps (", config$width, "px)...\n")
+    
+    # HEATMAP 1: DETAILED VIEW WITH GENE NAMES
+    cat("    🆪 Detailed heatmap (", config_name, ")...\n")
+    
+    detailed_file <- file.path(width_dir, paste0(base_name, "_simple_srr_layout_", config$suffix, ".jpg"))
+    
+    tryCatch({
+      jpeg(detailed_file, 
+           width = config$width,
+           height = max(1400, nrow(mat) * config$height_multiplier),
+           res = 150, 
+           quality = 95)
+      
+      pheatmap(
+        t(mat[all_genes, ]),
+        cluster_rows = FALSE,
+        cluster_cols = FALSE,
+        show_rownames = TRUE,
+        show_colnames = TRUE,
+        fontsize = max(6, min(10, 120/nrow(mat))),
+        fontsize_row = 10,
+        fontsize_col = max(3, min(7, 120/nrow(mat))),
+        breaks = seq(0, 10, length.out = 101),
+        main = paste("All Genes - Simple SRR Layout (", nrow(mat), " genes) -", group_name, "-", toupper(config_name)),
+        color = eggplant_colors
+      )
+      
+      dev.off()
+      cat("      ✅ Saved:", basename(detailed_file), "\n")
+      
+    }, error = function(e) {
+      if (dev.cur() > 1) dev.off()
+      cat("      ❌ Failed:", e$message, "\n")
+    })
+    
+    # HEATMAP 2: OVERVIEW
+    cat("    🆫 Overview heatmap (", config_name, ")...\n")
+    
+    overview_file <- file.path(width_dir, paste0(base_name, "_simple_srr_overview_", config$suffix, ".jpg"))
+    
+    tryCatch({
+      jpeg(overview_file, 
+           width = config$width,
+           height = max(1200, nrow(mat) * (config$height_multiplier * 0.6)),
+           res = 150, 
+           quality = 95)
+      
+      pheatmap(
+        t(mat[all_genes, ]),
+        cluster_rows = FALSE,
+        cluster_cols = FALSE,
+        show_rownames = TRUE,
+        show_colnames = TRUE,
+        fontsize = 10,
+        fontsize_row = 10,
+        fontsize_col = max(2, min(5, 80/nrow(mat))),
+        breaks = seq(0, 10, length.out = 101),
+        main = paste("All Genes - Simple SRR Overview (", nrow(mat), " genes) -", group_name, "-", toupper(config_name)),
+        color = eggplant_colors
+      )
+      
+      dev.off()
+      cat("      ✅ Saved:", basename(overview_file), "\n")
+      
+    }, error = function(e) {
+      if (dev.cur() > 1) dev.off()
+      cat("      ❌ Failed:", e$message, "\n")
+    })
+    
+    # HEATMAP 3: SAMPLE CORRELATION MATRIX
+    cat("    🇈 Sample correlation heatmap (", config_name, ")...\n")
+    
+    correlation_file <- file.path(width_dir, paste0(base_name, "_sample_correlation_", config$suffix, ".jpg"))
+    
+    tryCatch({
+      sample_cor <- cor(mat, use = "complete.obs")
+      
+      # Use proportional sizing for correlation matrix
+      corr_size <- min(config$width * 0.6, 1200)
+      
+      jpeg(correlation_file, 
+           width = corr_size, 
+           height = corr_size, 
+           res = 150, 
+           quality = 95)
+      
+      pheatmap(
+        sample_cor,
+        cluster_rows = FALSE,
+        cluster_cols = FALSE,
+        show_rownames = TRUE,
+        show_colnames = TRUE,
+        fontsize = 10,
+        fontsize_row = 10,
+        fontsize_col = 10,
+        breaks = seq(0, 1, length.out = 101),
+        main = paste("Sample Correlation - Simple Layout -", group_name, "-", toupper(config_name)),
+        color = eggplant_colors
+      )
+      
+      dev.off()
+      cat("      ✅ Saved:", basename(correlation_file), "\n")
+      
+    }, error = function(e) {
+      if (dev.cur() > 1) dev.off()
+      cat("      ❌ Failed:", e$message, "\n")
+    })
+    
+    # HEATMAP 4: BIOLOGICAL ORGAN NAMES VERSION
+    cat("    🌿 Biological organ names heatmap (", config_name, ")...\n")
+    
+    biological_file <- file.path(width_dir, paste0(base_name, "_simple_organ_layout_", config$suffix, ".jpg"))
+    
+    tryCatch({
+      mat_biological <- t(mat[all_genes, ])
+      rownames(mat_biological) <- organ_names
+      
+      jpeg(biological_file, 
+           width = config$width,
+           height = max(1200, nrow(mat) * (config$height_multiplier * 0.6)),
+           res = 150, 
+           quality = 95)
+      
+      pheatmap(
+        mat_biological,
+        cluster_rows = FALSE,
+        cluster_cols = FALSE,
+        show_rownames = TRUE,
+        show_colnames = TRUE,
+        fontsize = 10,
+        fontsize_row = 11,
+        fontsize_col = max(2, min(4, 60/nrow(mat))),
+        breaks = seq(0, 10, length.out = 101),
+        main = paste("All Genes - Simple Organ Layout (", nrow(mat), " genes) -", group_name, "-", toupper(config_name)),
+        color = eggplant_colors
+      )
+      
+      dev.off()
+      cat("      ✅ Saved:", basename(biological_file), "\n")
+      
+    }, error = function(e) {
+      if (dev.cur() > 1) dev.off()
+      cat("      ❌ Failed:", e$message, "\n")
+    })
+  }
+  
+  # === GENERATE ORIGINAL HEATMAPS IN MAIN DIRECTORY ===
+  cat("\n  📋 Generating original heatmaps in main directory...\n")
+  
+  # ORIGINAL HEATMAP 1: DETAILED VIEW WITH GENE NAMES
+  cat("    🆪 Original detailed heatmap...\n")
   
   detailed_file <- file.path(individual_out_dir, paste0(base_name, "_simple_srr_layout.jpg"))
   
   tryCatch({
     jpeg(detailed_file, 
-         width = 2200,  # Increased width for gene labels
-         height = max(1400, nrow(mat) * 12),  # Increased height for gene labels
-         res = 150, 
-         quality = 95)
-    
-    pheatmap(
-      t(mat[all_genes, ]),  # Transpose: samples as rows, genes as columns
-      cluster_rows = FALSE,  # No row clustering - simple SRR order
-      cluster_cols = FALSE,  # No column clustering (genes shown in input order)
-      show_rownames = TRUE,  # Show SRR sample names
-      show_colnames = TRUE,  # Always show gene names
-      fontsize = max(6, min(10, 120/nrow(mat))),  # Dynamic font sizing
-      fontsize_row = 10,
-      fontsize_col = max(3, min(7, 120/nrow(mat))),  # Smaller but readable gene fonts
-      breaks = seq(0, 10, length.out = 101),  # Fixed scale: 0 (low) to 10 (high expression)
-      main = paste("All Genes - Simple SRR Layout (", nrow(mat), " genes) -", group_name),
-      color = eggplant_colors
-    )
-    
-    dev.off()
-    cat("    ✅ Detailed heatmap saved:\n      ", detailed_file, "\n")
-    
-  }, error = function(e) {
-    if (dev.cur() > 1) dev.off()  # Ensure device is closed
-    cat("    ❌ Detailed heatmap failed:", e$message, "\n")
-  })
-  
-  # === HEATMAP 2: OVERVIEW WITHOUT GENE NAMES ===
-  cat("  🆫 Generating overview heatmap (no gene labels)...\n")
-  
-  overview_file <- file.path(individual_out_dir, paste0(base_name, "_simple_srr_overview.jpg"))
-  
-  tryCatch({
-    jpeg(overview_file, 
-         width = 2000,  # Increased width for gene labels
-         height = max(1200, nrow(mat) * 6),  # Increased height
+         width = 2200,
+         height = max(1400, nrow(mat) * 12),
          res = 150, 
          quality = 95)
     
     pheatmap(
       t(mat[all_genes, ]),
-      cluster_rows = FALSE,  # No row clustering - simple SRR order
-      cluster_cols = FALSE,  # No column clustering (genes shown in input order)
-      show_rownames = TRUE,  # Show SRR sample names
-      show_colnames = TRUE,  # Show gene names
+      cluster_rows = FALSE,
+      cluster_cols = FALSE,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
+      fontsize = max(6, min(10, 120/nrow(mat))),
+      fontsize_row = 10,
+      fontsize_col = max(3, min(7, 120/nrow(mat))),
+      breaks = seq(0, 10, length.out = 101),
+      main = paste("All Genes - Simple SRR Layout (", nrow(mat), " genes) -", group_name),
+      color = eggplant_colors
+    )
+    
+    dev.off()
+    cat("      ✅ Original detailed heatmap saved\n")
+    
+  }, error = function(e) {
+    if (dev.cur() > 1) dev.off()
+    cat("      ❌ Original detailed heatmap failed:", e$message, "\n")
+  })
+  
+  # ORIGINAL HEATMAP 2: OVERVIEW
+  cat("    🆫 Original overview heatmap...\n")
+  
+  overview_file <- file.path(individual_out_dir, paste0(base_name, "_simple_srr_overview.jpg"))
+  
+  tryCatch({
+    jpeg(overview_file, 
+         width = 2000,
+         height = max(1200, nrow(mat) * 6),
+         res = 150, 
+         quality = 95)
+    
+    pheatmap(
+      t(mat[all_genes, ]),
+      cluster_rows = FALSE,
+      cluster_cols = FALSE,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
       fontsize = 10,
       fontsize_row = 10,
-      fontsize_col = max(2, min(5, 80/nrow(mat))),  # Smaller gene label fonts
-      breaks = seq(0, 10, length.out = 101),  # Fixed scale: 0 (low) to 10 (high expression)
+      fontsize_col = max(2, min(5, 80/nrow(mat))),
+      breaks = seq(0, 10, length.out = 101),
       main = paste("All Genes - Simple SRR Overview (", nrow(mat), " genes) -", group_name),
       color = eggplant_colors
     )
     
     dev.off()
-    cat("    ✅ Overview heatmap saved:\n      ", overview_file, "\n")
+    cat("      ✅ Original overview heatmap saved\n")
     
   }, error = function(e) {
-    if (dev.cur() > 1) dev.off()  # Ensure device is closed
-    cat("    ❌ Overview heatmap failed:", e$message, "\n")
+    if (dev.cur() > 1) dev.off()
+    cat("      ❌ Original overview heatmap failed:", e$message, "\n")
   })
   
-  # === HEATMAP 3: SAMPLE CORRELATION MATRIX ===
-  cat("  🇈 Generating sample correlation heatmap...\n")
+  # ORIGINAL HEATMAP 3: SAMPLE CORRELATION MATRIX
+  cat("    🇈 Original sample correlation heatmap...\n")
   
   correlation_file <- file.path(individual_out_dir, paste0(base_name, "_sample_correlation.jpg"))
   
   tryCatch({
-    # Calculate sample-to-sample correlations
     sample_cor <- cor(mat, use = "complete.obs")
     
     jpeg(correlation_file, 
@@ -701,62 +901,61 @@ process_group <- function(file) {
     
     pheatmap(
       sample_cor,
-      cluster_rows = FALSE,  # No clustering - simple sample order
-      cluster_cols = FALSE,  # No clustering
-      show_rownames = TRUE,  # Show SRR sample names
-      show_colnames = TRUE,  # Show SRR sample names
+      cluster_rows = FALSE,
+      cluster_cols = FALSE,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
       fontsize = 10,
       fontsize_row = 10,
       fontsize_col = 10,
-      breaks = seq(0, 1, length.out = 101),  # Correlation scale: 0 to 1
+      breaks = seq(0, 1, length.out = 101),
       main = paste("Sample Correlation - Simple Layout -", group_name),
       color = eggplant_colors
     )
     
     dev.off()
-    cat("    ✅ Correlation heatmap saved:\n      ", correlation_file, "\n")
+    cat("      ✅ Original correlation heatmap saved\n")
     
   }, error = function(e) {
-    if (dev.cur() > 1) dev.off()  # Ensure device is closed
-    cat("    ❌ Correlation heatmap failed:", e$message, "\n")
+    if (dev.cur() > 1) dev.off()
+    cat("      ❌ Original correlation heatmap failed:", e$message, "\n")
   })
   
-  # === HEATMAP 4: BIOLOGICAL ORGAN NAMES VERSION ===
-  cat("  🌿 Generating biological organ names heatmap...\n")
+  # ORIGINAL HEATMAP 4: BIOLOGICAL ORGAN NAMES VERSION
+  cat("    🌿 Original biological organ names heatmap...\n")
   
   biological_file <- file.path(individual_out_dir, paste0(base_name, "_simple_organ_layout.jpg"))
   
   tryCatch({
-    # Create matrix with organ names as row labels
     mat_biological <- t(mat[all_genes, ])
     rownames(mat_biological) <- organ_names
     
     jpeg(biological_file, 
-         width = 2000,  # Increased width for gene labels
-         height = max(1200, nrow(mat) * 6),  # Increased height
+         width = 2000,
+         height = max(1200, nrow(mat) * 6),
          res = 150, 
          quality = 95)
     
     pheatmap(
       mat_biological,
-      cluster_rows = FALSE,  # No row clustering - simple organ order
-      cluster_cols = FALSE,  # No column clustering (genes shown in input order)
-      show_rownames = TRUE,  # Show organ names
-      show_colnames = TRUE,  # Show gene names
+      cluster_rows = FALSE,
+      cluster_cols = FALSE,
+      show_rownames = TRUE,
+      show_colnames = TRUE,
       fontsize = 10,
-      fontsize_row = 11,     # Larger for organ names
-      fontsize_col = max(2, min(4, 60/nrow(mat))),  # Smaller gene fonts for readability
-      breaks = seq(0, 10, length.out = 101),  # Fixed scale: 0 (low) to 10 (high expression)
+      fontsize_row = 11,
+      fontsize_col = max(2, min(4, 60/nrow(mat))),
+      breaks = seq(0, 10, length.out = 101),
       main = paste("All Genes - Simple Organ Layout (", nrow(mat), " genes) -", group_name),
       color = eggplant_colors
     )
     
     dev.off()
-    cat("    ✅ Biological organ names heatmap saved:\n      ", biological_file, "\n")
+    cat("      ✅ Original biological heatmap saved\n")
     
   }, error = function(e) {
-    if (dev.cur() > 1) dev.off()  # Ensure device is closed
-    cat("    ❌ Biological organ names heatmap failed:", e$message, "\n")
+    if (dev.cur() > 1) dev.off()
+    cat("      ❌ Original biological heatmap failed:", e$message, "\n")
   })
   
   # --------------------------------------------------------------------------
@@ -791,36 +990,49 @@ process_group <- function(file) {
   cat("\n🎉 ANALYSIS COMPLETED FOR:", group_name, "\n")
   cat("📁 Generated files:\n")
   
-  # Check which JPEG files were actually created
+  # Check original files
+  cat("   📂 ORIGINAL FILES (main directory):\n")
   if (file.exists(detailed_file)) {
-    cat("   ✅", basename(detailed_file), "\n")
+    cat("     ✅", basename(detailed_file), "\n")
   } else {
-    cat("   ❌", basename(detailed_file), "(FAILED)\n")
+    cat("     ❌", basename(detailed_file), "(FAILED)\n")
   }
   
   if (file.exists(overview_file)) {
-    cat("   ✅", basename(overview_file), "\n")
+    cat("     ✅", basename(overview_file), "\n")
   } else {
-    cat("   ❌", basename(overview_file), "(FAILED)\n")
+    cat("     ❌", basename(overview_file), "(FAILED)\n")
   }
   
   if (file.exists(correlation_file)) {
-    cat("   ✅", basename(correlation_file), "\n")
+    cat("     ✅", basename(correlation_file), "\n")
   } else {
-    cat("   ❌", basename(correlation_file), "(FAILED)\n")
+    cat("     ❌", basename(correlation_file), "(FAILED)\n")
   }
   
   if (file.exists(biological_file)) {
-    cat("   ✅", basename(biological_file), "\n")
+    cat("     ✅", basename(biological_file), "\n")
   } else {
-    cat("   ❌", basename(biological_file), "(FAILED)\n")
+    cat("     ❌", basename(biological_file), "(FAILED)\n")
+  }
+  
+  # Check width variation files
+  cat("   📂 WIDTH VARIATIONS:\n")
+  for (config_name in names(selected_configs)) {
+    width_dir <- width_dirs[[config_name]]
+    width_files <- list.files(width_dir, pattern = "\\.jpg$", full.names = FALSE)
+    cat("     📁", toupper(config_name), "(", selected_configs[[config_name]]$width, "px):", length(width_files), "files\n")
+    for (wf in width_files) {
+      cat("       ✅", wf, "\n")
+    }
   }
   
   if (!is.null(normalized_counts)) {
-    cat("   ✅", basename(norm_counts_file), "\n")
+    cat("   📂 DATA FILES:\n")
+    cat("     ✅", basename(norm_counts_file), "\n")
   }
   
-  cat("   ✅", basename(variance_file), "\n")
+  cat("     ✅", basename(variance_file), "\n")
   
   # --------------------------------------------------------------------------
   # GENERATE DIRECTORY README
@@ -836,24 +1048,42 @@ process_group <- function(file) {
     "- Source file: ", basename(file), "\n",
     "- Total genes analyzed: ", nrow(mat), "\n",
     "- Samples in analysis: ", ncol(mat), "\n",
-    "- Condition groups: ", length(unique(coldata$condition)), " (", paste(unique(coldata$condition), collapse = ", "), ")\n\n",
+    "- Condition groups: ", length(unique(simple_coldata$condition)), " (", paste(unique(simple_coldata$condition), collapse = ", "), ")\n\n",
+    "CONDITIONAL WIDTH SELECTION:\n",
+    "Based on group name pattern, the following width configurations were generated:\n",
+    paste(sapply(names(selected_configs), function(x) 
+      paste0("- ", toupper(x), ": ", selected_configs[[x]]$width, "px")), collapse = "\n"), "\n\n",
+    "WIDTH SELECTION RULES:\n",
+    "- SmelGRF-GIF_with_Best_Control_Cyclo -> WIDE (2800px)\n",
+    "- SmelGRF_with_Best_Control_Cyclo -> STANDARD (2000px)\n",
+    "- SmelGIF_with_Best_Control_Cyclo -> SEMI-COMPACT (1500px)\n",
+    "- SmelDMP_CDS_Control_Best -> INTERMEDIATE (1700px)\n",
+    "- Other patterns -> ALL width configurations\n\n",
+    "DIRECTORY STRUCTURE:\n",
+    "- Main directory: Original heatmaps (standard dimensions)\n",
+    paste(sapply(names(selected_configs), function(x) 
+      paste0("- width_", x, "/: ", toupper(x), " width heatmaps (", selected_configs[[x]]$width, "px)")), collapse = "\n"), "\n\n",
     "FILES GENERATED:\n",
-  "1. SIMPLIFIED HEATMAPS (JPEG format - NO ROW OR COLUMN CLUSTERING):\n",
-  "   - ", basename(detailed_file), " : SRR x Genes (display order preserved)\n",
-  "   - ", basename(overview_file), " : SRR overview (no clustering)\n",
-  "   - ", basename(correlation_file), " : Sample correlation (order preserved)\n",
-  "   - ", basename(biological_file), " : Organ names x Genes (no clustering)\n\n",
-    "2. DATA FILES (CSV format):\n",
+    "1. ORIGINAL HEATMAPS (Main directory - JPEG format):\n",
+    "   - ", basename(detailed_file), " : SRR x Genes detailed view\n",
+    "   - ", basename(overview_file), " : SRR overview\n",
+    "   - ", basename(correlation_file), " : Sample correlation\n",
+    "   - ", basename(biological_file), " : Organ names x Genes\n\n",
+    "2. CONDITIONAL WIDTH VARIATIONS (Selected width subfolders):\n",
+    "   - *_simple_srr_layout_[width].jpg : Detailed view with selected widths\n",
+    "   - *_simple_srr_overview_[width].jpg : Overview with selected widths\n",
+    "   - *_sample_correlation_[width].jpg : Correlation with selected widths\n",
+    "   - *_simple_organ_layout_[width].jpg : Organ layout with selected widths\n\n",
+    "3. DATA FILES (CSV format):\n",
     if (!is.null(normalized_counts)) paste0("   - ", basename(norm_counts_file), " : DESeq2 normalized count matrix\n") else "",
     "   - ", basename(variance_file), " : Gene variance rankings (all genes)\n\n",
     "ANALYSIS NOTES:\n",
     "- All genes included (no filtering to top genes)\n",
-  "- Simple layout: SRR IDs or organ names per row (no clustering on rows or columns)\n",
-    "- No condition groupings or complex annotations\n",
+    "- Simple layout: SRR IDs or organ names per row (no clustering)\n",
+    "- Conditional width selection based on dataset type\n",
     "- Eggplant violet color scheme applied\n",
-    "- Genes displayed as columns, samples as rows\n",
     "- DESeq2 variance stabilization (no differential analysis)\n",
-    "- Font sizes optimized for gene label readability\n"
+    "- Dynamic font sizing based on gene count\n"
   )
   
   writeLines(readme_content, readme_file)
@@ -862,7 +1092,7 @@ process_group <- function(file) {
   cat("📈 Analysis summary:\n")
   cat("   • Total genes analyzed:", nrow(mat), "\n")
   cat("   • Samples in analysis:", ncol(mat), "\n")
-  cat("   • Condition groups:", length(unique(coldata$condition)), "\n")
+  cat("   • Condition groups:", length(unique(simple_coldata$condition)), "\n")
   
   completion_line <- paste(rep("=", 50), collapse = "")
   cat(completion_line, "\n", sep = "")
@@ -1030,7 +1260,19 @@ cat("   • Each dataset has its own subfolder with:\n")
 cat("   • 4 JPEG heatmaps (all non-clustered: detailed, overview, correlation, biological)\n")
 cat("   • CSV data files (normalized counts, gene rankings)\n")
 cat("   • README.txt documentation\n")
-cat("�📋 Total heatmaps generated:", success_count * 4, "\n")  # 4 heatmaps per group
+cat("�📋 Total heatmaps generated:", success_count * (4 + (4 * length(selected_configs))), "\n")  # Original + selected width variations
+cat("🎨 Color scheme: Custom eggplant violet palette\n")
+cat("🧬 Analysis method: Complete gene inclusion with DESeq2\n")
+
+if (success_count == length(files)) {
+  cat("\n✨ Perfect run - all files processed successfully!\n")
+} else {
+  cat("\n⚠️  Some files encountered errors - check summary for details\n")
+}
+
+cat(paste0("\n", paste(rep("=", 60), collapse = ""), "\n"))
+cat("   • README.txt documentation\n")
+cat("�📋 Total heatmaps generated:", success_count * (4 + (4 * length(selected_configs))), "\n")  # Original + selected width variations
 cat("🎨 Color scheme: Custom eggplant violet palette\n")
 cat("🧬 Analysis method: Complete gene inclusion with DESeq2\n")
 
