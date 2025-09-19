@@ -101,59 +101,6 @@ run_with_time_to_log() {
 }
 
 # ==============================================================================
-# TOOLING
-# ==============================================================================
-require_tools() {
-	# Ensure required tools and conda environment are available
-	log_info "Ensuring conda environment 'GEA_ENV' and required tools..."
-	local env_name="GEA_env"
-	local required_cmds=(fasterq-dump trim_galore hisat2 samtools stringtie)
-	if ! conda env list | awk '{print $1}' | grep -qx "$env_name"; then
-		log_info "Creating environment '$env_name' ..."
-		conda create -y -n "$env_name" -c conda-forge -c bioconda \
-			sra-tools trim-galore hisat2 samtools stringtie
-	fi
-	declare -A pkg_for_cmd=(
-		[fasterq-dump]="sra-tools"
-		[trim_galore]="trim-galore"
-		[hisat2]="hisat2"
-		[samtools]="samtools"
-		[stringtie]="stringtie"
-	)
-	local missing_pkgs=()
-	for cmd in "${required_cmds[@]}"; do
-		if [[ ! -x "${CONDA_PREFIX:-}/bin/$cmd" ]]; then
-			missing_pkgs+=( "${pkg_for_cmd[$cmd]}" )
-		fi
-	done
-	if (( ${#missing_pkgs[@]} > 0 )); then
-		local uniq=() seen=""
-		for p in "${missing_pkgs[@]}"; do
-			if [[ " $seen " != *" $p "* ]]; then
-				uniq+=( "$p" ); seen+=" $p"
-			fi
-		done
-		log_info "Installing missing packages in '$env_name': ${uniq[*]}"
-		conda install -y -n "$env_name" -c conda-forge -c bioconda "${uniq[@]}"
-	fi
-	local ok=1
-	for cmd in "${required_cmds[@]}"; do
-		if [[ -x "${CONDA_PREFIX:-}/bin/$cmd" ]]; then
-			continue
-		elif command -v "$cmd" >/dev/null 2>&1; then
-			log_warn "'$cmd' is not in '$env_name' but found in PATH; consider installing it in the env."
-		else
-			log_error "Required command '$cmd' not found even after installation."
-			ok=0
-		fi
-	done
-	if [[ $ok -ne 1 ]]; then
-		exit 1
-	fi
-	log_info "Using conda env: ${CONDA_DEFAULT_ENV:-unknown} (${CONDA_PREFIX:-})"
-}
-
-# ==============================================================================
 # FUNCTIONS
 # ==============================================================================
 download_srrs() {
@@ -449,7 +396,6 @@ run_all() {
 		start_time=$(date +%s)
 		setup_logging
 		log_step "Script started at: $(date -d @$start_time)"
-		require_tools
 
 		log_step "STEP 00: Download SRR files"
 		download_srrs "${rnaseq_list[@]}"
