@@ -154,18 +154,20 @@ process_group <- function(file) {
     normalized_counts <- filtered_counts
   })
 
-  # Calculate gene variability
+  # Calculate gene variability for ranking (but use all genes)
   gene_vars <- rowVars(mat)
   
-  # Select top variable genes (different numbers for different views)
-  top50_genes <- head(order(gene_vars, decreasing = TRUE), 50)
-  top100_genes <- head(order(gene_vars, decreasing = TRUE), 100)
+  # Use all genes instead of selecting top subset
+  all_genes <- 1:nrow(mat)
   
   # Create color annotation for samples
   annotation_colors <- list(
     condition = rainbow(length(unique(coldata$condition)))
   )
   names(annotation_colors$condition) <- unique(coldata$condition)
+  
+  # Define eggplant violet color palette for heatmaps
+  eggplant_colors <- colorRampPalette(c("#2F1B69", "#4A148C", "#6A1B9A", "#8E24AA", "#AB47BC", "#CE93D8", "#F3E5F5", "#FFFFFF", "#F8BBD9", "#F48FB1", "#F06292", "#EC407A", "#E91E63", "#C2185B", "#AD1457"))(100)
   
   # Generate multiple heatmaps
   
@@ -175,27 +177,27 @@ process_group <- function(file) {
   # Create output file names with clean naming
   base_name <- paste0(clean_name, "_", timestamp)
   
-  # 1. Top 50 most variable genes - detailed view
-  top50_file <- file.path(out_dir, paste0(base_name, "_top50_genes_heatmap.jpg"))
-  jpeg(top50_file, width = 1400, height = 1000, res = 150, quality = 95)
-  pheatmap(t(mat[top50_genes, ]),
+  # 1. All genes - detailed view with gene names
+  all_genes_detailed_file <- file.path(out_dir, paste0(base_name, "_all_genes_detailed_heatmap.jpg"))
+  jpeg(all_genes_detailed_file, width = 1400, height = max(1000, nrow(mat) * 10), res = 150, quality = 95)
+  pheatmap(t(mat[all_genes, ]),
            cluster_rows = TRUE,
            cluster_cols = TRUE,
            annotation_row = coldata,
            annotation_colors = annotation_colors,
            show_rownames = TRUE,
-           show_colnames = TRUE,
-           fontsize = 8,
+           show_colnames = ifelse(nrow(mat) <= 100, TRUE, FALSE),
+           fontsize = max(4, min(8, 100/nrow(mat))),
            fontsize_row = 8,
-           fontsize_col = 6,
-           main = paste("Top 50 Variable Genes -", group_name),
-           color = colorRampPalette(c("blue", "white", "red"))(100))
+           fontsize_col = max(2, min(6, 100/nrow(mat))),
+           main = paste("All Genes (", nrow(mat), " genes) -", group_name),
+           color = eggplant_colors)
   dev.off()
   
-  # 2. Top 100 most variable genes - overview
-  top100_file <- file.path(out_dir, paste0(base_name, "_top100_genes_heatmap.jpg"))
-  jpeg(top100_file, width = 1600, height = 1000, res = 150, quality = 95)
-  pheatmap(t(mat[top100_genes, ]),
+  # 2. All genes - overview without gene names
+  all_genes_overview_file <- file.path(out_dir, paste0(base_name, "_all_genes_overview_heatmap.jpg"))
+  jpeg(all_genes_overview_file, width = 1600, height = max(1000, nrow(mat) * 5), res = 150, quality = 95)
+  pheatmap(t(mat[all_genes, ]),
            cluster_rows = TRUE,
            cluster_cols = TRUE,
            annotation_row = coldata,
@@ -204,8 +206,8 @@ process_group <- function(file) {
            show_colnames = FALSE,
            fontsize = 10,
            fontsize_row = 8,
-           main = paste("Top 100 Variable Genes -", group_name),
-           color = viridis(100))
+           main = paste("All Genes Overview (", nrow(mat), " genes) -", group_name),
+           color = eggplant_colors)
   dev.off()
   
   # 3. Sample correlation heatmap (samples vs samples)
@@ -217,7 +219,7 @@ process_group <- function(file) {
            annotation_row = coldata,
            annotation_colors = annotation_colors,
            main = paste("Sample Correlation -", group_name),
-           color = colorRampPalette(c("blue", "white", "red"))(100))
+           color = eggplant_colors)
   dev.off()
   
   # Save normalized count matrix
@@ -227,24 +229,25 @@ process_group <- function(file) {
     message("Saved normalized counts: ", basename(norm_counts_file))
   }
   
-  # Save top variable genes list
-  top_genes_df <- data.frame(
-    GeneID = rownames(mat)[top100_genes],
-    Variance = gene_vars[top100_genes],
-    Rank = 1:100
+  # Save all genes with variance rankings
+  gene_variance_order <- order(gene_vars, decreasing = TRUE)
+  all_genes_df <- data.frame(
+    GeneID = rownames(mat)[gene_variance_order],
+    Variance = gene_vars[gene_variance_order],
+    Rank = 1:length(gene_vars)
   )
-  top_genes_file <- file.path(out_dir, paste0(base_name, "_top_variable_genes.csv"))
-  write.csv(top_genes_df, top_genes_file, quote = FALSE, row.names = FALSE)
+  all_genes_file <- file.path(out_dir, paste0(base_name, "_all_genes_variance_ranked.csv"))
+  write.csv(all_genes_df, all_genes_file, quote = FALSE, row.names = FALSE)
   
   message("\n✓ Successfully generated outputs for: ", group_name)
   message("  Files created:")
-  message("    - ", basename(top50_file))
-  message("    - ", basename(top100_file)) 
+  message("    - ", basename(all_genes_detailed_file))
+  message("    - ", basename(all_genes_overview_file)) 
   message("    - ", basename(correlation_file))
   if (!is.null(normalized_counts)) {
     message("    - ", basename(norm_counts_file))
   }
-  message("    - ", basename(top_genes_file))
+  message("    - ", basename(all_genes_file))
   message("  Total genes analyzed: ", nrow(mat))
   message("  Samples in analysis: ", ncol(mat))
   message("=== Completed: ", group_name, " ===")
@@ -291,11 +294,11 @@ for (file in files) {
 }
 
 cat("\nOutput Files Generated (per group):\n", file = summary_file, append = TRUE)
-cat("- [group]_top50_heatmap.jpg\n", file = summary_file, append = TRUE)
-cat("- [group]_top100_heatmap.jpg\n", file = summary_file, append = TRUE)
+cat("- [group]_all_genes_detailed_heatmap.jpg\n", file = summary_file, append = TRUE)
+cat("- [group]_all_genes_overview_heatmap.jpg\n", file = summary_file, append = TRUE)
 cat("- [group]_sample_correlation.jpg\n", file = summary_file, append = TRUE)
 cat("- [group]_normalized_counts.csv\n", file = summary_file, append = TRUE)
-cat("- [group]_top_variable_genes.csv\n", file = summary_file, append = TRUE)
+cat("- [group]_all_genes_variance_ranked.csv\n", file = summary_file, append = TRUE)
 
 message("Analysis complete! Summary saved to: ", summary_file)
 message("All heatmaps and data saved in: ", out_dir)
