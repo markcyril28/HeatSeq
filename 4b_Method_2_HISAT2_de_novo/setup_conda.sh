@@ -11,7 +11,7 @@
 set -euo pipefail
 
 # Configuration
-CURRENT_ENV="${CONDA_DEFAULT_ENV:-base}"
+CURRENT_ENV="${CONDA_DEFAULT_ENV:-Heatmap_ENV}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Logging functions
@@ -49,7 +49,6 @@ check_conda() {
     
     log_info "Current environment: $CURRENT_ENV"
 }
-
 
 install_bioinformatics_tools() {
     log_step "Installing bioinformatics tools in $CURRENT_ENV"
@@ -104,12 +103,12 @@ verify_installation() {
     log_step "Verifying installation in $CURRENT_ENV"
     
     # Check bioinformatics tools
-    local tools=("fasterq-dump" "trim_galore" "hisat2" "samtools" "stringtie")
+    local tools=("stringtie")
     local missing_tools=()
     
     for tool in "${tools[@]}"; do
         if command -v "$tool" >/dev/null 2>&1; then
-            version_info=$(command -v "$tool" && "$tool" --version 2>&1 | head -1 || echo "version unknown")
+            version_info=$("$tool" --version 2>&1 | head -1 || echo "version unknown")
             log_info "✓ $tool: $version_info"
         else
             log_error "✗ $tool: NOT FOUND"
