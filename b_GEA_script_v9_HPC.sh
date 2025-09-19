@@ -43,20 +43,6 @@ SRR_LIST_PRJNA328564=(
 	SRR3884675 # Roots
 )
 
-: <<'SCRATCH'
-	# List of SRR sample IDs to process
-	SRR3884631 -> "Fruits 6 cm"
-	SRR3884677 -> "Cotyledons"
-	SRR3884679 -> "Pistils"
-	SRR3884597 -> "Flowers"
-	SRR3884686 -> "Buds 0.7 cm"
-	SRR3884687 -> "Buds, Opened Buds"
-	SRR3884689 -> "Leaves"
-	SRR3884690 -> "Stems"
-	SRR3884685 -> "Radicles"
-	SRR3884675 -> "Roots"
-SCRATCH
-
 RAW_DIR_ROOT="00_Raw_Files_and_FastQC/PRJNA328564"
 TRIM_DIR_ROOT="01_Trimmed_TrimGalore_Ver/PRJNA328564"
 HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
