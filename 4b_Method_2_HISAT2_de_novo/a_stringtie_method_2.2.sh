@@ -5,7 +5,7 @@ set -euo pipefail
 # CONFIGURATION
 # ===============================================
 BASE_DIR="$PWD"
-OUT_DIR="03_stringtie/method_2.2_count_matrices"
+OUT_DIR="5_stringtie/method_2.2_count_matrices"
 mkdir -p "$OUT_DIR"
 
 # Which column to extract from the *_gene_abundances_de_novo_v2.tsv
@@ -19,10 +19,10 @@ COUNT_COL=7    # Coverage column (adjust if needed)
 # ===============================================
 
 merge_group_counts() {
-    local group="$1"
-    local group_dir="$BASE_DIR/$group"
+    local group_path="$1"
+    local group=$(basename "$group_path")
+    local group_dir="$group_path"
 
-    echo "Processing group: $group"
     local tmpdir
     tmpdir=$(mktemp -d)
 
@@ -64,11 +64,28 @@ merge_group_counts() {
 # MAIN
 # ===============================================
 
-# Loop through each group directory under BASE_DIR
-for group in $(find "$BASE_DIR" -mindepth 1 -maxdepth 1 -type d -printf "%f\n"); do
-    merge_group_counts "$group"
+# Find directories containing target files (excluding 6_Visualization)
+# Use a simpler approach to avoid path issues
+find "$BASE_DIR" -mindepth 1 -maxdepth 3 -type d -not -path "*/6_Visualization*" | while read -r group_path; do
+    # Check if this directory contains target files
+    if find "$group_path" -name "*gene_abundances_de_novo_v2.tsv" -type f | head -1 | grep -q .; then
+        group=$(basename "$group_path")
+        echo "Found group directory: $group_path"
+        echo "Processing group: $group"
+        merge_group_counts "$group_path"
+    fi
 done
 
 echo "All groups processed. Count matrices are in: $OUT_DIR"
 
-conda install -c conda-forge -c bioconda r-base r-tidyverse bioconductor-deseq2 r-pheatmap
+# To ready and run DESeq2 in R:
+#conda install -c conda-forge -c bioconda r-base r-tidyverse bioconductor-deseq2 r-pheatmap
+
+# Check if R script exists before running
+R_SCRIPT="b_heatmap_DeSeq2_v2.R"
+if [[ -f "$R_SCRIPT" ]]; then
+    echo "Running R script: $R_SCRIPT"
+    Rscript "$R_SCRIPT"
+else
+    echo "Warning: R script '$R_SCRIPT' not found in current directory"
+fi
