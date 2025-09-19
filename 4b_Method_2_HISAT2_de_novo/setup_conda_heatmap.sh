@@ -92,7 +92,51 @@ install_r_packages() {
     log_info "Installing packages from $YAML_FILE strictly into environment '$DEFAULT_ENV'..."
     
     # Use explicit --name flag to ensure installation in correct environment
-    mamba env update --name "$DEFAULT_ENV" --file "$YAML_FILE" --prune
+    mamba env update --name "$DEFAULT_ENV" --file "$YAML_FILE" --prune || {
+        log_warn "YAML installation failed, trying alternative approach..."
+        
+        # Install packages individually if YAML fails
+        log_info "Installing R packages individually..."
+        mamba install -n "$DEFAULT_ENV" -c conda-forge -c bioconda -y \
+            r-base=4.2 \
+            r-tidyverse \
+            r-pheatmap \
+            r-rcolorbrewer \
+            r-viridis \
+            r-biocmanager || {
+            log_error "Failed to install basic R packages"
+            exit 1
+        }
+    }
+    
+    # Install DESeq2 via BiocManager as primary method
+    log_info "Installing DESeq2 via BiocManager..."
+    Rscript -e "
+    # Install BiocManager if not available
+    if (!requireNamespace('BiocManager', quietly = TRUE)) {
+        install.packages('BiocManager', repos='https://cran.r-project.org/')
+    }
+    
+    # Update Bioconductor
+    BiocManager::install(version = '3.16', ask = FALSE, update = FALSE)
+    
+    # Install DESeq2
+    BiocManager::install('DESeq2', ask = FALSE, update = FALSE, force = TRUE)
+    
+    # Verify installation
+    if (requireNamespace('DESeq2', quietly = TRUE)) {
+        cat('✓ DESeq2 successfully installed via BiocManager\n')
+    } else {
+        cat('✗ DESeq2 installation failed\n')
+        quit(status = 1)
+    }
+    " || {
+        log_warn "BiocManager installation failed, trying conda approach..."
+        mamba install -n "$DEFAULT_ENV" -c bioconda bioconductor-deseq2 -y || {
+            log_error "All DESeq2 installation methods failed"
+            exit 1
+        }
+    }
     
     # Verify installation was targeted correctly
     log_info "Verifying packages were installed in '$DEFAULT_ENV'..."
