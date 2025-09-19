@@ -1,0 +1,16 @@
+name: GEA_ENV
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - sra-tools
+  - trim-galore
+  - hisat2
+  - samtools
+  - stringtie
+  - trinity
+  - parallel
+  - wget
+  - curl
