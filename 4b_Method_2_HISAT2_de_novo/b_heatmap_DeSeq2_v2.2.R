@@ -442,8 +442,8 @@ process_group <- function(file) {
     cat("❌ CRITICAL ERROR: Matrix is NULL after all processing attempts\n")
     cat("📊 Available data:\n")
     cat("   • Original counts matrix:", nrow(counts), "x", ncol(counts), "\n")
-    cat("   • Coldata dimensions:", nrow(coldata), "x", ncol(coldata), "\n")
-    cat("   • Condition levels:", length(unique(coldata$condition)), "\n")
+    cat("   • Simple coldata dimensions:", nrow(simple_coldata), "x", ncol(simple_coldata), "\n")
+    cat("   • Condition levels:", length(unique(simple_coldata$condition)), "\n")
     stop("Matrix processing failed completely - cannot proceed with heatmap generation")
   }
   
@@ -513,6 +513,12 @@ process_group <- function(file) {
   
   cat("  🔄 Sorting genes by overall expression level (low to high)...\n")
   
+  # Additional matrix validation before gene sorting
+  if (is.null(mat) || nrow(mat) == 0 || ncol(mat) == 0) {
+    stop("❌ Matrix is invalid for gene sorting: ", 
+         if(is.null(mat)) "NULL" else paste(nrow(mat), "x", ncol(mat)))
+  }
+  
   # Calculate mean expression across all samples for each gene
   gene_mean_expression <- rowMeans(mat, na.rm = TRUE)
   
@@ -526,7 +532,7 @@ process_group <- function(file) {
       round(min(gene_mean_expression), 2), "to", round(max(gene_mean_expression), 2), "\n")
   
   cat("  📉 Matrix ready:", nrow(mat), "genes x", ncol(mat), "samples\n")
-  
+
   # --------------------------------------------------------------------------
   # STEP 7: SIMPLIFIED ORGAN NAME MAPPING
   # --------------------------------------------------------------------------
@@ -669,30 +675,57 @@ process_group <- function(file) {
     
     cat("\n  🎨 Generating", toupper(config_name), "width heatmaps (", config$width, "px)...\n")
     
+    # Pre-heatmap validation
+    cat("    🔍 Pre-heatmap validation:\n")
+    cat("      • Matrix dimensions:", nrow(mat), "x", ncol(mat), "\n")
+    cat("      • All_genes length:", length(all_genes), "\n")
+    cat("      • Gene order range:", min(all_genes), "to", max(all_genes), "\n")
+    cat("      • Samples length:", length(samples), "\n")
+    cat("      • Organ names length:", length(organ_names), "\n")
+    
+    # Validate matrix subset
+    if (length(all_genes) == 0 || max(all_genes) > nrow(mat)) {
+      cat("      ❌ Invalid gene indices - skipping width configuration\n")
+      next
+    }
+    
     # HEATMAP 1: DETAILED VIEW WITH GENE NAMES
     cat("    🆪 Detailed heatmap (", config_name, ")...\n")
     
     detailed_file <- file.path(width_dir, paste0(base_name, "_simple_srr_layout_", config$suffix, ".jpg"))
     
     tryCatch({
+      # Additional validation before matrix operations
+      subset_mat <- mat[all_genes, , drop = FALSE]
+      if (nrow(subset_mat) == 0 || ncol(subset_mat) == 0) {
+        stop("Empty matrix after subsetting: ", nrow(subset_mat), "x", ncol(subset_mat))
+      }
+      
+      transposed_mat <- t(subset_mat)
+      if (nrow(transposed_mat) == 0 || ncol(transposed_mat) == 0) {
+        stop("Empty matrix after transpose: ", nrow(transposed_mat), "x", ncol(transposed_mat))
+      }
+      
       jpeg(detailed_file, 
            width = config$width,
            height = max(1400, nrow(mat) * config$height_multiplier),
            res = 150, 
-           quality = 95)
+           quality = 100)
       
       pheatmap(
-        t(mat[all_genes, ]),
+        transposed_mat,
         cluster_rows = FALSE,
         cluster_cols = FALSE,
         show_rownames = TRUE,
         show_colnames = TRUE,
-        fontsize = max(6, min(10, 120/nrow(mat))),
-        fontsize_row = 10,
-        fontsize_col = max(3, min(7, 120/nrow(mat))),
+        fontsize = max(8, min(12, 120/nrow(mat))),
+        fontsize_row = 12,
+        fontsize_col = max(6, min(10, 120/nrow(mat))),
         breaks = seq(0, 10, length.out = 101),
         main = paste("All Genes - Simple SRR Layout (", nrow(mat), " genes) -", group_name, "-", toupper(config_name)),
-        color = eggplant_colors
+        color = eggplant_colors,
+        border_color = NA,
+        margins = c(8, 8)
       )
       
       dev.off()
@@ -701,6 +734,10 @@ process_group <- function(file) {
     }, error = function(e) {
       if (dev.cur() > 1) dev.off()
       cat("      ❌ Failed:", e$message, "\n")
+      cat("      🔍 Debug info:\n")
+      cat("        • Matrix class:", class(mat), "\n")
+      cat("        • Matrix is null:", is.null(mat), "\n")
+      cat("        • All_genes valid:", all(all_genes %in% 1:nrow(mat)), "\n")
     })
     
     # HEATMAP 2: OVERVIEW
@@ -709,6 +746,10 @@ process_group <- function(file) {
     overview_file <- file.path(width_dir, paste0(base_name, "_simple_srr_overview_", config$suffix, ".jpg"))
     
     tryCatch({
+      # Additional validation before matrix operations
+      subset_mat <- mat[all_genes, , drop = FALSE]
+      transposed_mat <- t(subset_mat)
+      
       jpeg(overview_file, 
            width = config$width,
            height = max(1200, nrow(mat) * (config$height_multiplier * 0.6)),
@@ -716,17 +757,19 @@ process_group <- function(file) {
            quality = 95)
       
       pheatmap(
-        t(mat[all_genes, ]),
+        transposed_mat,
         cluster_rows = FALSE,
         cluster_cols = FALSE,
         show_rownames = TRUE,
         show_colnames = TRUE,
-        fontsize = 10,
-        fontsize_row = 10,
-        fontsize_col = max(2, min(5, 80/nrow(mat))),
+        fontsize = 12,
+        fontsize_row = 12,
+        fontsize_col = max(5, min(8, 80/nrow(mat))),
         breaks = seq(0, 10, length.out = 101),
         main = paste("All Genes - Simple SRR Overview (", nrow(mat), " genes) -", group_name, "-", toupper(config_name)),
-        color = eggplant_colors
+        color = eggplant_colors,
+        border_color = NA,
+        margins = c(8, 8)
       )
       
       dev.off()
@@ -743,7 +786,16 @@ process_group <- function(file) {
     correlation_file <- file.path(width_dir, paste0(base_name, "_sample_correlation_", config$suffix, ".jpg"))
     
     tryCatch({
+      # Calculate sample-to-sample correlations with validation
+      if (ncol(mat) < 2) {
+        stop("Need at least 2 samples for correlation analysis")
+      }
+      
       sample_cor <- cor(mat, use = "complete.obs")
+      
+      if (any(is.na(sample_cor)) || nrow(sample_cor) == 0) {
+        stop("Invalid correlation matrix")
+      }
       
       # Use proportional sizing for correlation matrix
       corr_size <- min(config$width * 0.6, 1200)
@@ -760,12 +812,14 @@ process_group <- function(file) {
         cluster_cols = FALSE,
         show_rownames = TRUE,
         show_colnames = TRUE,
-        fontsize = 10,
-        fontsize_row = 10,
-        fontsize_col = 10,
+        fontsize = 16, #12,
+        fontsize_row = 12,
+        fontsize_col = 12,
         breaks = seq(0, 1, length.out = 101),
         main = paste("Sample Correlation - Simple Layout -", group_name, "-", toupper(config_name)),
-        color = eggplant_colors
+        color = eggplant_colors,
+        border_color = NA,
+        margins = c(16, 16) #c(8, 8)
       )
       
       dev.off()
@@ -774,6 +828,9 @@ process_group <- function(file) {
     }, error = function(e) {
       if (dev.cur() > 1) dev.off()
       cat("      ❌ Failed:", e$message, "\n")
+      cat("      🔍 Correlation debug:\n")
+      cat("        • Matrix cols:", ncol(mat), "\n")
+      cat("        • Any NA in matrix:", any(is.na(mat)), "\n")
     })
     
     # HEATMAP 4: BIOLOGICAL ORGAN NAMES VERSION
@@ -782,7 +839,13 @@ process_group <- function(file) {
     biological_file <- file.path(width_dir, paste0(base_name, "_simple_organ_layout_", config$suffix, ".jpg"))
     
     tryCatch({
-      mat_biological <- t(mat[all_genes, ])
+      # Validate organ names
+      if (length(organ_names) != ncol(mat)) {
+        stop("Organ names length (", length(organ_names), ") doesn't match matrix columns (", ncol(mat), ")")
+      }
+      
+      subset_mat <- mat[all_genes, , drop = FALSE]
+      mat_biological <- t(subset_mat)
       rownames(mat_biological) <- organ_names
       
       jpeg(biological_file, 
@@ -797,12 +860,14 @@ process_group <- function(file) {
         cluster_cols = FALSE,
         show_rownames = TRUE,
         show_colnames = TRUE,
-        fontsize = 10,
-        fontsize_row = 11,
-        fontsize_col = max(2, min(4, 60/nrow(mat))),
+        fontsize = 12,
+        fontsize_row = 13,
+        fontsize_col = max(5, min(7, 60/nrow(mat))),
         breaks = seq(0, 10, length.out = 101),
         main = paste("All Genes - Simple Organ Layout (", nrow(mat), " genes) -", group_name, "-", toupper(config_name)),
-        color = eggplant_colors
+        color = eggplant_colors,
+        border_color = NA,
+        margins = c(8, 8)
       )
       
       dev.off()
@@ -811,6 +876,9 @@ process_group <- function(file) {
     }, error = function(e) {
       if (dev.cur() > 1) dev.off()
       cat("      ❌ Failed:", e$message, "\n")
+      cat("      🔍 Biological debug:\n")
+      cat("        • Organ names length:", length(organ_names), "\n")
+      cat("        • Matrix columns:", ncol(mat), "\n")
     })
   }
   
@@ -835,12 +903,15 @@ process_group <- function(file) {
       cluster_cols = FALSE,
       show_rownames = TRUE,
       show_colnames = TRUE,
-      fontsize = max(6, min(10, 120/nrow(mat))),
-      fontsize_row = 10,
-      fontsize_col = max(3, min(7, 120/nrow(mat))),
+      fontsize = max(8, min(12, 120/nrow(mat))),  # Increased base font size
+      fontsize_row = 12,  # Increased row font size
+      fontsize_col = max(6, min(10, 120/nrow(mat))),  # Increased gene label font size
       breaks = seq(0, 10, length.out = 101),
       main = paste("All Genes - Simple SRR Layout (", nrow(mat), " genes) -", group_name),
-      color = eggplant_colors
+      color = eggplant_colors,
+      # Add margins for white space around borders
+      border_color = NA,  # Remove cell borders for cleaner look
+      margins = c(8, 8)   # Add margins: c(bottom/left, top/right)
     )
     
     dev.off()
@@ -869,12 +940,15 @@ process_group <- function(file) {
       cluster_cols = FALSE,
       show_rownames = TRUE,
       show_colnames = TRUE,
-      fontsize = 10,
-      fontsize_row = 10,
-      fontsize_col = max(2, min(5, 80/nrow(mat))),
+      fontsize = 12,  # Increased base font size
+      fontsize_row = 12,  # Increased row font size
+      fontsize_col = max(5, min(8, 80/nrow(mat))),  # Increased gene label font size
       breaks = seq(0, 10, length.out = 101),
       main = paste("All Genes - Simple SRR Overview (", nrow(mat), " genes) -", group_name),
-      color = eggplant_colors
+      color = eggplant_colors,
+      # Add margins for white space around borders
+      border_color = NA,  # Remove cell borders for cleaner look
+      margins = c(8, 8)   # Add margins: c(bottom/left, top/right)
     )
     
     dev.off()
@@ -905,12 +979,15 @@ process_group <- function(file) {
       cluster_cols = FALSE,
       show_rownames = TRUE,
       show_colnames = TRUE,
-      fontsize = 10,
-      fontsize_row = 10,
-      fontsize_col = 10,
+      fontsize = 12,  # Increased base font size
+      fontsize_row = 12,  # Increased row font size
+      fontsize_col = 12,  # Increased column font size
       breaks = seq(0, 1, length.out = 101),
       main = paste("Sample Correlation - Simple Layout -", group_name),
-      color = eggplant_colors
+      color = eggplant_colors,
+      # Add margins for white space around borders
+      border_color = NA,  # Remove cell borders for cleaner look
+      margins = c(8, 8)   # Add margins: c(bottom/left, top/right)
     )
     
     dev.off()
@@ -942,12 +1019,15 @@ process_group <- function(file) {
       cluster_cols = FALSE,
       show_rownames = TRUE,
       show_colnames = TRUE,
-      fontsize = 10,
-      fontsize_row = 11,
-      fontsize_col = max(2, min(4, 60/nrow(mat))),
+      fontsize = 12,  # Increased base font size
+      fontsize_row = 13,  # Increased organ name font size
+      fontsize_col = max(5, min(7, 60/nrow(mat))),  # Increased gene label font size
       breaks = seq(0, 10, length.out = 101),
       main = paste("All Genes - Simple Organ Layout (", nrow(mat), " genes) -", group_name),
-      color = eggplant_colors
+      color = eggplant_colors,
+      # Add margins for white space around borders
+      border_color = NA,  # Remove cell borders for cleaner look
+      margins = c(8, 8)   # Add margins: c(bottom/left, top/right)
     )
     
     dev.off()
@@ -972,16 +1052,20 @@ process_group <- function(file) {
   }
   
   # Export gene variance rankings (all genes included)
-  gene_variance_order <- order(gene_vars, decreasing = TRUE)
-  all_genes_df <- data.frame(
-    GeneID = rownames(mat)[gene_variance_order],
-    Variance = gene_vars[gene_variance_order],
-    Rank = 1:length(gene_vars)
-  )
-  
-  variance_file <- file.path(individual_out_dir, paste0(base_name, "_all_genes_variance_ranked.csv"))
-  write.csv(all_genes_df, variance_file, quote = FALSE, row.names = FALSE)
-  cat("  🗃️  Saved gene variance rankings:", basename(variance_file), "\n")
+  if (length(gene_vars) > 0 && nrow(mat) > 0) {
+    gene_variance_order <- order(gene_vars, decreasing = TRUE)
+    all_genes_df <- data.frame(
+      GeneID = rownames(mat)[gene_variance_order],
+      Variance = gene_vars[gene_variance_order],
+      Rank = 1:length(gene_vars)
+    )
+    
+    variance_file <- file.path(individual_out_dir, paste0(base_name, "_all_genes_variance_ranked.csv"))
+    write.csv(all_genes_df, variance_file, quote = FALSE, row.names = FALSE)
+    cat("  🗃️  Saved gene variance rankings:", basename(variance_file), "\n")
+  } else {
+    cat("  ⚠️  Skipping gene variance export - no valid data\n")
+  }
   
   # --------------------------------------------------------------------------
   # COMPLETION SUMMARY
@@ -1147,6 +1231,7 @@ cat("\n🔄 Starting batch heatmap generation...\n")
 
 # Process each TSV file with error handling
 processing_results <- list()
+total_heatmaps_generated <- 0  # Track total heatmaps across all files
 
 for (i in seq_along(files)) {
   file <- files[i]
@@ -1155,6 +1240,8 @@ for (i in seq_along(files)) {
   tryCatch({
     process_group(file)
     processing_results[[group_name]] <- "SUCCESS"
+    # Estimate heatmaps generated (4 original + 4 per width config, assume average of 3 configs)
+    total_heatmaps_generated <- total_heatmaps_generated + 16  # Rough estimate
   }, error = function(e) {
     cat("❌ ERROR processing", group_name, ":", e$message, "\n")
     processing_results[[group_name]] <- paste("ERROR:", e$message)
@@ -1255,12 +1342,12 @@ cat("✅ Summary report saved:", summary_file, "\n")
 
 cat("\n🎆 ANALYSIS PIPELINE COMPLETED SUCCESSFULLY!\n")
 cat("📁 All outputs saved in:", out_dir, "\n")
-cat("� Directory structure: Individual folders per dataset\n")
+cat("📂 Directory structure: Individual folders per dataset\n")
 cat("   • Each dataset has its own subfolder with:\n")
 cat("   • 4 JPEG heatmaps (all non-clustered: detailed, overview, correlation, biological)\n")
 cat("   • CSV data files (normalized counts, gene rankings)\n")
 cat("   • README.txt documentation\n")
-cat("�📋 Total heatmaps generated:", success_count * (4 + (4 * length(selected_configs))), "\n")  # Original + selected width variations
+cat("📋 Total heatmaps generated: approximately", total_heatmaps_generated, "\n")
 cat("🎨 Color scheme: Custom eggplant violet palette\n")
 cat("🧬 Analysis method: Complete gene inclusion with DESeq2\n")
 
@@ -1271,9 +1358,6 @@ if (success_count == length(files)) {
 }
 
 cat(paste0("\n", paste(rep("=", 60), collapse = ""), "\n"))
-cat("   • README.txt documentation\n")
-cat("�📋 Total heatmaps generated:", success_count * (4 + (4 * length(selected_configs))), "\n")  # Original + selected width variations
-cat("🎨 Color scheme: Custom eggplant violet palette\n")
 cat("🧬 Analysis method: Complete gene inclusion with DESeq2\n")
 
 if (success_count == length(files)) {
