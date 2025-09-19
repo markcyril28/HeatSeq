@@ -19,11 +19,12 @@ THREADS="${user_threads:-64}"  # Number of threads to use for parallel operation
 
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	"00_INPUTS/TEST.fasta"
-	"00_INPUTS/SmelDMP_CDS_Control_Best.fasta"
-	"00_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
-	"00_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
-	"00_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
+	#"00_INPUTS/TEST.fasta"
+	#"00_INPUTS/SmelDMP_CDS_Control_Best.fasta"
+	#"00_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
+	#"00_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
+	#"00_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
+	"00_INPUTS/Control_Genes_Puta.fasta"
 )
 
 SRR_LIST_PRJNA328564=(
@@ -66,7 +67,7 @@ log() { local level="$1"; shift; printf '[%s] [%s] %s\n' "$(timestamp)" "$level"
 log_info() { log INFO "$@"; }
 log_warn() { log WARN "$@"; }
 log_error() { log ERROR "$@"; }
-log_step() { log INFO "===== $* ====="; }
+log_step() { log INFO "=============== $* ==============="; }
 
 setup_logging() {
 	# Set up logging and output redirection
@@ -172,7 +173,7 @@ download_srrs() {
 			fasterq-dump --split-files "$SRR" -O "$raw_files_DIR"
 		fi
 		log_info "Done working on $SRR."
-		log_info "-------------------------"
+		log_info "--------------------------------------------------"
 	done
 }
 
