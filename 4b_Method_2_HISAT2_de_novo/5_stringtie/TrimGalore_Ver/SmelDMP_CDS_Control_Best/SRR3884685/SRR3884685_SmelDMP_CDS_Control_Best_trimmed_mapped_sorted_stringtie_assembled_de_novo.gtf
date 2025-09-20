@@ -1,8 +1,0 @@
-# stringtie -p 64 02_HISAT2/TrimGalore_Ver/SmelDMP_CDS_Control_Best/SRR3884685/SRR3884685_SmelDMP_CDS_Control_Best_trimmed_mapped_sorted.bam -o 03_stringtie/TrimGalore_Ver/SmelDMP_CDS_Control_Best/SRR3884685/SRR3884685_SmelDMP_CDS_Control_Best_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf -A 03_stringtie/TrimGalore_Ver/SmelDMP_CDS_Control_Best/SRR3884685/SRR3884685_SmelDMP_CDS_Control_Best_gene_abundances_de_novo_v1.tsv
-# StringTie version 3.0.0
-SmelDMP_01.730	StringTie	transcript	1	687	1000	.	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "39.390102"; FPKM "11415.769531"; TPM "5996.858398";
-SmelDMP_01.730	StringTie	exon	1	687	1000	.	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "39.390102";
-Smel18s_06.900	StringTie	transcript	51	966	1000	.	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; cov "52.674671"; FPKM "15265.812500"; TPM "8019.337891";
-Smel18s_06.900	StringTie	exon	51	966	1000	.	.	gene_id "STRG.2"; transcript_id "STRG.2.1"; exon_number "1"; cov "52.674671";
-SmelCyclo_01	StringTie	transcript	1	516	1000	.	.	gene_id "STRG.3"; transcript_id "STRG.3.1"; cov "6476.391602"; FPKM "1876943.500000"; TPM "985983.750000";
-SmelCyclo_01	StringTie	exon	1	516	1000	.	.	gene_id "STRG.3"; transcript_id "STRG.3.1"; exon_number "1"; cov "6476.391602";
