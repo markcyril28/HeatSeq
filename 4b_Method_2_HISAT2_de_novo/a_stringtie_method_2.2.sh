@@ -20,8 +20,6 @@ Fasta_Groups=(
 SRR_LIST_PRJNA328564=(
 	# List of SRR sample IDs to process
 	SRR3884631 # Fruits 6 cm
-	#SRR3884664 # Fruits Calyx Stage 2
-	#SRR3884653 # Fruits Flesh Stage 2
 	SRR3884677 # Cotyledons
 	SRR3884679 # Pistils
 	SRR3884597 # Flowers
@@ -91,8 +89,15 @@ merge_group_counts() {
     local tmpdir
     tmpdir=$(mktemp -d)
 
-    # Collect abundance files
-    mapfile -t files < <(find "$gene_group_path" -type f -name "*gene_abundances_de_novo_${version}.tsv" | sort)
+    # Collect abundance files in the specified order
+    files=()
+    for srr in "${SRR_LIST_PRJNA328564[@]}"; do
+        file_path=$(find "$gene_group_path" -type f -name "${srr}_*gene_abundances_de_novo_${version}.tsv")
+        if [[ -n "$file_path" ]]; then
+            files+=("$file_path")
+        fi
+    done
+    
     if [[ ${#files[@]} -eq 0 ]]; then
         echo "No files found in $gene_group_path"
         rm -r "$tmpdir"
@@ -114,20 +119,35 @@ merge_group_counts() {
         # Create array to store sample file paths for paste command
         sample_files=()
 
-        # For each sample file, extract counts (skip header)
-        for f in "${files[@]}"; do
-            sample=$(basename "$f" | cut -d_ -f1)  # e.g., SRR3884597
-            echo "  Adding sample: $sample"
-            tail -n +2 "$f" | cut -f"$COUNT_COL" > "$tmpdir/${sample}.txt"
-            sample_files+=("$tmpdir/${sample}.txt")
+        # For each sample in the specified order, extract counts (skip header)
+        for srr in "${SRR_LIST_PRJNA328564[@]}"; do
+            # Find the corresponding file for this SRR
+            sample_file=""
+            for f in "${files[@]}"; do
+                if [[ "$(basename "$f")" == "${srr}_"* ]]; then
+                    sample_file="$f"
+                    break
+                fi
+            done
+            
+            if [[ -n "$sample_file" ]]; then
+                echo "  Adding sample: $srr"
+                tail -n +2 "$sample_file" | cut -f"$COUNT_COL" > "$tmpdir/${srr}.txt"
+                sample_files+=("$tmpdir/${srr}.txt")
+            fi
         done
 
         # Create Gene ID matrix with SRR headers
         {
             printf "GeneID"
-            for f in "${files[@]}"; do
-                sample=$(basename "$f" | cut -d_ -f1)
-                printf "\t%s" "$sample"
+            for srr in "${SRR_LIST_PRJNA328564[@]}"; do
+                # Check if this SRR has a corresponding file
+                for f in "${files[@]}"; do
+                    if [[ "$(basename "$f")" == "${srr}_"* ]]; then
+                        printf "\t%s" "$srr"
+                        break
+                    fi
+                done
             done
             printf "\n"
 
@@ -137,10 +157,15 @@ merge_group_counts() {
         # Create Gene ID matrix with Organ headers
         {
             printf "GeneID"
-            for f in "${files[@]}"; do
-                sample=$(basename "$f" | cut -d_ -f1)
-                organ="${SRR_TO_ORGAN[$sample]}"
-                printf "\t%s" "$organ"
+            for srr in "${SRR_LIST_PRJNA328564[@]}"; do
+                # Check if this SRR has a corresponding file
+                for f in "${files[@]}"; do
+                    if [[ "$(basename "$f")" == "${srr}_"* ]]; then
+                        organ="${SRR_TO_ORGAN[$srr]}"
+                        printf "\t%s" "$organ"
+                        break
+                    fi
+                done
             done
             printf "\n"
 
@@ -150,9 +175,14 @@ merge_group_counts() {
         # Create Gene Name matrix with SRR headers
         {
             printf "GeneName"
-            for f in "${files[@]}"; do
-                sample=$(basename "$f" | cut -d_ -f1)
-                printf "\t%s" "$sample"
+            for srr in "${SRR_LIST_PRJNA328564[@]}"; do
+                # Check if this SRR has a corresponding file
+                for f in "${files[@]}"; do
+                    if [[ "$(basename "$f")" == "${srr}_"* ]]; then
+                        printf "\t%s" "$srr"
+                        break
+                    fi
+                done
             done
             printf "\n"
 
@@ -162,10 +192,15 @@ merge_group_counts() {
         # Create Gene Name matrix with Organ headers
         {
             printf "GeneName"
-            for f in "${files[@]}"; do
-                sample=$(basename "$f" | cut -d_ -f1)
-                organ="${SRR_TO_ORGAN[$sample]}"
-                printf "\t%s" "$organ"
+            for srr in "${SRR_LIST_PRJNA328564[@]}"; do
+                # Check if this SRR has a corresponding file
+                for f in "${files[@]}"; do
+                    if [[ "$(basename "$f")" == "${srr}_"* ]]; then
+                        organ="${SRR_TO_ORGAN[$srr]}"
+                        printf "\t%s" "$organ"
+                        break
+                    fi
+                done
             done
             printf "\n"
 

@@ -37,14 +37,14 @@ COUNT_TYPES <- c("coverage", "fpkm", "tpm")
 GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c("SRR", "Organ")
 
-# Sample metadata for better labeling
+# Sample metadata for better labeling (ordered to match bash script)
 SAMPLE_LABELS <- c(
   "SRR3884631" = "Fruits_6cm",
   "SRR3884677" = "Cotyledons", 
   "SRR3884679" = "Pistils",
   "SRR3884597" = "Flowers",
-  "SRR3884686" = "Buds_0.7cm",
   "SRR3884687" = "Buds_Opened",
+  "SRR3884686" = "Buds_0.7cm",
   "SRR3884689" = "Leaves",
   "SRR3884690" = "Stems", 
   "SRR3884685" = "Radicles",
@@ -86,6 +86,7 @@ read_count_matrix <- function(file_path) {
     
     # Replace all NA values with 0
     data_matrix[is.na(data_matrix)] <- 0
+
     
     # Ensure all values are numeric
     if (!is.numeric(data_matrix)) {
@@ -147,6 +148,96 @@ preprocess_for_heatmap <- function(data_matrix, count_type) {
       keep_genes <- order(gene_vars, decreasing = TRUE)[1:top_genes]
       data_processed <- data_processed[keep_genes, ]
     }
+  }
+  
+  return(data_processed)
+}
+
+# Preprocessing for raw sorted (no normalization, just basic cleaning)
+preprocess_for_raw_sorted <- function(data_matrix) {
+  if (is.null(data_matrix) || nrow(data_matrix) == 0) {
+    return(NULL)
+  }
+  
+  # Just clean the data without normalization
+  data_processed <- data_matrix
+  
+  # Replace any NA, Inf, or -Inf values with 0
+  data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
+  
+  # Remove genes with zero variance across all samples
+  gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
+  gene_vars[is.na(gene_vars)] <- 0
+  
+  if (any(gene_vars == 0)) {
+    data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
+  }
+  
+  return(data_processed)
+}
+
+# Preprocessing for count-type normalized sorted
+preprocess_for_count_type_normalized <- function(data_matrix, count_type) {
+  if (is.null(data_matrix) || nrow(data_matrix) == 0) {
+    return(NULL)
+  }
+  
+  # Handle different count types with appropriate normalization
+  if (count_type == "coverage") {
+    # For raw coverage counts: library size normalization + log transform
+    lib_sizes <- colSums(data_matrix, na.rm = TRUE)
+    lib_sizes[lib_sizes == 0] <- 1  # Avoid division by zero
+    
+    # Normalize by library size (CPM-like normalization)
+    data_normalized <- sweep(data_matrix, 2, lib_sizes/1e6, FUN = "/")
+    
+    # Log2 transform with pseudocount
+    data_processed <- log2(data_normalized + 1)
+    
+  } else if (count_type == "fpkm") {
+    # FPKM is already normalized for library size and gene length
+    data_processed <- log2(data_matrix + 0.1)
+    
+  } else if (count_type == "tpm") {
+    # TPM is already normalized - just log transform
+    data_processed <- log2(data_matrix + 0.1)
+    
+  } else {
+    # Default: simple log2 transform
+    data_processed <- log2(data_matrix + 1)
+  }
+  
+  # Replace any NA, Inf, or -Inf values with 0
+  data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
+  
+  # Remove genes with zero variance across all samples
+  gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
+  gene_vars[is.na(gene_vars)] <- 0
+  
+  if (any(gene_vars == 0)) {
+    data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
+  }
+  
+  return(data_processed)
+}
+
+# Preprocessing for Z-score normalized sorted
+preprocess_for_zscore_normalized <- function(data_matrix, count_type) {
+  if (is.null(data_matrix) || nrow(data_matrix) == 0) {
+    return(NULL)
+  }
+  
+  # First apply count-type normalization
+  data_processed <- preprocess_for_count_type_normalized(data_matrix, count_type)
+  
+  if (is.null(data_processed) || nrow(data_processed) == 0) {
+    return(NULL)
+  }
+  
+  # Apply Z-score normalization across samples for each gene
+  if (nrow(data_processed) > 1 && ncol(data_processed) > 1) {
+    data_processed <- t(scale(t(data_processed), center = TRUE, scale = TRUE))
+    data_processed[is.na(data_processed)] <- 0
   }
   
   return(data_processed)
@@ -244,6 +335,88 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
   })
 }
 
+# Function to generate sorted heatmap with different normalization types
+generate_sorted_heatmap <- function(data_matrix, output_path, title, count_type, label_type, normalization_type) {
+  if (is.null(data_matrix) || nrow(data_matrix) == 0) {
+    cat("Skipping heatmap - no data for:", title, "\n")
+    return(FALSE)
+  }
+  
+  # Check if we have enough data for clustering
+  if (nrow(data_matrix) < 2) {
+    cat("Skipping heatmap - not enough genes (", nrow(data_matrix), ") for:", title, "\n")
+    return(FALSE)
+  }
+  
+  # Additional check for data quality
+  if (any(is.na(data_matrix)) || any(is.infinite(data_matrix))) {
+    cat("Warning: Data contains NA or infinite values, cleaning...\n")
+    data_matrix[is.na(data_matrix) | is.infinite(data_matrix)] <- 0
+  }
+  
+  # Check if all values are the same (would cause scaling issues)
+  if (length(unique(as.vector(data_matrix))) == 1) {
+    cat("Skipping heatmap - all values are identical for:", title, "\n")
+    return(FALSE)
+  }
+  
+  # Define custom eggplant violet color palette
+  eggplant_colors <- colorRampPalette(c(
+    "#FFFFFF",  # White (low/no expression)
+    "#F3E5F5",  # Very light violet
+    "#CE93D8",  # Pale violet
+    "#AB47BC",  # Soft violet
+    "#8E24AA",  # Light violet
+    "#6A1B9A",  # Medium violet
+    "#4A148C",  # Rich purple
+    "#2F1B69"   # Deep eggplant (high expression)
+  ))(100)
+  
+  # Create better column labels if using SRR codes
+  col_labels <- colnames(data_matrix)
+  if (label_type == "SRR" && exists("SAMPLE_LABELS")) {
+    col_labels <- ifelse(colnames(data_matrix) %in% names(SAMPLE_LABELS),
+                        SAMPLE_LABELS[colnames(data_matrix)],
+                        colnames(data_matrix))
+  }
+  
+  # Determine scaling method based on normalization type
+  scale_method <- switch(normalization_type,
+                        "raw_sorted" = "row",
+                        "Count-Type_Normalized_Sorted" = "none", 
+                        "Z-score_Normalized_Sorted" = "none",
+                        "row")  # default
+  
+  # Create sorted heatmap (clustering disabled)
+  tryCatch({
+    pheatmap(
+      data_matrix,
+      color = eggplant_colors,
+      scale = scale_method,
+      cluster_rows = FALSE,     # Disable clustering for genes
+      cluster_cols = FALSE,     # Disable clustering for samples
+      show_rownames = ifelse(nrow(data_matrix) > 50, FALSE, TRUE),
+      show_colnames = TRUE,
+      labels_col = col_labels,
+      legend = TRUE,
+      main = paste(title, "-", normalization_type),
+      fontsize = 10,
+      fontsize_row = 6,
+      fontsize_col = 8,
+      filename = output_path,
+      width = 14,
+      height = 12,
+      border_color = NA
+    )
+    
+    return(TRUE)
+  }, error = function(e) {
+    cat("Error generating sorted heatmap for:", title, "\n")
+    cat("Error message:", e$message, "\n")
+    return(FALSE)
+  })
+}
+
 # ===============================================
 # MAIN PROCESSING
 # ===============================================
@@ -271,8 +444,9 @@ for (group in FASTA_GROUPS) {
           dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
           
           # Create additional empty subfolders
-          dir.create(file.path(output_dir, "sorted"), showWarnings = FALSE)
-          dir.create(file.path(output_dir, "normalized_sorted"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "raw_sorted"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "Count-Type_Normalized_Sorted"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "Z-score_Normalized_Sorted"), showWarnings = FALSE)
           
           # Use input filename as base for output filename
           input_basename <- tools::file_path_sans_ext(basename(input_file))
@@ -289,6 +463,38 @@ for (group in FASTA_GROUPS) {
           total_heatmaps <- total_heatmaps + 1
           if (generate_heatmap(processed_data, output_file, title, count_type, label_type)) {
             successful_heatmaps <- successful_heatmaps + 1
+          }
+          
+          # Generate additional normalized and sorted heatmaps
+          
+          # 1. Raw sorted heatmap (no normalization, just clustering)
+          raw_sorted_data <- preprocess_for_raw_sorted(raw_data)
+          if (!is.null(raw_sorted_data)) {
+            raw_sorted_output <- file.path(output_dir, "raw_sorted", paste0(input_basename, "_raw_sorted_heatmap.png"))
+            total_heatmaps <- total_heatmaps + 1
+            if (generate_sorted_heatmap(raw_sorted_data, raw_sorted_output, title, count_type, label_type, "raw_sorted")) {
+              successful_heatmaps <- successful_heatmaps + 1
+            }
+          }
+          
+          # 2. Count-type normalized sorted heatmap
+          count_normalized_data <- preprocess_for_count_type_normalized(raw_data, count_type)
+          if (!is.null(count_normalized_data)) {
+            count_normalized_output <- file.path(output_dir, "Count-Type_Normalized_Sorted", paste0(input_basename, "_count_normalized_sorted_heatmap.png"))
+            total_heatmaps <- total_heatmaps + 1
+            if (generate_sorted_heatmap(count_normalized_data, count_normalized_output, title, count_type, label_type, "Count-Type_Normalized_Sorted")) {
+              successful_heatmaps <- successful_heatmaps + 1
+            }
+          }
+          
+          # 3. Z-score normalized sorted heatmap
+          zscore_normalized_data <- preprocess_for_zscore_normalized(raw_data, count_type)
+          if (!is.null(zscore_normalized_data)) {
+            zscore_normalized_output <- file.path(output_dir, "Z-score_Normalized_Sorted", paste0(input_basename, "_zscore_normalized_sorted_heatmap.png"))
+            total_heatmaps <- total_heatmaps + 1
+            if (generate_sorted_heatmap(zscore_normalized_data, zscore_normalized_output, title, count_type, label_type, "Z-score_Normalized_Sorted")) {
+              successful_heatmaps <- successful_heatmaps + 1
+            }
           }
         }
       }
