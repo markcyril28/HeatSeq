@@ -10,8 +10,8 @@ mkdir -p "$LOG_DIR"
 rm -rf "$LOG_DIR"/*
 
 # Chmod and Converts the file to Unix line endings
-chmod +x ./02_GEA_script_v9.sh
-dos2unix 02_GEA_script_v9.sh 
+chmod +x ./*.sh
+dos2unix ./*.sh
 
 # Run the main pipeline script and log resource usage
 /usr/bin/time -v ./02_GEA_script_v9.sh >> "$LOG_FILE" 2>&1
