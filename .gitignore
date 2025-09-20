@@ -10,3 +10,8 @@ file_copier.sh
 4b_Method_2_HISAT2_De_Novo/6_Visualization/heatmaps_method_2.2/analysis_summary.txt
 4b_Method_2_HISAT2_De_Novo/6_Visualization/*
 4b_Method_2_HISAT2_de_novo/.Rhistory
+.vscode/launch.json
+.vscode/*
+4b_Method_2_HISAT2_De_Novo/5_stringtie/method_2.2_matrices/*
+4b_Method_2_HISAT2_De_Novo/5_stringtie/method_2.2_count_matrices/*
+4b_Method_2_HISAT2_De_Novo/.RData
