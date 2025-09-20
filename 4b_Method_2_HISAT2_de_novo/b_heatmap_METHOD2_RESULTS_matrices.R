@@ -58,25 +58,44 @@ SAMPLE_LABELS <- c(
 # Function to read and preprocess count matrix
 read_count_matrix <- function(file_path) {
   tryCatch({
+    # Read with na.strings to handle empty cells properly
     data <- read.table(file_path, header = TRUE, sep = "\t", 
-                      stringsAsFactors = FALSE, row.names = 1)
+                      stringsAsFactors = FALSE, 
+                      na.strings = c("", " ", "NA", "null"))
+    
+    # Handle duplicate row names by making them unique
+    if (any(duplicated(data[, 1]))) {
+      cat("  ⚠️  Found duplicate row names - making them unique...\n")
+      data[, 1] <- make.unique(as.character(data[, 1]), sep = "_")
+    }
+    
+    # Set gene IDs as row names
+    rownames(data) <- data[, 1]
+    data <- data[, -1, drop = FALSE]
     
     # Check if data contains non-numeric columns and convert
     for (i in 1:ncol(data)) {
       if (!is.numeric(data[, i])) {
+        # Convert to numeric, NA values will become NA
         data[, i] <- as.numeric(as.character(data[, i]))
-        data[is.na(data[, i]), i] <- 0
       }
     }
     
     # Convert to numeric matrix
     data_matrix <- as.matrix(data)
     
+    # Replace all NA values with 0
+    data_matrix[is.na(data_matrix)] <- 0
+    
     # Ensure all values are numeric
     if (!is.numeric(data_matrix)) {
       data_matrix <- apply(data_matrix, 2, as.numeric)
       data_matrix[is.na(data_matrix)] <- 0
     }
+    
+    # Remove rows that are all zeros (genes with no expression anywhere)
+    row_sums <- rowSums(data_matrix, na.rm = TRUE)
+    data_matrix <- data_matrix[row_sums > 0, , drop = FALSE]
     
     # Transpose the matrix to swap rows and columns
     data_matrix <- t(data_matrix)
@@ -158,19 +177,30 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
     return(FALSE)
   }
   
-  # Define single gradient color scheme: white to eggplant violet
-  colors <- colorRampPalette(c("white", "#614051"))(100)
+  # Define custom eggplant violet color palette
+  # Gradient: white (low expression) -> deep eggplant violet (high expression)
+  eggplant_colors <- colorRampPalette(c(
+    "#FFFFFF",  # White (low/no expression)
+    "#F3E5F5",  # Very light violet
+    "#CE93D8",  # Pale violet
+    "#AB47BC",  # Soft violet
+    "#8E24AA",  # Light violet
+    "#6A1B9A",  # Medium violet
+    "#4A148C",  # Rich purple
+    "#2F1B69"   # Deep eggplant (high expression)
+  ))(100)
   
   # Create heatmap with original labels
   tryCatch({
     pheatmap(
       data_matrix,
-      color = colors,
+      color = eggplant_colors,
       scale = "row",
       cluster_rows = FALSE,
       cluster_cols = FALSE,
       show_rownames = TRUE,
       show_colnames = ifelse(ncol(data_matrix) > 50, FALSE, TRUE),
+      legend = TRUE,
       main = title,
       fontsize = 10,
       fontsize_row = 8,
@@ -188,12 +218,13 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
     tryCatch({
       pheatmap(
         data_matrix,
-        color = colors,
+        color = eggplant_colors,
         scale = "none",
         cluster_rows = FALSE,
         cluster_cols = FALSE,
         show_rownames = TRUE,
         show_colnames = ifelse(ncol(data_matrix) > 50, FALSE, TRUE),
+        legend = TRUE,
         main = paste(title, "(No Scaling)"),
         fontsize = 10,
         fontsize_row = 8,
@@ -239,6 +270,10 @@ for (group in FASTA_GROUPS) {
           output_dir <- file.path(HEATMAP_OUT_DIR, group, version)
           dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
           
+          # Create additional empty subfolders
+          dir.create(file.path(output_dir, "sorted"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "normalized_sorted"), showWarnings = FALSE)
+          
           # Use input filename as base for output filename
           input_basename <- tools::file_path_sans_ext(basename(input_file))
           output_file <- file.path(output_dir, paste0(input_basename, "_heatmap.png"))
@@ -265,14 +300,14 @@ for (group in FASTA_GROUPS) {
 # SUMMARY
 # ===============================================
 
-cat("\n" , "="*50, "\n")
+cat("\n", paste(rep("=", 50), collapse = ""), "\n")
 cat("HEATMAP GENERATION SUMMARY\n")
-cat("="*50, "\n")
+cat(paste(rep("=", 50), collapse = ""), "\n")
 cat("Total heatmaps attempted:", total_heatmaps, "\n")
 cat("Successful heatmaps:", successful_heatmaps, "\n")
 cat("Failed heatmaps:", total_heatmaps - successful_heatmaps, "\n")
 cat("Output directory:", HEATMAP_OUT_DIR, "\n")
-cat("="*50, "\n")
+cat(paste(rep("=", 50), collapse = ""), "\n")
 
 if (successful_heatmaps > 0) {
   cat("Heatmap generation completed successfully!\n")
