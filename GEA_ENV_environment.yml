@@ -10,6 +10,7 @@ dependencies:
   - hisat2
   - samtools
   - stringtie
+  - Trinity
   - trinity
   - parallel
   - wget
