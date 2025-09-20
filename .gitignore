@@ -1,6 +1,4 @@
-02_HISAT2/TrimGalore_Ver/All_Control/SRR3884686/SRR3884686_All_Control_trimmed_mapped.sam
-02_HISAT2/index/
-02_HISAT2/*
+
 00_Raw_Files_and_FastQC/*
 01_Trimmed_TrimGalore_Ver/*
 4b_stringtie_TrimGalore_Ver_20250919_041401.tar.gz
@@ -15,4 +13,5 @@ file_copier.sh
 4b_Method_2_HISAT2_De_Novo/5_stringtie/method_2.2_matrices/*
 4b_Method_2_HISAT2_De_Novo/5_stringtie/method_2.2_count_matrices/*
 4b_Method_2_HISAT2_De_Novo/.RData
+4b_Method_2_HISAT2_de_novo/.Rhistory
 4b_Method_2_HISAT2_de_novo/.Rhistory
