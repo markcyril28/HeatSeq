@@ -1,4 +1,0 @@
-# stringtie -p 64 02_HISAT2/TrimGalore_Ver/TEST/SRR3884597/SRR3884597_TEST_trimmed_mapped_sorted.bam -o 03_stringtie/TrimGalore_Ver/TEST/SRR3884597/SRR3884597_TEST_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf -A 03_stringtie/TrimGalore_Ver/TEST/SRR3884597/SRR3884597_TEST_gene_abundances_de_novo_v1.tsv
-# StringTie version 3.0.0
-SmelCyclo06	StringTie	transcript	1	966	1000	.	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; cov "85.776398"; FPKM "1004619.250000"; TPM "1000000.000000";
-SmelCyclo06	StringTie	exon	1	966	1000	.	.	gene_id "STRG.1"; transcript_id "STRG.1.1"; exon_number "1"; cov "85.776398";
