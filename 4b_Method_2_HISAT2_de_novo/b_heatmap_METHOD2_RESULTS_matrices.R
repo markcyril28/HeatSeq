@@ -153,8 +153,8 @@ preprocess_for_heatmap <- function(data_matrix, count_type) {
   return(data_processed)
 }
 
-# Preprocessing for raw sorted (no normalization, just basic cleaning)
-preprocess_for_raw_sorted <- function(data_matrix) {
+# Preprocessing for raw data (no normalization, just basic cleaning)
+preprocess_for_raw_data <- function(data_matrix) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) {
     return(NULL)
   }
@@ -176,7 +176,7 @@ preprocess_for_raw_sorted <- function(data_matrix) {
   return(data_processed)
 }
 
-# Preprocessing for count-type normalized sorted
+# Preprocessing for count-type normalized data
 preprocess_for_count_type_normalized <- function(data_matrix, count_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) {
     return(NULL)
@@ -221,7 +221,7 @@ preprocess_for_count_type_normalized <- function(data_matrix, count_type) {
   return(data_processed)
 }
 
-# Preprocessing for Z-score normalized sorted
+# Preprocessing for Z-score normalized data
 preprocess_for_zscore_normalized <- function(data_matrix, count_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) {
     return(NULL)
@@ -293,13 +293,21 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
       show_colnames = ifelse(ncol(data_matrix) > 50, FALSE, TRUE),
       legend = TRUE,
       main = title,
-      fontsize = 10,
-      fontsize_row = 8,
-      fontsize_col = 8,
+      fontsize = 12,
+      fontsize_row = 10,
+      fontsize_col = 10,
       filename = output_path,
-      width = 12,
-      height = 10
+      width = 16,
+      height = 12,
+      dpi = 300,
+      units = "in",
+      res = 300
     )
+    
+    # Close any open graphics devices
+    if (length(dev.list()) > 0) {
+      dev.off()
+    }
     
     # cat("Heatmap saved:", output_path, "\n")
     return(TRUE)
@@ -317,13 +325,21 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
         show_colnames = ifelse(ncol(data_matrix) > 50, FALSE, TRUE),
         legend = TRUE,
         main = paste(title, "(No Scaling)"),
-        fontsize = 10,
-        fontsize_row = 8,
-        fontsize_col = 8,
+        fontsize = 12,
+        fontsize_row = 10,
+        fontsize_col = 10,
         filename = output_path,
-        width = 12,
-        height = 10
+        width = 16,
+        height = 12,
+        dpi = 300,
+        units = "in",
+        res = 300
       )
+      
+      # Close any open graphics devices
+      if (length(dev.list()) > 0) {
+        dev.off()
+      }
       
       # cat("Heatmap saved (no scaling):", output_path, "\n")
       return(TRUE)
@@ -335,8 +351,8 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
   })
 }
 
-# Function to generate sorted heatmap with different normalization types
-generate_sorted_heatmap <- function(data_matrix, output_path, title, count_type, label_type, normalization_type) {
+# Function to generate normalized heatmap with different normalization types
+generate_normalized_heatmap <- function(data_matrix, output_path, title, count_type, label_type, normalization_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) {
     cat("Skipping heatmap - no data for:", title, "\n")
     return(FALSE)
@@ -382,12 +398,12 @@ generate_sorted_heatmap <- function(data_matrix, output_path, title, count_type,
   
   # Determine scaling method based on normalization type
   scale_method <- switch(normalization_type,
-                        "raw_sorted" = "row",
-                        "Count-Type_Normalized_Sorted" = "none", 
-                        "Z-score_Normalized_Sorted" = "none",
+                        "raw_normalized" = "row",
+                        "Count-Type_Normalized" = "none", 
+                        "Z-score_Normalized" = "none",
                         "row")  # default
   
-  # Create sorted heatmap (clustering disabled)
+  # Create normalized heatmap (no clustering or sorting)
   tryCatch({
     pheatmap(
       data_matrix,
@@ -400,18 +416,26 @@ generate_sorted_heatmap <- function(data_matrix, output_path, title, count_type,
       labels_col = col_labels,
       legend = TRUE,
       main = paste(title, "-", normalization_type),
-      fontsize = 10,
-      fontsize_row = 6,
-      fontsize_col = 8,
+      fontsize = 12,
+      fontsize_row = 8,
+      fontsize_col = 10,
       filename = output_path,
-      width = 14,
-      height = 12,
+      width = 18,
+      height = 14,
+      dpi = 300,
+      units = "in",
+      res = 300,
       border_color = NA
     )
     
+    # Close any open graphics devices
+    if (length(dev.list()) > 0) {
+      dev.off()
+    }
+    
     return(TRUE)
   }, error = function(e) {
-    cat("Error generating sorted heatmap for:", title, "\n")
+    cat("Error generating normalized heatmap for:", title, "\n")
     cat("Error message:", e$message, "\n")
     return(FALSE)
   })
@@ -420,6 +444,11 @@ generate_sorted_heatmap <- function(data_matrix, output_path, title, count_type,
 # ===============================================
 # MAIN PROCESSING
 # ===============================================
+
+# Close any existing graphics devices before starting
+while (length(dev.list()) > 0) {
+  dev.off()
+}
 
 total_heatmaps <- 0
 successful_heatmaps <- 0
@@ -444,9 +473,10 @@ for (group in FASTA_GROUPS) {
           dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
           
           # Create additional empty subfolders
-          dir.create(file.path(output_dir, "raw_sorted"), showWarnings = FALSE)
-          dir.create(file.path(output_dir, "Count-Type_Normalized_Sorted"), showWarnings = FALSE)
-          dir.create(file.path(output_dir, "Z-score_Normalized_Sorted"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "raw_copy"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "raw_normalized"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "Count-Type_Normalized"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "Z-score_Normalized"), showWarnings = FALSE)
           
           # Use input filename as base for output filename
           input_basename <- tools::file_path_sans_ext(basename(input_file))
@@ -465,34 +495,41 @@ for (group in FASTA_GROUPS) {
             successful_heatmaps <- successful_heatmaps + 1
           }
           
+          # Create a copy of the original heatmap in raw_copy folder
+          raw_copy_output <- file.path(output_dir, "raw_copy", paste0(input_basename, "_raw_copy_heatmap.png"))
+          total_heatmaps <- total_heatmaps + 1
+          if (generate_heatmap(processed_data, raw_copy_output, title, count_type, label_type)) {
+            successful_heatmaps <- successful_heatmaps + 1
+          }
+          
           # Generate additional normalized and sorted heatmaps
           
-          # 1. Raw sorted heatmap (no normalization, just clustering)
-          raw_sorted_data <- preprocess_for_raw_sorted(raw_data)
-          if (!is.null(raw_sorted_data)) {
-            raw_sorted_output <- file.path(output_dir, "raw_sorted", paste0(input_basename, "_raw_sorted_heatmap.png"))
+          # 1. Raw normalized heatmap (no normalization, original gene order)
+          raw_data_processed <- preprocess_for_raw_data(raw_data)
+          if (!is.null(raw_data_processed)) {
+            raw_output <- file.path(output_dir, "raw_normalized", paste0(input_basename, "_raw_heatmap.png"))
             total_heatmaps <- total_heatmaps + 1
-            if (generate_sorted_heatmap(raw_sorted_data, raw_sorted_output, title, count_type, label_type, "raw_sorted")) {
+            if (generate_normalized_heatmap(raw_data_processed, raw_output, title, count_type, label_type, "raw_normalized")) {
               successful_heatmaps <- successful_heatmaps + 1
             }
           }
           
-          # 2. Count-type normalized sorted heatmap
+          # 2. Count-type normalized heatmap
           count_normalized_data <- preprocess_for_count_type_normalized(raw_data, count_type)
           if (!is.null(count_normalized_data)) {
-            count_normalized_output <- file.path(output_dir, "Count-Type_Normalized_Sorted", paste0(input_basename, "_count_normalized_sorted_heatmap.png"))
+            count_normalized_output <- file.path(output_dir, "Count-Type_Normalized", paste0(input_basename, "_count_normalized_heatmap.png"))
             total_heatmaps <- total_heatmaps + 1
-            if (generate_sorted_heatmap(count_normalized_data, count_normalized_output, title, count_type, label_type, "Count-Type_Normalized_Sorted")) {
+            if (generate_normalized_heatmap(count_normalized_data, count_normalized_output, title, count_type, label_type, "Count-Type_Normalized")) {
               successful_heatmaps <- successful_heatmaps + 1
             }
           }
           
-          # 3. Z-score normalized sorted heatmap
+          # 3. Z-score normalized heatmap
           zscore_normalized_data <- preprocess_for_zscore_normalized(raw_data, count_type)
           if (!is.null(zscore_normalized_data)) {
-            zscore_normalized_output <- file.path(output_dir, "Z-score_Normalized_Sorted", paste0(input_basename, "_zscore_normalized_sorted_heatmap.png"))
+            zscore_normalized_output <- file.path(output_dir, "Z-score_Normalized", paste0(input_basename, "_zscore_normalized_heatmap.png"))
             total_heatmaps <- total_heatmaps + 1
-            if (generate_sorted_heatmap(zscore_normalized_data, zscore_normalized_output, title, count_type, label_type, "Z-score_Normalized_Sorted")) {
+            if (generate_normalized_heatmap(zscore_normalized_data, zscore_normalized_output, title, count_type, label_type, "Z-score_Normalized")) {
               successful_heatmaps <- successful_heatmaps + 1
             }
           }
@@ -505,6 +542,11 @@ for (group in FASTA_GROUPS) {
 # ===============================================
 # SUMMARY
 # ===============================================
+
+# Close any remaining graphics devices
+while (length(dev.list()) > 0) {
+  dev.off()
+}
 
 cat("\n", paste(rep("=", 50), collapse = ""), "\n")
 cat("HEATMAP GENERATION SUMMARY\n")
