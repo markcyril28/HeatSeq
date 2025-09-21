@@ -103,6 +103,8 @@ install_r_packages() {
             r-pheatmap \
             r-rcolorbrewer \
             r-viridis \
+            r-dplyr \
+            r-tibble \
             r-biocmanager || {
             log_error "Failed to install basic R packages"
             exit 1
@@ -110,23 +112,34 @@ install_r_packages() {
     }
     
     # Install DESeq2 via BiocManager with simplified approach
-    log_info "Installing DESeq2 via BiocManager..."
+    log_info "Installing DESeq2 and other required R libraries via BiocManager..."
     Rscript -e "
     # Install BiocManager if not available
     if (!requireNamespace('BiocManager', quietly = TRUE)) {
         install.packages('BiocManager', repos='https://cran.r-project.org/')
     }
-    
+
+    # Install CRAN packages
+    pkgs <- c('pheatmap', 'RColorBrewer', 'dplyr', 'tibble')
+    for (pkg in pkgs) {
+        if (!requireNamespace(pkg, quietly = TRUE)) {
+            install.packages(pkg, repos='https://cran.r-project.org/')
+        }
+    }
+
     # Install DESeq2 without specifying Bioconductor version
     cat('Installing DESeq2...\n')
     BiocManager::install('DESeq2', ask = FALSE, update = FALSE)
-    
+
     # Verify installation
-    if (requireNamespace('DESeq2', quietly = TRUE)) {
-        cat('✓ DESeq2 successfully installed via BiocManager\n')
-    } else {
-        cat('✗ DESeq2 installation failed\n')
-        quit(status = 1)
+    libs <- c('BiocManager', 'DESeq2', 'pheatmap', 'RColorBrewer', 'dplyr', 'tibble')
+    for (lib in libs) {
+        if (requireNamespace(lib, quietly = TRUE)) {
+            cat('✓', lib, 'successfully installed\n')
+        } else {
+            cat('✗', lib, 'installation failed\n')
+            quit(status = 1)
+        }
     }
     " 2>&1 | tee /tmp/deseq2_install.log || {
         log_warn "BiocManager installation failed. Log:"
