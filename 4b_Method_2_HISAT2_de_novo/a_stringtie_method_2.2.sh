@@ -79,12 +79,12 @@ merge_group_counts() {
         return
     fi
 
-    # Extract Gene.Name columns from the reference file (skip header)
+    # Extract geneName from reference column (column 3) of the reference file (skip header)
     tail -n +2 "${REF_TSV}" | cut -f1 > "$tmpdir/gene_names.txt"
 
     # Debug: Check if gene_names.txt has content
     echo "Gene names extracted: $(wc -l < "$tmpdir/gene_names.txt") lines"
-    echo "First few gene names: $(head -3 "$tmpdir/gene_names.txt")"
+    echo "First few gene names: $(head -5 "$tmpdir/gene_names.txt")"
 
     for count in coverage fpkm tpm; do
         local COUNT_COL_VAR="${count^^}_COL"
@@ -105,12 +105,10 @@ merge_group_counts() {
             done
             
             if [[ -n "$sample_file" ]]; then
-                echo "  Adding sample: $srr"
                 tail -n +2 "$sample_file" | cut -f"$COUNT_COL" > "$tmpdir/${srr}.txt"
                 sample_files+=("$tmpdir/${srr}.txt")
             fi
         done
-
 
     # Create matrix: gene names + SRR sample columns
     {
@@ -153,11 +151,6 @@ merge_group_counts() {
             paste "$tmpdir/gene_names.txt" "${sample_files[@]}" | sed 's/\t\t/\t0\t/g; s/\t$/\t0/; s/^\t/0\t/'
     } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_Organ.tsv"
 
-        echo "Matrix saved: $OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneID_SRR.tsv"
-        echo "Matrix saved: $OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneID_Organ.tsv"
-        echo "Matrix saved: $OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_SRR.tsv"
-        echo "Matrix saved: $OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_Organ.tsv"
-        
         # Clean up temp files for this count type
         rm -f "${sample_files[@]}"
     done
@@ -171,7 +164,7 @@ merge_group_counts() {
 
 for version in v1 v2; do
     for Gene_group in "${Fasta_Groups[@]}"; do
-        REF_TSV="5_stringtie/${Gene_group}__REF_BOILERPLATE_TSV.tsv"
+        REF_TSV="5_stringtie/${Gene_group}_REF_BOILERPLATE_TSV.tsv"
         echo "Checking for reference TSV: $REF_TSV"
         Gene_group_path="$INPUTS_DIR/$Gene_group"
         
