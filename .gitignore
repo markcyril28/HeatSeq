@@ -602,3 +602,5 @@ file_copier.sh
 4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/TEST/SRR3884690/SRR3884690_TEST_transcripts_with_coverage_de_novo.gtf
 4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/TEST/SRR3884690/SRR3884690_TEST_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf
 4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/TEST/SRR3884690/t_data.ctab
+logs/pipeline_20250921_182947_script_log.log
+logs/*
