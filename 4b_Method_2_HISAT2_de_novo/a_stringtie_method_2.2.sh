@@ -8,17 +8,15 @@ mkdir -p "$OUT_DIR"
 rm -rf "$OUT_DIR"/*
 INPUTS_DIR="5_stringtie/a_Method2_RESULTS"
 
-# Fasta Group 
 Fasta_Groups=(
-	TEST
-	SmelDMP_CDS_Control_Best
+	#TEST
+	#SmelDMP_CDS_Control_Best
 	SmelGIF_with_Best_Control_Cyclo
 	SmelGRF_with_Best_Control_Cyclo
 	SmelGRF-GIF_with_Best_Control_Cyclo
 )
 
 SRR_LIST_PRJNA328564=(
-	# List of SRR sample IDs to process
 	SRR3884631 # Fruits 6 cm
 	SRR3884677 # Cotyledons
 	SRR3884679 # Pistils
@@ -45,29 +43,6 @@ declare -A SRR_TO_ORGAN=(
 	["SRR3884675"]="Roots"
 )
 
-: << 'SCRATCH'
-REF_TSVs_v2=(
-    "$INPUTS_DIR/TEST/SRR3884686/SRR3884686_TEST_gene_abundances_de_novo_v2.tsv"
-    "$INPUTS_DIR/SmelDMP_CDS_Control_Best/SRR3884686/SRR3884686_SmelDMP_CDS_Control_Best_gene_abundances_de_novo_v2.tsv"
-    "$INPUTS_DIR/SmelGIF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGIF_with_Best_Control_Cyclo_gene_abundances_de_novo_v2.tsv"
-    "$INPUTS_DIR/SmelGRF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGRF_with_Best_Control_Cyclo_gene_abundances_de_novo_v2.tsv"
-    "$INPUTS_DIR/SmelGRF-GIF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGRF-GIF_with_Best_Control_Cyclo_gene_abundances_de_novo_v2.tsv"
-)
-
-REF_TSVs_v1=(
-    "$INPUTS_DIR/TEST/SRR3884686/SRR3884686_TEST_gene_abundances_de_novo_v1.tsv"
-    "$INPUTS_DIR/SmelDMP_CDS_Control_Best/SRR3884686/SRR3884686_SmelDMP_CDS_Control_Best_gene_abundances_de_novo_v1.tsv"
-    "$INPUTS_DIR/SmelGIF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGIF_with_Best_Control_Cyclo_gene_abundances_de_novo_v1.tsv"
-    "$INPUTS_DIR/SmelGRF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGRF_with_Best_Control_Cyclo_gene_abundances_de_novo_v1.tsv"
-    "$INPUTS_DIR/SmelGRF-GIF_with_Best_Control_Cyclo/SRR3884686/SRR3884686_SmelGRF-GIF_with_Best_Control_Cyclo_gene_abundances_de_novo_v1.tsv"
-)
-
-SCRATCH
-
-REF_TSVs=()
-
-# Check your files: typical columns include "Gene.ID", "Gene.Name", "Coverage", "FPKM", "TPM"
-# Adjust COLNUM to the *raw counts* column (example: 2=Gene.ID, 7=Coverage, etc.)
 GENENAME_COL=3      # Gene.Name column: tsv column header is reference but this is actually the geneName
 COVERAGE_COL=7      # Coverage column (adjust if needed)
 FPKM_COL=8          # FPKM column (adjust if needed)
@@ -81,7 +56,6 @@ merge_group_counts() {
     local gene_group_path="$1"
     local REF_TSV="$2"
     local version="$3"
-
     local group_name=$(basename "$gene_group_path")
 
     # Create output directory for this group and version
@@ -105,8 +79,8 @@ merge_group_counts() {
         return
     fi
 
-    # Extract Gene.ID and Gene.Name columns from the reference file (skip header)
-    tail -n +2 "${REF_TSV}" | cut -f"$GENENAME_COL" > "$tmpdir/gene_names.txt"
+    # Extract Gene.Name columns from the reference file (skip header)
+    tail -n +2 "${REF_TSV}" | cut -f1 > "$tmpdir/gene_names.txt"
 
     # Debug: Check if gene_names.txt has content
     echo "Gene names extracted: $(wc -l < "$tmpdir/gene_names.txt") lines"
@@ -138,11 +112,13 @@ merge_group_counts() {
         done
 
 
-        # Create Gene Name matrix with SRR headers
-        {
+    # Create matrix: gene names + SRR sample columns
+    {
+            # Print header: GeneName and SRR IDs
             printf "GeneName"
             for srr in "${SRR_LIST_PRJNA328564[@]}"; do
                 # Check if this SRR has a corresponding file
+                # Add SRR ID to header if sample file exists
                 for f in "${files[@]}"; do
                     if [[ "$(basename "$f")" == "${srr}_"* ]]; then
                         printf "\t%s" "$srr"
@@ -152,14 +128,17 @@ merge_group_counts() {
             done
             printf "\n"
 
+            # Paste gene names and sample counts, fill missing values with 0
             paste "$tmpdir/gene_names.txt" "${sample_files[@]}" | sed 's/\t\t/\t0\t/g; s/\t$/\t0/; s/^\t/0\t/'
-        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_SRR.tsv"
+    } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_SRR.tsv"
 
-        # Create Gene Name matrix with Organ headers
-        {
+    # Create matrix: gene names + Organ columns
+    {
+            # Print header: GeneName and Organ names
             printf "GeneName"
             for srr in "${SRR_LIST_PRJNA328564[@]}"; do
                 # Check if this SRR has a corresponding file
+                # Add Organ name to header if sample file exists
                 for f in "${files[@]}"; do
                     if [[ "$(basename "$f")" == "${srr}_"* ]]; then
                         organ="${SRR_TO_ORGAN[$srr]}"
@@ -170,8 +149,9 @@ merge_group_counts() {
             done
             printf "\n"
 
+            # Paste gene names and sample counts, fill missing values with 0
             paste "$tmpdir/gene_names.txt" "${sample_files[@]}" | sed 's/\t\t/\t0\t/g; s/\t$/\t0/; s/^\t/0\t/'
-        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_Organ.tsv"
+    } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_Organ.tsv"
 
         echo "Matrix saved: $OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneID_SRR.tsv"
         echo "Matrix saved: $OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneID_Organ.tsv"
@@ -191,7 +171,7 @@ merge_group_counts() {
 
 for version in v1 v2; do
     for Gene_group in "${Fasta_Groups[@]}"; do
-        REF_TSV="$INPUTS_DIR/$Gene_group/SRR3884686/SRR3884686_${Gene_group}_gene_abundances_de_novo_${version}.tsv"
+        REF_TSV="5_stringtie/${Gene_group}__REF_BOILERPLATE_TSV.tsv"
         echo "Checking for reference TSV: $REF_TSV"
         Gene_group_path="$INPUTS_DIR/$Gene_group"
         
