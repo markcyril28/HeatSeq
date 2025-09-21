@@ -101,7 +101,7 @@ merge_group_counts() {
     # Debug: Check if gene_names.txt has content
     echo "Gene names extracted: $(wc -l < "$tmpdir/gene_names.txt") lines."
     echo "First few gene names:"
-    head -5 "$tmpdir/gene_names.txt"
+    #head -5 "$tmpdir/gene_names.txt"
     tail $tmpdir/gene_names.txt
 
     for count in coverage fpkm tpm; do
@@ -185,7 +185,7 @@ merge_group_counts() {
 for version in v1 v2; do
     for Gene_group in "${Fasta_Groups[@]}"; do
         REF_TSV="5_stringtie/${Gene_group}_REF_BOILERPLATE_TSV.tsv"
-        echo "Checking for reference TSV: $REF_TSV"
+        echo -e "\nChecking for reference TSV: $REF_TSV"
         Gene_group_path="$INPUTS_DIR/$Gene_group"
         
         echo "Merging counts for gene group: $Gene_group, version: $version"
