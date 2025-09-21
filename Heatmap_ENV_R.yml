@@ -1,0 +1,14 @@
+name: Heatmap_ENV
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.2
+  - r-tidyverse
+  - r-pheatmap
+  - r-rcolorbrewer
+  - r-viridis
+  - r-dplyr
+  - r-tibble
+  - r-biocmanager
+  - bioconductor-deseq2
