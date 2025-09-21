@@ -68,8 +68,7 @@ REF_TSVs=()
 
 # Check your files: typical columns include "Gene.ID", "Gene.Name", "Coverage", "FPKM", "TPM"
 # Adjust COLNUM to the *raw counts* column (example: 2=Gene.ID, 7=Coverage, etc.)
-GENE_COL=1          # Gene.ID column
-GENENAME_COL=3      # Gene.Name column - verify this is correct!
+GENENAME_COL=3      # Gene.Name column: tsv column header is reference but this is actually the geneName
 COVERAGE_COL=7      # Coverage column (adjust if needed)
 FPKM_COL=8          # FPKM column (adjust if needed)
 TPM_COL=9           # TPM column (adjust if needed)
@@ -107,7 +106,6 @@ merge_group_counts() {
     fi
 
     # Extract Gene.ID and Gene.Name columns from the reference file (skip header)
-    tail -n +2 "${REF_TSV}" | cut -f"$GENE_COL" > "$tmpdir/gene_ids.txt"
     tail -n +2 "${REF_TSV}" | cut -f"$GENENAME_COL" > "$tmpdir/gene_names.txt"
 
     # Debug: Check if gene_names.txt has content
@@ -139,40 +137,6 @@ merge_group_counts() {
             fi
         done
 
-        # Create Gene ID matrix with SRR headers
-        {
-            printf "GeneID"
-            for srr in "${SRR_LIST_PRJNA328564[@]}"; do
-                # Check if this SRR has a corresponding file
-                for f in "${files[@]}"; do
-                    if [[ "$(basename "$f")" == "${srr}_"* ]]; then
-                        printf "\t%s" "$srr"
-                        break
-                    fi
-                done
-            done
-            printf "\n"
-
-            paste "$tmpdir/gene_ids.txt" "${sample_files[@]}" | sed 's/\t\t/\t0\t/g; s/\t$/\t0/; s/^\t/0\t/'
-        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneID_SRR.tsv"
-
-        # Create Gene ID matrix with Organ headers
-        {
-            printf "GeneID"
-            for srr in "${SRR_LIST_PRJNA328564[@]}"; do
-                # Check if this SRR has a corresponding file
-                for f in "${files[@]}"; do
-                    if [[ "$(basename "$f")" == "${srr}_"* ]]; then
-                        organ="${SRR_TO_ORGAN[$srr]}"
-                        printf "\t%s" "$organ"
-                        break
-                    fi
-                done
-            done
-            printf "\n"
-
-            paste "$tmpdir/gene_ids.txt" "${sample_files[@]}" | sed 's/\t\t/\t0\t/g; s/\t$/\t0/; s/^\t/0\t/'
-        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneID_Organ.tsv"
 
         # Create Gene Name matrix with SRR headers
         {
