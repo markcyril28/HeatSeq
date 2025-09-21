@@ -1,4 +1,20 @@
 #!/bin/bash
+
+: << 'INSTRUCTIONS'
+# ===============================================
+# a_stringtie_method_2.2.sh
+#
+# Description:
+# This script generates gene expression count matrices for multiple gene groups and sample sets.
+# Step-by-step:
+# 1. For each gene group and version, locate abundance files for all samples.
+# 2. Extract gene names from a reference file.
+# 3. For each count type (coverage, FPKM, TPM):
+#    a. Extract gene name and count columns from each sample file.
+#    b. Build matrices with gene names as rows and samples/organs as columns using a Python script.
+# 4. Output matrices to a results directory.
+INSTRUCTIONS
+
 # ===============================================
 # CONFIGURATION
 # ===============================================
@@ -9,8 +25,8 @@ rm -rf "$OUT_DIR"/*
 INPUTS_DIR="5_stringtie/a_Method2_RESULTS"
 
 Fasta_Groups=(
-	#TEST
-	#SmelDMP_CDS_Control_Best
+	# TEST
+	SmelDMP_CDS_Control_Best
 	SmelGIF_with_Best_Control_Cyclo
 	SmelGRF_with_Best_Control_Cyclo
 	SmelGRF-GIF_with_Best_Control_Cyclo
@@ -43,7 +59,7 @@ declare -A SRR_TO_ORGAN=(
 	["SRR3884675"]="Roots"
 )
 
-GENENAME_COL=3      # Gene.Name column: tsv column header is reference but this is actually the geneName
+GENENAME_COL=3      # Gene name column (TSV column header is 'reference', but this is actually the gene name)
 COVERAGE_COL=7      # Coverage column (adjust if needed)
 FPKM_COL=8          # FPKM column (adjust if needed)
 TPM_COL=9           # TPM column (adjust if needed)
@@ -74,17 +90,19 @@ merge_group_counts() {
     done
     
     if [[ ${#files[@]} -eq 0 ]]; then
-        echo "No files found in $gene_group_path"
+        echo "No files found in $gene_group_path."
         rm -r "$tmpdir"
         return
     fi
 
-    # Extract geneName from reference column (column 3) of the reference file (skip header)
+    # Extract gene names from the reference column (column 3) of the reference file (skip header)
     tail -n +2 "${REF_TSV}" | cut -f1 > "$tmpdir/gene_names.txt"
 
     # Debug: Check if gene_names.txt has content
-    echo "Gene names extracted: $(wc -l < "$tmpdir/gene_names.txt") lines"
-    echo "First few gene names: $(head -5 "$tmpdir/gene_names.txt")"
+    echo "Gene names extracted: $(wc -l < "$tmpdir/gene_names.txt") lines."
+    echo "First few gene names:"
+    head -5 "$tmpdir/gene_names.txt"
+    tail $tmpdir/gene_names.txt
 
     for count in coverage fpkm tpm; do
         local COUNT_COL_VAR="${count^^}_COL"
@@ -105,13 +123,15 @@ merge_group_counts() {
             done
             
             if [[ -n "$sample_file" ]]; then
-                tail -n +2 "$sample_file" | cut -f"$COUNT_COL" > "$tmpdir/${srr}.txt"
+                # Extract gene name (column 3) and count column (tab-separated)
+                tail -n +2 "$sample_file" | cut -f"$GENENAME_COL","$COUNT_COL" > "$tmpdir/${srr}.txt"
                 sample_files+=("$tmpdir/${srr}.txt")
+                #tail $tmpdir/${srr}.txt
             fi
         done
 
-    # Create matrix: gene names + SRR sample columns
-    {
+        # Create matrix: gene names + SRR sample columns
+        {
             # Print header: GeneName and SRR IDs
             printf "GeneName"
             for srr in "${SRR_LIST_PRJNA328564[@]}"; do
@@ -126,12 +146,12 @@ merge_group_counts() {
             done
             printf "\n"
 
-            # Paste gene names and sample counts, fill missing values with 0
-            paste "$tmpdir/gene_names.txt" "${sample_files[@]}" | sed 's/\t\t/\t0\t/g; s/\t$/\t0/; s/^\t/0\t/'
-    } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_SRR.tsv"
+            # Match gene names and append sample counts to the correct row
+            python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" ${sample_files[*]}
+        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_SRR.tsv"
 
-    # Create matrix: gene names + Organ columns
-    {
+        # Create matrix: gene names + Organ columns
+        {
             # Print header: GeneName and Organ names
             printf "GeneName"
             for srr in "${SRR_LIST_PRJNA328564[@]}"; do
@@ -147,11 +167,11 @@ merge_group_counts() {
             done
             printf "\n"
 
-            # Paste gene names and sample counts, fill missing values with 0
-            paste "$tmpdir/gene_names.txt" "${sample_files[@]}" | sed 's/\t\t/\t0\t/g; s/\t$/\t0/; s/^\t/0\t/'
-    } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_Organ.tsv"
+            # Match gene names and append sample counts to the correct row
+            python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" ${sample_files[*]}
+        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_Organ.tsv"
 
-        # Clean up temp files for this count type
+        # Clean up temporary files for this count type
         rm -f "${sample_files[@]}"
     done
     
@@ -168,9 +188,10 @@ for version in v1 v2; do
         echo "Checking for reference TSV: $REF_TSV"
         Gene_group_path="$INPUTS_DIR/$Gene_group"
         
-        echo "Merging counts for GENE_GROUP: $Gene_group, VERSION: $version"
+        echo "Merging counts for gene group: $Gene_group, version: $version"
         merge_group_counts "$Gene_group_path" "$REF_TSV" "$version"
     done
 done
 
-echo "All groups processed. Count matrices are in: $OUT_DIR"
+echo "All groups processed. Count matrices are located in: $OUT_DIR"
+
