@@ -64,6 +64,8 @@ REF_TSVs_v1=(
 
 SCRATCH
 
+REF_TSVs=()
+
 # Check your files: typical columns include "Gene.ID", "Gene.Name", "Coverage", "FPKM", "TPM"
 # Adjust COLNUM to the *raw counts* column (example: 2=Gene.ID, 7=Coverage, etc.)
 GENE_COL=1          # Gene.ID column
