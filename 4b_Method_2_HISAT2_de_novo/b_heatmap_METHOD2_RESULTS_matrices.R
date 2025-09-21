@@ -458,11 +458,9 @@ for (group in FASTA_GROUPS) {
     for (count_type in COUNT_TYPES) {
       for (gene_type in GENE_TYPES) {
         for (label_type in LABEL_TYPES) {
-          
           # Define input file path based on bash script naming convention
           input_file <- file.path(MATRICES_DIR, group, version, 
                                  paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, ".tsv"))
-          
           # Check if input file exists
           if (!file.exists(input_file)) {
             next

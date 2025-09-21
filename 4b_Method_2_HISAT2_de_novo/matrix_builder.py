@@ -3,7 +3,7 @@ matrix_builder.py
 
 Description:
 This script builds a gene expression matrix from multiple sample files.
-- It takes a reference gene name listand several sample files (TSV, gene_name<TAB>count).
+- It takes a reference gene name list and several sample files (TSV, gene_name<TAB>count).
 - For each gene in the reference, it finds the corresponding count in each sample file.
 - If a gene is missing in a sample, '0' is inserted.
 - Output is a tab-separated matrix: rows are genes, columns are samples.
