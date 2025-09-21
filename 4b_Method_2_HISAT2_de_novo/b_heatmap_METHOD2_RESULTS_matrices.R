@@ -14,8 +14,8 @@ library(tibble)
 
 # Input and output directories
 BASE_DIR <- getwd()
-MATRICES_DIR <- "5_stringtie/a_Method2_RESULTS_matrices"
-HEATMAP_OUT_DIR <- "6_Visualization/a_Method2_RESULTS_matrices_heatmaps"
+MATRICES_DIR <- "5_stringtie/a_Method_2_Results_matrices_post-processed"
+HEATMAP_OUT_DIR <- "6_Heatmap_Visualization/a_Method_2_Results_matriced_heatmapped"
 
 # Clear and create output directory
 if (dir.exists(HEATMAP_OUT_DIR)) {
