@@ -19,10 +19,12 @@ INSTRUCTIONS
 # CONFIGURATION
 # ===============================================
 BASE_DIR="$PWD"
-OUT_DIR="5_stringtie/a_METHOD2_RESULTS_matrices"
+INPUTS_DIR="5_stringtie/a_Method_2_Results"
+OUT_DIR="${INPUTS_DIR}_matrices_post-processed"
 mkdir -p "$OUT_DIR"
+
 rm -rf "$OUT_DIR"/*
-INPUTS_DIR="5_stringtie/a_Method2_RESULTS"
+
 
 Fasta_Groups=(
 	# TEST
@@ -100,9 +102,9 @@ merge_group_counts() {
 
     # Debug: Check if gene_names.txt has content
     echo "Gene names extracted: $(wc -l < "$tmpdir/gene_names.txt") lines."
-    echo "First few gene names:"
+    #echo "Last of gene names:"
     #head -5 "$tmpdir/gene_names.txt"
-    tail $tmpdir/gene_names.txt
+    #tail -n 5 "$tmpdir/gene_names.txt"
 
     for count in coverage fpkm tpm; do
         local COUNT_COL_VAR="${count^^}_COL"
@@ -184,7 +186,7 @@ merge_group_counts() {
 
 for version in v1 v2; do
     for Gene_group in "${Fasta_Groups[@]}"; do
-        REF_TSV="5_stringtie/${Gene_group}_REF_BOILERPLATE_TSV.tsv"
+        REF_TSV="5_stringtie/a_Ref_Boilerplate_TSVs/${Gene_group}_REF_BOILERPLATE_TSV.tsv"
         echo -e "\nChecking for reference TSV: $REF_TSV"
         Gene_group_path="$INPUTS_DIR/$Gene_group"
         
