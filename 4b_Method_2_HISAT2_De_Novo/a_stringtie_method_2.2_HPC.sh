@@ -20,6 +20,7 @@ INSTRUCTIONS
 # ===============================================
 BASE_DIR="$4b_Method_2_HISAT2_De_Novo"
 INPUTS_DIR="5_stringtie/a_Method_2_Results"
+INPUTS_DIR="5_stringtie/a_Method_2_Results"
 OUT_DIR="${INPUTS_DIR}_matrices_post-processed"
 mkdir -p "$OUT_DIR"
 
@@ -28,10 +29,12 @@ rm -rf "$OUT_DIR"/*
 
 Fasta_Groups=(
 	# TEST
-	SmelDMP_CDS_Control_Best
-	SmelGIF_with_Best_Control_Cyclo
-	SmelGRF_with_Best_Control_Cyclo
-	SmelGRF-GIF_with_Best_Control_Cyclo
+	#SmelDMP_CDS_Control_Best
+	#SmelGIF_with_Best_Control_Cyclo
+	#SmelGRF_with_Best_Control_Cyclo
+	#SmelGRF-GIF_with_Best_Control_Cyclo
+    SmelGRF_with_Cell_Cycle_Control_genes
+    SmelGIF_with_Cell_Cycle_Control_genes
 )
 
 SRR_LIST_PRJNA328564=(

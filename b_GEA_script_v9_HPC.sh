@@ -9,7 +9,7 @@ set -euo pipefail
 # CONFIGURATION
 # ============================================================================== 
 #read -p "How many CPU threads to use? [default: 4]: " user_threads
-THREADS="${user_threads:-64}"  # Number of threads to use for parallel operations
+THREADS="${user_threads:-88}"  # Number of threads to use for parallel operations
 
 # ==============================================================================
 # INPUT FILES
@@ -25,7 +25,7 @@ ALL_FASTA_FILES=(
 	#"0_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUTS/Control_Genes_Puta.fasta"
-	#"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
+	"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 	"0_INPUTS/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 )
 
@@ -35,20 +35,20 @@ SRR_LIST_PRJNA328564=(
 	#SRR3884653 # Fruits Flesh Stage 2
 	SRR3884631 # Fruits 6 cm
 	SRR3884677 # Cotyledons
-	#SRR3884679 # Pistils
-	#SRR3884597 # Flowers
-	#SRR3884686 # Buds 0.7 cm
-	#SRR3884687 # Buds, Opened Buds
-	#SRR3884689 # Leaves
-	#SRR3884690 # Stems
-	#SRR3884685 # Radicles
-	#SRR3884675 # Roots
+	SRR3884679 # Pistils
+	SRR3884597 # Flowers
+	SRR3884686 # Buds 0.7 cm
+	SRR3884687 # Buds, Opened Buds
+	SRR3884689 # Leaves
+	SRR3884690 # Stems
+	SRR3884685 # Radicles
+	SRR3884675 # Roots
 )
 
 RAW_DIR_ROOT="1_Raw_Data/PRJNA328564"
 TRIM_DIR_ROOT="2_Trimmed_Data/PRJNA328564"
 FASTQC_ROOT="3_FastQC"
-HISAT2_ROOT="4b_Method_2_HISAT2_De_Novo"
+HISAT2_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_RESULTS"
 HISAT2_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
 STRINGTIE_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie"
 
