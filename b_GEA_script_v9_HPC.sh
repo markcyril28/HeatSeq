@@ -18,6 +18,8 @@ THREADS="${user_threads:-88}"  # Number of threads to use for parallel operation
 #Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUTS/Eggplant_V4_1_transcripts_function.fa"
 
 ALL_FASTA_FILES=(
+	"0_INPUTS/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
+)
 	# List of FASTA files to process
 	#"0_INPUTS/TEST.fasta"
 	#"0_INPUTS/SmelDMP_CDS_Control_Best.fasta"
@@ -26,8 +28,6 @@ ALL_FASTA_FILES=(
 	#"0_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUTS/Control_Genes_Puta.fasta"
 	#"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
-	"0_INPUTS/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
-)
 
 SRR_LIST_PRJNA328564=(
 	# List of SRR sample IDs to process
