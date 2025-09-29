@@ -32,8 +32,8 @@ Fasta_Groups=(
 	#SmelGIF_with_Best_Control_Cyclo
 	#SmelGRF_with_Best_Control_Cyclo
 	#SmelGRF-GIF_with_Best_Control_Cyclo
-    SmelGRF_with_Cell_Cycle_Control_genes
     SmelGIF_with_Cell_Cycle_Control_genes
+    SmelGRF_with_Cell_Cycle_Control_genes
 )
 
 SRR_LIST_PRJNA328564=(
