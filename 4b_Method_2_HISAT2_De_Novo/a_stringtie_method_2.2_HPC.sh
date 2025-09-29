@@ -20,8 +20,8 @@ INSTRUCTIONS
 # ===============================================
 
 BASE_DIR="/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/4b_Method_2_HISAT2_De_Novo"
-INPUTS_DIR="5_stringtie/a_Method_2_Results"
-OUT_DIR="5_stringtie/a_Method_2_Results_matrices_post-processed"
+INPUTS_DIR="$BASE_DIR/5_stringtie/a_Method_2_Results"
+OUT_DIR="$BASE_DIR/5_stringtie/a_Method_2_Results_matrices_post-processed"
 mkdir -p "$OUT_DIR"
 
 rm -rf "$OUT_DIR"/*
