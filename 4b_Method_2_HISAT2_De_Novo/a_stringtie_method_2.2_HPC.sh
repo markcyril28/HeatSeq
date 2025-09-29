@@ -18,13 +18,13 @@ INSTRUCTIONS
 # ===============================================
 # CONFIGURATION
 # ===============================================
-BASE_DIR="$4b_Method_2_HISAT2_De_Novo"
+
+BASE_DIR="/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/4b_Method_2_HISAT2_De_Novo"
 INPUTS_DIR="5_stringtie/a_Method_2_Results"
-OUT_DIR="${INPUTS_DIR}_matrices_post-processed"
+OUT_DIR="5_stringtie/a_Method_2_Results_matrices_post-processed"
 mkdir -p "$OUT_DIR"
 
 rm -rf "$OUT_DIR"/*
-
 
 Fasta_Groups=(
 	# TEST
