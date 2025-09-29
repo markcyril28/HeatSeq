@@ -25,24 +25,24 @@ ALL_FASTA_FILES=(
 	#"00_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
 	#"00_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUTS/Control_Genes_Puta.fasta"
-	"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
+	#"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 	"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 )
 
 SRR_LIST_PRJNA328564=(
 	# List of SRR sample IDs to process
-	SRR3884631 # Fruits 6 cm
 	#SRR3884664 # Fruits Calyx Stage 2
 	#SRR3884653 # Fruits Flesh Stage 2
+	SRR3884631 # Fruits 6 cm
 	SRR3884677 # Cotyledons
-	SRR3884679 # Pistils
-	SRR3884597 # Flowers
-	SRR3884686 # Buds 0.7 cm
-	SRR3884687 # Buds, Opened Buds
-	SRR3884689 # Leaves
-	SRR3884690 # Stems
-	SRR3884685 # Radicles
-	SRR3884675 # Roots
+	#SRR3884679 # Pistils
+	#SRR3884597 # Flowers
+	#SRR3884686 # Buds 0.7 cm
+	#SRR3884687 # Buds, Opened Buds
+	#SRR3884689 # Leaves
+	#SRR3884690 # Stems
+	#SRR3884685 # Radicles
+	#SRR3884675 # Roots
 )
 
 RAW_DIR_ROOT="1_Raw_Data/PRJNA328564"
