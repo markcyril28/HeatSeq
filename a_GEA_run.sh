@@ -15,3 +15,4 @@ dos2unix ./*.sh
 
 # Run the main pipeline script and log resource usage
 /usr/bin/time -v ./02_GEA_script_v9.sh >> "$LOG_FILE" 2>&1
+
