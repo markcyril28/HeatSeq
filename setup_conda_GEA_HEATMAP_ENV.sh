@@ -3,7 +3,7 @@
 # Conda Environment Setup for GEA Pipeline
 set -euo pipefail
 
-ENV_NAME="GEA_env"
+ENV_NAME="GEA_HEATMAP_ENV"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YAML_FILE="$SCRIPT_DIR/GEA_ENV_environment.yml"
 

@@ -46,11 +46,12 @@ SRR_LIST_PRJNA328564=(
 RAW_DIR_ROOT="1_Raw_Data/PRJNA328564"
 TRIM_DIR_ROOT="2_Trimmed_Data/PRJNA328564"
 FASTQC_ROOT="3_FastQC"
-HISAT2_4B_ROOT="4b_Method_2_HISAT2_De_Novo"
+HISAT2_ROOT="4b_Method_2_HISAT2_De_Novo"
 HISAT2_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
+STRINGTIE_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie"
+
 #HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
 #HISAT2_INDEX_DIR="02_HISAT2/index"
-STRINGTIE_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie"
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
 #rm -rf $TRIM_DIR_ROOT
