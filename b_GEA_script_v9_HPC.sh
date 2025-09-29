@@ -52,6 +52,8 @@ HISAT2_ROOT="4b_Method_2_HISAT2_De_Novo"
 HISAT2_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
 STRINGTIE_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie"
 
+mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_ROOT" "$HISAT2_INDEX_DIR" "$STRINGTIE_ROOT"
+
 #HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
 #HISAT2_INDEX_DIR="02_HISAT2/index"
 # ==============================================================================
