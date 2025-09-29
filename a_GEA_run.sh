@@ -14,10 +14,12 @@ chmod +x ./*.sh
 dos2unix ./*.sh
 
 # Run the main pipeline script and log resource usage
-#/usr/bin/time -v ./b_GEA_script_v9_HPC.sh >> "$LOG_FILE" 2>&1
+/usr/bin/time -v ./b_GEA_script_v9_HPC.sh >> "$LOG_FILE" 2>&1
 
-#/usr/bin/time -v ./4b_Method_2_HISAT2_De_Novo/a_stringtie_method_2.2_HPC.sh >> "$LOG_FILE" 2>&1
+/usr/bin/time -v ./4b_Method_2_HISAT2_De_Novo/a_stringtie_method_2.2.sh >> "$LOG_FILE" 2>&1
 
-#/usr/bin/time -v ./4b_Method_2_HISAT2_De_Novo/b_heatmap_METHOD2_RESULTS_matrices_HPC.R >> "$LOG_FILE" 2>&1
+/usr/bin/time -v ./4b_Method_2_HISAT2_De_Novo/b_heatmap_METHOD2_RESULTS_matrices.R >> "$LOG_FILE" 2>&1
 
 tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo  # Archive all StringTie results for sharing or backup
+
+#tar -xzvf 4b_Method_2_HISAT2_De_Novo_20250930_032110.tar.gz

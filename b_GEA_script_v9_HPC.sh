@@ -25,7 +25,7 @@ ALL_FASTA_FILES=(
 	#"0_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUTS/Control_Genes_Puta.fasta"
-	"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
+	#"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 	"0_INPUTS/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 )
 
@@ -436,4 +436,5 @@ for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 done
 
 # Zip all the content of this folder: STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
+#
 #tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver  # Archive all StringTie results for sharing or backup
