@@ -1,4 +1,5 @@
 ../4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/*
+../4b_Method_2_HISAT2_De_Novo/a_Method_2_Results_matriced_heatmapped/*
 00_Raw_Files_and_FastQC/*
 01_Trimmed_TrimGalore_Ver/*
 4b_stringtie_TrimGalore_Ver_20250919_041401.tar.gz
