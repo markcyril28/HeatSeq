@@ -24,7 +24,9 @@ ALL_FASTA_FILES=(
 	#"00_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
 	#"00_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
 	#"00_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
-	"00_INPUTS/Control_Genes_Puta.fasta"
+	#"0_INPUTS/Control_Genes_Puta.fasta"
+	"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
+	"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 )
 
 SRR_LIST_PRJNA328564=(

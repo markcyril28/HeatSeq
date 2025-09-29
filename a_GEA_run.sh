@@ -14,5 +14,8 @@ chmod +x ./*.sh
 dos2unix ./*.sh
 
 # Run the main pipeline script and log resource usage
-/usr/bin/time -v ./02_GEA_script_v9.sh >> "$LOG_FILE" 2>&1
+/usr/bin/time -v ./02_GEA_script_v9_HPC.sh >> "$LOG_FILE" 2>&1
 
+#/usr/bin/time -v ./4b_Method_2_HISAT2_De_Novo/a_stringtie_method_2.2_HPC.sh >> "$LOG_FILE" 2>&1
+
+#/usr/bin/time -v ./4b_Method_2_HISAT2_De_Novo/b_heatmap_METHOD2_RESULTS_matrices_HPC.R >> "$LOG_FILE" 2>&1
