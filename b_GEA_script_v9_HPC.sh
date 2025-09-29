@@ -3,8 +3,8 @@
 set -euo pipefail
 
 # Chmod and Converts the file to Unix line endings
-chmod +x ./*.sh   # Ensure the run script is executable
-dos2unix ./*.sh   # Convert Windows line endings to Unix
+#chmod +x ./*.sh   # Ensure the run script is executable
+#dos2unix ./*.sh   # Convert Windows line endings to Unix
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
@@ -14,16 +14,16 @@ THREADS="${user_threads:-64}"  # Number of threads to use for parallel operation
 # ==============================================================================
 # INPUT FILES
 # ==============================================================================
-#All_SmelGIF_GTF_FILE="00_INPUTS/All_SmelDMP_Head_Gene_Name_v4.gtf"
-#Eggplant_V4_1_transcripts_function_FASTA_FILE="00_INPUTS/Eggplant_V4_1_transcripts_function.fa"
+#All_SmelGIF_GTF_FILE="0_INPUTS/All_SmelDMP_Head_Gene_Name_v4.gtf"
+#Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUTS/Eggplant_V4_1_transcripts_function.fa"
 
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	#"00_INPUTS/TEST.fasta"
-	#"00_INPUTS/SmelDMP_CDS_Control_Best.fasta"
-	#"00_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
-	#"00_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
-	#"00_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
+	#"0_INPUTS/TEST.fasta"
+	#"0_INPUTS/SmelDMP_CDS_Control_Best.fasta"
+	#"0_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
+	#"0_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
+	#"0_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUTS/Control_Genes_Puta.fasta"
 	#"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 	"0_INPUTS/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
