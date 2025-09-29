@@ -3,8 +3,8 @@
 set -euo pipefail
 
 # Chmod and Converts the file to Unix line endings
-chmod +x ./02_GEA_run.sh   # Ensure the run script is executable
-dos2unix 02_GEA_run.sh     # Convert Windows line endings to Unix
+chmod +x ./*.sh   # Ensure the run script is executable
+dos2unix ./*.sh   # Convert Windows line endings to Unix
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
@@ -43,11 +43,14 @@ SRR_LIST_PRJNA328564=(
 	SRR3884675 # Roots
 )
 
-RAW_DIR_ROOT="00_Raw_Files_and_FastQC/PRJNA328564"
-TRIM_DIR_ROOT="01_Trimmed_TrimGalore_Ver/PRJNA328564"
-HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
-HISAT2_INDEX_DIR="02_HISAT2/index"
-STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
+RAW_DIR_ROOT="1_Raw_Data/PRJNA328564"
+TRIM_DIR_ROOT="2_Trimmed_Data/PRJNA328564"
+FASTQC_ROOT="3_FastQC"
+HISAT2_4B_ROOT="4b_Method_2_HISAT2_De_Novo"
+HISAT2_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
+#HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
+#HISAT2_INDEX_DIR="02_HISAT2/index"
+STRINGTIE_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie"
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
 #rm -rf $TRIM_DIR_ROOT
@@ -418,7 +421,7 @@ run_all() {
 		log_info "Script ended at: $(date -d @$end_time)"
 		elapsed=$((end_time - start_time))
 		formatted_elapsed=$(date -u -d @${elapsed} +%H:%M:%S)
-		log_info "Elapsed time: $formatted_elapsed"
+		log_info "Elapsed time: $formatted_elapsed"	
 }
 
 # Run the pipeline for each FASTA input and SRR list.
