@@ -76,7 +76,7 @@ merge_group_counts() {
     local gene_group_path="$1"
     local REF_TSV="$2"
     local version="$3"
-    local group_name=$(basename "$gene_group_path")
+    local group_name="$4"
 
     # Create output directory for this group and version
     mkdir -p "$OUT_DIR/$group_name/$version"
@@ -87,16 +87,12 @@ merge_group_counts() {
     # Collect abundance files in the specified order
     files=()
     for srr in "${SRR_LIST_PRJNA328564[@]}"; do
-        search_dir="$gene_group_path/$srr"
-        file_pattern="${srr}_*gene_abundances_de_novo_${version}.tsv"
-
-        # Find all matching files under search_dir (recursively)
-        while IFS= read -r -d '' fp; do
-            files+=("$fp")
-        done < <(find "$search_dir" -type f -name "$file_pattern" -print0)
+        path_dir="$gene_group_path/$srr"
+        file_pattern="${srr}_${group_name}_gene_abundances_de_novo_${version}.tsv"
+        file="$path_dir/$file_pattern"
+        files+=("$file")
     done
 
-    
     if [[ ${#files[@]} -eq 0 ]]; then
         echo "No files found in $gene_group_path."
         rm -r "$tmpdir"
@@ -197,7 +193,7 @@ for version in v1 v2; do
         Gene_group_path="$INPUTS_DIR/$Gene_group"
         
         echo "Merging counts for gene group: $Gene_group, version: $version"
-        merge_group_counts "$Gene_group_path" "$REF_TSV" "$version"
+        merge_group_counts "$Gene_group_path" "$REF_TSV" "$version" "$Gene_group"
     done
 done
 
