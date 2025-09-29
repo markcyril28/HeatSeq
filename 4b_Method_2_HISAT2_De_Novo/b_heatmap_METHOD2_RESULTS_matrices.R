@@ -25,11 +25,13 @@ dir.create(HEATMAP_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # Gene groups and versions
 FASTA_GROUPS <- c(
-  "TEST",
-  "SmelDMP_CDS_Control_Best", 
-  "SmelGIF_with_Best_Control_Cyclo",
-  "SmelGRF_with_Best_Control_Cyclo",
-  "SmelGRF-GIF_with_Best_Control_Cyclo"
+  #"TEST",
+  #"SmelDMP_CDS_Control_Best", 
+  #"SmelGIF_with_Best_Control_Cyclo",
+  #"SmelGRF_with_Best_Control_Cyclo",
+  #"SmelGRF-GIF_with_Best_Control_Cyclo",
+  "SmelGIF_with_Cell_Cycle_Control_genes",
+  "SmelGRF_with_Cell_Cycle_Control_genes"
 )
 
 VERSIONS <- c("v1", "v2")
