@@ -20,7 +20,6 @@ INSTRUCTIONS
 # ===============================================
 BASE_DIR="$4b_Method_2_HISAT2_De_Novo"
 INPUTS_DIR="5_stringtie/a_Method_2_Results"
-INPUTS_DIR="5_stringtie/a_Method_2_Results"
 OUT_DIR="${INPUTS_DIR}_matrices_post-processed"
 mkdir -p "$OUT_DIR"
 
