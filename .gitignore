@@ -12,6 +12,10 @@ file_copier.sh
 4b_Method_2_HISAT2_de_novo/.Rhistory
 .vscode/launch.json
 .vscode/*
+4b_Method_2_HISAT2_De_Novo/5_stringtie/*
+4b_Method_2_HISAT2_De_Novo/6_Heatmap_Visualization/*
+4b_Method_2_HISAT2_De_Novo/z_archive/*
+
 4b_Method_2_HISAT2_De_Novo/5_stringtie/method_2.2_matrices/*
 4b_Method_2_HISAT2_De_Novo/5_stringtie/method_2.2_count_matrices/*
 4b_Method_2_HISAT2_De_Novo/.RData
@@ -20,11 +24,10 @@ file_copier.sh
 4b_Method_2_HISAT2_de_novo/5_stringtie/*
 4b_Method_2_HISAT2_de_novo/5_stringtie
 4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/*
-4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_SmelDMP_CDS_Control_Best.gtf
-4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_SmelGIF_with_Best_Control_Cyclo.gtf
-4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_SmelGRF_with_Best_Control_Cyclo.gtf
-4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_SmelGRF-GIF_with_Best_Control_Cyclo.gtf
-4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_TEST.gtf
+4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/*
+
+
+
 4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/mergelist_SmelDMP_CDS_Control_Best.txt
 4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/mergelist_SmelGIF_with_Best_Control_Cyclo.txt
 4b_Method_2_HISAT2_de_novo/5_stringtie/TrimGalore_Ver/mergelist_SmelGRF_with_Best_Control_Cyclo.txt
