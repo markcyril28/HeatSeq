@@ -87,7 +87,7 @@ merge_group_counts() {
     # Collect abundance files in the specified order
     files=()
     for srr in "${SRR_LIST_PRJNA328564[@]}"; do
-        file_path=$(find "$gene_group_path" -type f -name "${srr}_*gene_abundances_de_novo_${version}.tsv")
+        file_path=$(find "$gene_group_path/$srr" -type f -name "${srr}_*gene_abundances_de_novo_${version}.tsv")
         if [[ -n "$file_path" ]]; then
             files+=("$file_path")
         fi
