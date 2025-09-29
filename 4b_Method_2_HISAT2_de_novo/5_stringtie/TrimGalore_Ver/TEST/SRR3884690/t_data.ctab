@@ -1,2 +1,0 @@
-t_id	chr	strand	start	end	t_name	num_exons	length	gene_id	gene_name	cov	FPKM
-1	SmelCyclo06	.	1	966	MSTRG.1.1	1	966	MSTRG.1	.	52.998966	949938.500000

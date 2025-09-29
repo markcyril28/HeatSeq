@@ -1,4 +1,0 @@
-# stringtie -p 64 -e -B 02_HISAT2/TrimGalore_Ver/TEST/SRR3884685/SRR3884685_TEST_trimmed_mapped_sorted.bam -G 03_stringtie/TrimGalore_Ver/merged_transcripts_de_novo_TEST.gtf -o 03_stringtie/TrimGalore_Ver/TEST/SRR3884685/SRR3884685_TEST_expression_estimates_de_novo_v2.gtf -A 03_stringtie/TrimGalore_Ver/TEST/SRR3884685/SRR3884685_TEST_gene_abundances_de_novo_v2.tsv -C 03_stringtie/TrimGalore_Ver/TEST/SRR3884685/SRR3884685_TEST_transcripts_with_coverage_de_novo.gtf
-# StringTie version 3.0.0
-SmelCyclo06	StringTie	transcript	1	966	1000	.	.	gene_id "MSTRG.1"; transcript_id "MSTRG.1.1"; cov "50.107662"; FPKM "1029327.500000"; TPM "1000000.062500";
-SmelCyclo06	StringTie	exon	1	966	1000	.	.	gene_id "MSTRG.1"; transcript_id "MSTRG.1.1"; exon_number "1"; cov "50.107662";
