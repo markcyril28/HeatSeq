@@ -1,0 +1,19 @@
+name: Heatmap_ENV
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.11
+  - r-base=4.2
+  - r-tidyverse
+  - r-devtools
+  - r-remotes
+  - r-ggplot2
+  - r-dplyr
+  - r-readr
+  - r-rcolorbrewer
+  - r-pheatmap
+  - r-viridis
+  - r-biocmanager
+  - bioconductor-deseq2
