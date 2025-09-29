@@ -7,7 +7,7 @@ LOG_FILE="${LOG_FILE:-$LOG_DIR/pipeline_${RUN_ID}_script_log.log}"
 
 mkdir -p "$LOG_DIR"
 # Forces removal and ignores errors if files do not exist.
-#rm -rf "$LOG_DIR"/*
+rm -rf "$LOG_DIR"/*
 
 # Chmod and Converts the file to Unix line endings
 chmod +x ./*.sh
