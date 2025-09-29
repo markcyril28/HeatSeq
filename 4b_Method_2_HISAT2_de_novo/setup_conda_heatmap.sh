@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # Configuration
-DEFAULT_ENV="${CONDA_DEFAULT_ENV:-Heatmap_ENV}"
+DEFAULT_ENV="${CONDA_DEFAULT_ENV:-GEA_env}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YAML_FILE="$SCRIPT_DIR/Heatmap_ENV_R.yml"
 
