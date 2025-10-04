@@ -9,7 +9,7 @@ set -euo pipefail
 # CONFIGURATION
 # ============================================================================== 
 #read -p "How many CPU threads to use? [default: 4]: " user_threads
-THREADS="${user_threads:-88}"  # Number of threads to use for parallel operations
+THREADS="${user_threads:-96}"  # Number of threads to use for parallel operations
 
 # ==============================================================================
 # INPUT FILES
@@ -32,17 +32,52 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# List of SRR sample IDs to process
 	#SRR3884664 # Fruits Calyx Stage 2
-	#SRR3884653 # Fruits Flesh Stage 2
+	SRR3884653 # Fruits Flesh Stage 2
 	SRR3884631 # Fruits 6 cm
-	SRR3884677 # Cotyledons
-	SRR3884679 # Pistils
+	#SRR3884677 # Cotyledons
+	#SRR3884679 # Pistils
 	SRR3884597 # Flowers
 	SRR3884686 # Buds 0.7 cm
 	SRR3884687 # Buds, Opened Buds
 	SRR3884689 # Leaves
 	SRR3884690 # Stems
-	SRR3884685 # Radicles
+	#SRR3884685 # Radicles
 	SRR3884675 # Roots
+)
+
+SRR_LIST_SAMN28540077=(
+	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
+	SRR2072232	# mature_fruits
+	SRR20722226	# young_fruits
+	SRR20722234	# flowers
+
+	#SRR20722228	# sepals
+	SRR20722230	# mature_leaves
+	#SRR20722225	# young_leaves
+	SRR20722227	# stems
+	#SRR20722233	# leaf_buds
+	SRR20722229	# roots
+)
+
+SRR_LIST_SAMN28540068=(
+	#Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540068&o=acc_s%3Aa
+	# Solanum virginianum. wild eggplant or Thai green eggplant, but it is not the same species as the common eggplant (Solanum melongena).
+)
+
+OTHER_SRR_LIST=(
+	# Possible Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP390977&o=acc_s%3Aa
+	SRR34564302	# Fruits (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR34564302&display=metadata)
+	SRR34848077 # Leaves (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&page_size=10&acc=SRR34848077&display=metadata)
+		# Cotyledons (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3884677&display=metadata)
+	SRR3479277 # Pistil (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3479277&display=metadata)
+	SRR3884597 # Flowers (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3884597&display=metadata)
+		SRR3884686 # Buds 0.7 cm
+	 # Buds, Opened Buds
+	 # Leaves
+	 # Stems
+	 # Radicles
+	SRR20722229 # Roots (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR20722229&display=metadata)
+	# Add other SRR IDs here if needed
 )
 
 RAW_DIR_ROOT="1_Raw_Data/PRJNA328564"

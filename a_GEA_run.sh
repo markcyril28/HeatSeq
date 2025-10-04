@@ -20,6 +20,6 @@ dos2unix ./*.sh
 
 #/usr/bin/time -v ./4b_Method_2_HISAT2_De_Novo/b_heatmap_METHOD2_RESULTS_matrices.R >> "$LOG_FILE" 2>&1
 
-tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo  # Archive all StringTie results for sharing or backup
+#tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo  # Archive all StringTie results for sharing or backup
 
-#tar -xzvf 4b_Method_2_HISAT2_De_Novo_20250930_032110.tar.gz
+tar -xzvf 4b_Method_2_HISAT2_De_Novo_20250930_032110.tar.gz
