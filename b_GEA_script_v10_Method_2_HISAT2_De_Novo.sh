@@ -9,7 +9,7 @@ set -euo pipefail
 # CONFIGURATION
 # ============================================================================== 
 #read -p "How many CPU threads to use? [default: 4]: " user_threads
-THREADS="${user_threads:-96}"  # Number of threads to use for parallel operations
+THREADS="${user_threads:-64}"  # Number of threads to use for parallel operations
 
 # ==============================================================================
 # INPUT FILES
@@ -19,7 +19,7 @@ THREADS="${user_threads:-96}"  # Number of threads to use for parallel operation
 
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
+	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Best_Control_Cyclo.fasta"
