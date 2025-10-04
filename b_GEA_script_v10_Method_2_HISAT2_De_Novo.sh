@@ -91,8 +91,8 @@ for SRR in "${SRR_COMBINED_LIST[@]}"; do
 done
 
 #: << 'OFF'
-RAW_DIR_ROOT="1_RAW_SRR/"
-TRIM_DIR_ROOT="2_TRIMMED_SRR/"
+RAW_DIR_ROOT="1_RAW_SRR"
+TRIM_DIR_ROOT="2_TRIMMED_SRR"
 FASTQC_ROOT="3_FastQC"
 
 HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_RESULTS"
@@ -100,15 +100,15 @@ HISAT2_DE_NOVO_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
 STRINGTIE_HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie/a_Method_2_Results"
 
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
-	
+
 # SWTICHES. 
 RUN_DOWNLOAD_SRR=TRUE
 RUN_TRIMMING=TRUE
-RUN_HISAT2_INDEX_ALIGN_SORT=TRUE
-RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY=TRUE
+RUN_HISAT2_INDEX_ALIGN_SORT=FALSE
+RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY=FALSE
 RUN_CLEANUP_BAM=TRUE
 
-#HISAT2_DE_NOVO_ROOT="02_HISAT2/TrimGalore_Ver"
+#HISAT2_DE_NOVO_ROOT="02_HISAT2/"
 #HISAT2_DE_NOVO_INDEX_DIR="02_HISAT2/index"
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
@@ -459,22 +459,35 @@ run_all() {
 		setup_logging
 		log_step "Script started at: $(date -d @$start_time)"
 
-		log_step "STEP 00: Download SRR files"
-		download_srrs "${rnaseq_list[@]}"
+		if [[ $RUN_DOWNLOAD_SRR == "TRUE" ]]; then
+			log_step "STEP 00: Download SRR files"
+			download_srrs "${rnaseq_list[@]}"
+		fi	
 
-		log_step "STEP 01: Trimming"
-		trim_reads "${rnaseq_list[@]}"
+		if [[ $RUN_TRIMMING == "TRUE" ]]; then
+			log_step "STEP 01: Trimming"
+			trim_reads "${rnaseq_list[@]}"
+		fi
 
-		log_step "STEP 02: Build HISAT2 index and align"
-		hisat2_index_align_sort --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		if [[ $RUN_HISAT2_INDEX_ALIGN_SORT == "TRUE" ]]; then
+			log_step "STEP 02: Build HISAT2 index and align"
+			hisat2_index_align_sort --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		fi
 
-		log_step "STEP 03: StringTie assembly, merge, and quantification"
-		stringtie_assemble --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-		stringtie_merge --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-		stringtie_quantify --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		if [[ $RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY == "TRUE" ]]; then
+			log_step "STEP 03: StringTie assembly, merge, and quantification"
+			stringtie_assemble --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+			stringtie_merge --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+			stringtie_quantify --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		fi
 
-		cleanup_bam_files --FASTA "$fasta"
-
+		if [[ $RUN_CLEANUP_BAM == "TRUE" ]]; then
+			log_step "STEP 04: Optional BAM cleanup"
+			cleanup_bam_files --FASTA "$fasta"
+		else
+			log_info "Skipping BAM cleanup as per configuration."
+		fi
+		
 		end_time=$(date +%s)
 		log_step "Final timing"
 		log_info "Script ended at: $(date -d @$end_time)"
@@ -486,11 +499,12 @@ run_all() {
 # Run the pipeline for each FASTA input and SRR list.
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 	# Run the pipeline for each FASTA file and all SRR samples
-	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
+	#run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
+	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_COMBINED_LIST[@]}"
 done
 
-# Zip all the content of this folder: STRINGTIE_HISAT2_DE_NOVO_ROOT="03_stringtie/TrimGalore_Ver"
+# Zip all the content of this folder: STRINGTIE_HISAT2_DE_NOVO_ROOT="03_stringtie/"
 #
-#tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver  # Archive all StringTie results for sharing or backup
+#tar -czvf 03_stringtie__$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/  # Archive all StringTie results for sharing or backup
 
 #OFF
