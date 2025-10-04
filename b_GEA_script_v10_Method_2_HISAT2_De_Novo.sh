@@ -8,8 +8,7 @@ set -euo pipefail
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
-#read -p "How many CPU threads to use? [default: 4]: " user_threads
-THREADS="${user_threads:-64}"  # Number of threads to use for parallel operations
+THREADS=64  # Number of threads to use for parallel operations
 
 # ==============================================================================
 # INPUT FILES
