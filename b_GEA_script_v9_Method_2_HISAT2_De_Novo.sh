@@ -14,20 +14,20 @@ THREADS="${user_threads:-96}"  # Number of threads to use for parallel operation
 # ==============================================================================
 # INPUT FILES
 # ==============================================================================
-#All_SmelGIF_GTF_FILE="0_INPUTS/All_SmelDMP_Head_Gene_Name_v4.gtf"
-#Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUTS/Eggplant_V4_1_transcripts_function.fa"
+#All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
+#Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4_1_transcripts_function.fa"
 
 ALL_FASTA_FILES=(
-	"0_INPUTS/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
-)
 	# List of FASTA files to process
-	#"0_INPUTS/TEST.fasta"
-	#"0_INPUTS/SmelDMP_CDS_Control_Best.fasta"
-	#"0_INPUTS/SmelGIF_with_Best_Control_Cyclo.fasta"
-	#"0_INPUTS/SmelGRF_with_Best_Control_Cyclo.fasta"
-	#"0_INPUTS/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
-	#"0_INPUTS/Control_Genes_Puta.fasta"
-	#"0_INPUTS/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
+	"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
+	#"0_INPUT_FASTAs/TEST.fasta"
+	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
+	#"0_INPUT_FASTAs/SmelGIF_with_Best_Control_Cyclo.fasta"
+	#"0_INPUT_FASTAs/SmelGRF_with_Best_Control_Cyclo.fasta"
+	#"0_INPUT_FASTAs/SmelGRF-GIF_with_Best_Control_Cyclo.fasta"
+	#"0_INPUT_FASTAs/Control_Genes_Puta.fasta"
+	#"0_INPUT_FASTAs/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
+)
 
 SRR_LIST_PRJNA328564=(
 	# List of SRR sample IDs to process
@@ -80,23 +80,35 @@ OTHER_SRR_LIST=(
 	# Add other SRR IDs here if needed
 )
 
-RAW_DIR_ROOT="1_Raw_Data/PRJNA328564"
-TRIM_DIR_ROOT="2_Trimmed_Data/PRJNA328564"
+SRR_COMBINED_LIST=(
+	"${SRR_LIST_PRJNA328564[@]}"
+	"${SRR_LIST_SAMN28540077[@]}"
+	"${OTHER_SRR_LIST[@]}"
+)
+
+for SRR in "${SRR_COMBINED_LIST[@]}"; do
+	echo "$SRR"
+done
+
+#: << 'OFF'
+RAW_DIR_ROOT="1_RAW_SRR/"
+TRIM_DIR_ROOT="2_TRIMMED_SRR/"
 FASTQC_ROOT="3_FastQC"
-HISAT2_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_RESULTS"
-HISAT2_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
-STRINGTIE_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie/a_Method_2_Results"
 
-mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_ROOT" "$HISAT2_INDEX_DIR" "$STRINGTIE_ROOT"
+HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_RESULTS"
+HISAT2_DE_NOVO_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
+STRINGTIE_HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie/a_Method_2_Results"
 
-#HISAT2_ROOT="02_HISAT2/TrimGalore_Ver"
-#HISAT2_INDEX_DIR="02_HISAT2/index"
+mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
+
+#HISAT2_DE_NOVO_ROOT="02_HISAT2/TrimGalore_Ver"
+#HISAT2_DE_NOVO_INDEX_DIR="02_HISAT2/index"
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
 #rm -rf $TRIM_DIR_ROOT
-#rm -rf $HISAT2_ROOT      # Remove previous HISAT2 results
-#rm -rf $HISAT2_INDEX_DIR # Remove previous HISAT2 index
-#rm -rf $STRINGTIE_ROOT   # Remove previous StringTie results
+#rm -rf $HISAT2_DE_NOVO_ROOT      # Remove previous HISAT2 results
+#rm -rf $HISAT2_DE_NOVO_INDEX_DIR # Remove previous HISAT2 index
+#rm -rf $STRINGTIE_HISAT2_DE_NOVO_ROOT   # Remove previous StringTie results
 
 # ==============================================================================
 # LOGGING
@@ -227,21 +239,21 @@ hisat2_index_align_sort() {
 	if [[ ${#rnaseq_list[@]} -eq 0 ]]; then
 		rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
 	fi
-	mkdir -p "$HISAT2_INDEX_DIR"
+	mkdir -p "$HISAT2_DE_NOVO_INDEX_DIR"
 	local fasta_base fasta_tag index_prefix
 	fasta_base="$(basename "$fasta")"
 	fasta_tag="${fasta_base%.*}"
-	index_prefix="$HISAT2_INDEX_DIR/${fasta_tag}_index"
+	index_prefix="$HISAT2_DE_NOVO_INDEX_DIR/${fasta_tag}_index"
 	if ls "${index_prefix}".*.ht2 >/dev/null 2>&1; then
-		log_info "HISAT2 index already exists at $HISAT2_INDEX_DIR for $fasta_base. Skipping build."
+		log_info "HISAT2 index already exists at $HISAT2_DE_NOVO_INDEX_DIR for $fasta_base. Skipping build."
 	else
-		log_info "Building HISAT2 index at $HISAT2_INDEX_DIR from $fasta ..."
+		log_info "Building HISAT2 index at $HISAT2_DE_NOVO_INDEX_DIR from $fasta ..."
 		run_with_time_to_log hisat2-build -p "${THREADS}" "$fasta" "$index_prefix"
 	fi
-	export HISAT2_INDEX_DIR
+	export HISAT2_DE_NOVO_INDEX_DIR
 	export HISAT2_INDEX_PREFIX="$index_prefix"
 	for SRR in "${rnaseq_list[@]}"; do
-		local HISAT2_DIR="$HISAT2_ROOT/$fasta_tag/$SRR"
+		local HISAT2_DIR="$HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
 		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
 		local trimmed1="" trimmed2=""
 		mkdir -p "$HISAT2_DIR"
@@ -300,8 +312,8 @@ stringtie_assemble() {
 
 	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
 	for SRR in "${rnaseq_list[@]}"; do
-		local out_dir="$STRINGTIE_ROOT/$fasta_tag/$SRR"
-		local bam="$HISAT2_ROOT/$fasta_tag/$SRR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
+		local out_dir="$STRINGTIE_HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
+		local bam="$HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 		local out_gtf="$out_dir/${SRR}_${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf"
 
 		mkdir -p "$out_dir"
@@ -327,12 +339,12 @@ stringtie_merge() {
 	done
 
 	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
-	local MERGELIST="$STRINGTIE_ROOT/mergelist_${fasta_tag}.txt"
-	mkdir -p "$STRINGTIE_ROOT"
-	find "$(realpath "$STRINGTIE_ROOT/$fasta_tag")" -type f \
+	local MERGELIST="$STRINGTIE_HISAT2_DE_NOVO_ROOT/mergelist_${fasta_tag}.txt"
+	mkdir -p "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
+	find "$(realpath "$STRINGTIE_HISAT2_DE_NOVO_ROOT/$fasta_tag")" -type f \
 		-name "*${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf" > "$MERGELIST"
 
-	local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
+	local merged_gtf="$STRINGTIE_HISAT2_DE_NOVO_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
 	[[ -s "$merged_gtf" ]] && log_info "Merged GTF for $fasta_tag already exists. Skipping." && return
 
 	log_info "Merging StringTie assemblies for $fasta_tag into $merged_gtf ..."
@@ -354,12 +366,12 @@ stringtie_quantify() {
 	done
 
 	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
-	local merged_gtf="$STRINGTIE_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
+	local merged_gtf="$STRINGTIE_HISAT2_DE_NOVO_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
 	[[ ! -s "$merged_gtf" ]] && log_error "Merged GTF not found at $merged_gtf. Run stringtie_merge first." && return 1
 
 	for SRR in "${rnaseq_list[@]}"; do
-		local HISAT2_DIR="$HISAT2_ROOT/$fasta_tag/$SRR"
-		local STRINGTIE_DIR="$STRINGTIE_ROOT/$fasta_tag/$SRR"
+		local HISAT2_DIR="$HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
+		local STRINGTIE_DIR="$STRINGTIE_HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
 		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 		local out_gtf="$STRINGTIE_DIR/${SRR}_${fasta_tag}_expression_estimates_de_novo_v2.gtf"
 
@@ -398,7 +410,7 @@ cleanup_bam_files() {
 	local fasta_base fasta_tag
 	fasta_base="$(basename "$fasta")"
 	fasta_tag="${fasta_base%.*}"
-	local bam_dir="$HISAT2_ROOT/$fasta_tag"
+	local bam_dir="$HISAT2_DE_NOVO_ROOT/$fasta_tag"
 
 	if [[ "$keep_bam" == "n" ]]; then
 		log_info "Deleting BAM files as per user request..."
@@ -470,6 +482,8 @@ for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
 done
 
-# Zip all the content of this folder: STRINGTIE_ROOT="03_stringtie/TrimGalore_Ver"
+# Zip all the content of this folder: STRINGTIE_HISAT2_DE_NOVO_ROOT="03_stringtie/TrimGalore_Ver"
 #
 #tar -czvf 03_stringtie_TrimGalore_Ver_$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/TrimGalore_Ver  # Archive all StringTie results for sharing or backup
+
+#OFF
