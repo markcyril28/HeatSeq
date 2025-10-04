@@ -1,13 +1,13 @@
 #!/bin/bash 
 
 # Set variables
-RUN_ID="${RUN_ID:-$(date +%Y%m%d_%H%M%S)}"
-LOG_DIR="${LOG_DIR:-logs}"
-LOG_FILE="${LOG_FILE:-$LOG_DIR/pipeline_${RUN_ID}_script_log.log}"
-
 mkdir -p "$LOG_DIR"
+RUN_ID="${RUN_ID:-$(date +%Y%m%d_%H%M%S)}"
+LOG_DIR="logs"
+LOG_FILE="$LOG_DIR/pipeline_${RUN_ID}_script.log"
+
 # Forces removal and ignores errors if files do not exist.
-#rm -rf "$LOG_DIR"/*
+rm -rf "$LOG_DIR"/*
 
 # Chmod and Converts the file to Unix line endings
 chmod +x ./*.sh
