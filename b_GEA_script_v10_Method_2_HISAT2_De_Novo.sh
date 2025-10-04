@@ -19,8 +19,8 @@ THREADS="${user_threads:-64}"  # Number of threads to use for parallel operation
 
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
+	"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
-	#"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Best_Control_Cyclo.fasta"
 	#"0_INPUT_FASTAs/SmelGRF_with_Best_Control_Cyclo.fasta"
@@ -104,8 +104,8 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_DE_NOVO_ROOT" 
 # SWTICHES. 
 RUN_DOWNLOAD_SRR=TRUE
 RUN_TRIMMING=TRUE
-RUN_HISAT2_INDEX_ALIGN_SORT=FALSE
-RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY=FALSE
+RUN_HISAT2_INDEX_ALIGN_SORT=TRUE
+RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY=TRUE
 RUN_CLEANUP_BAM=TRUE
 
 #HISAT2_DE_NOVO_ROOT="02_HISAT2/"
