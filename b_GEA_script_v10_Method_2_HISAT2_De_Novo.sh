@@ -8,7 +8,7 @@ set -euo pipefail
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
-THREADS=64  # Number of threads to use for parallel operations
+THREADS=84  # Number of threads to use for parallel operations
 
 # ==============================================================================
 # INPUT FILES
@@ -51,11 +51,11 @@ SRR_LIST_SAMN28540077=(
 	SRR20722234	# flowers
 
 	#SRR20722228	# sepals
-	SRR20722230	# mature_leaves
+	#SRR20722230	# mature_leaves
 	#SRR20722225	# young_leaves
-	SRR20722227	# stems
+	#SRR20722227	# stems
 	#SRR20722233	# leaf_buds
-	SRR20722229	# roots
+	#SRR20722229	# roots
 )
 
 SRR_LIST_SAMN28540068=(
@@ -102,8 +102,8 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_DE_NOVO_ROOT" 
 
 # SWITCHES. 
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE
-RUN_HISAT2_INDEX_ALIGN_SORT=TRUE
-RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY=TRUE
+RUN_HISAT2_INDEX_ALIGN_SORT=FALSE
+RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY=FALSE
 RUN_CLEANUP_BAM=TRUE
 
 #HISAT2_DE_NOVO_ROOT="02_HISAT2/"
@@ -111,8 +111,8 @@ RUN_CLEANUP_BAM=TRUE
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
 #rm -rf $TRIM_DIR_ROOT
-#rm -rf $HISAT2_DE_NOVO_ROOT      # Remove previous HISAT2 results
-#rm -rf $HISAT2_DE_NOVO_INDEX_DIR # Remove previous HISAT2 index
+#rm -rf $HISAT2_DE_NOVO_ROOT      		 # Remove previous HISAT2 results
+#rm -rf $HISAT2_DE_NOVO_INDEX_DIR 		 # Remove previous HISAT2 index
 #rm -rf $STRINGTIE_HISAT2_DE_NOVO_ROOT   # Remove previous StringTie results
 
 # ==============================================================================
