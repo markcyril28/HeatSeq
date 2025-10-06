@@ -7,7 +7,7 @@
 # Description:
 # This script generates gene expression count matrices for multiple gene groups and sample sets.
 # Step-by-step:
-# 1. For each gene group and version, locate abundance files for all samples.
+# 1. For each gene group, locate abundance files for all samples.
 # 2. Extract gene names from a reference file.
 # 3. For each count type (coverage, FPKM, TPM):
 #    a. Extract gene name and count columns from each sample file.
@@ -18,22 +18,20 @@ INSTRUCTIONS
 # ===============================================
 # CONFIGURATION
 # ===============================================
-
-BASE_DIR="/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/4b_Method_2_HISAT2_De_Novo"
-INPUTS_DIR="$BASE_DIR/5_stringtie/a_Method_2_Results"
-OUT_DIR="$BASE_DIR/5_stringtie/a_Method_2_Results_matrices_post-processed"
+BASE_DIR="$PWD"
+INPUTS_DIR="5_stringtie_WD/a_Method_2_RAW_RESULTs"
+OUT_DIR="5_stringtie_WD/b_Method_2_COUNT_MATRICES"
 mkdir -p "$OUT_DIR"
 
-rm -rf "$OUT_DIR"/*
-
-Fasta_Groups=(
-	# TEST
-	#SmelDMP_CDS_Control_Best
+QUERY_AGAINST_ALL_SMELGENES=FALSE
+FASTA_Groups=(
+	#TEST
+	SmelDMP_CDS_Control_Best
 	#SmelGIF_with_Best_Control_Cyclo
 	#SmelGRF_with_Best_Control_Cyclo
 	#SmelGRF-GIF_with_Best_Control_Cyclo
-    SmelGIF_with_Cell_Cycle_Control_genes
-    SmelGRF_with_Cell_Cycle_Control_genes
+    #SmelGIF_with_Cell_Cycle_Control_genes
+    #SmelGRF_with_Cell_Cycle_Control_genes
 )
 
 SRR_LIST_PRJNA328564=(
@@ -73,13 +71,13 @@ TPM_COL=9           # TPM column (adjust if needed)
 # ===============================================
 
 merge_group_counts() {
-    local gene_group_path="$1"
-    local REF_TSV="$2"
-    local version="$3"
-    local group_name="$4"
+    local gene_group="$1"
+    local gene_group_path="$2"
+    local ref_tsv="$3"
+    local group_name=$(basename "$gene_group_path")
 
-    # Create output directory for this group and version
-    mkdir -p "$OUT_DIR/$group_name/$version"
+    # Create output directory for this group
+    mkdir -p "$OUT_DIR/$group_name"
 
     local tmpdir
     tmpdir=$(mktemp -d)
@@ -87,12 +85,17 @@ merge_group_counts() {
     # Collect abundance files in the specified order
     files=()
     for srr in "${SRR_LIST_PRJNA328564[@]}"; do
-        path_dir="$gene_group_path/$srr"
-        file_pattern="${srr}_${group_name}_gene_abundances_de_novo_${version}.tsv"
-        file="$path_dir/$file_pattern"
-        files+=("$file")
+        if QUERY_AGAINST_ALL_SMELGENES=TRUE; then
+            gene_group="All_SmelGenes"
+            file_path="All_SmelGenes/$srr/${srr}_All_SmelGenes_gene_abundances_de_novo.tsv"
+        else
+            file_path=${gene_group_path}/$srr/${srr}_${gene_group}_gene_abundances_de_novo.tsv
+        fi
+        if [[ -n "$file_path" ]]; then
+            files+=("$file_path")
+        fi
     done
-
+    
     if [[ ${#files[@]} -eq 0 ]]; then
         echo "No files found in $gene_group_path."
         rm -r "$tmpdir"
@@ -100,7 +103,7 @@ merge_group_counts() {
     fi
 
     # Extract gene names from the reference column (column 3) of the reference file (skip header)
-    tail -n +2 "${REF_TSV}" | cut -f1 > "$tmpdir/gene_names.txt"
+    tail -n +2 "${ref_tsv}" | cut -f1 > "$tmpdir/gene_names.txt"
 
     # Debug: Check if gene_names.txt has content
     echo "Gene names extracted: $(wc -l < "$tmpdir/gene_names.txt") lines."
@@ -152,7 +155,7 @@ merge_group_counts() {
 
             # Match gene names and append sample counts to the correct row
             python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" ${sample_files[*]}
-        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_SRR.tsv"
+        } > "$OUT_DIR/$group_name/${group_name}_${count}_counts_geneName_SRR.tsv"
 
         # Create matrix: gene names + Organ columns
         {
@@ -173,7 +176,7 @@ merge_group_counts() {
 
             # Match gene names and append sample counts to the correct row
             python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" ${sample_files[*]}
-        } > "$OUT_DIR/$group_name/$version/${group_name}_${count}_counts_geneName_Organ.tsv"
+        } > "$OUT_DIR/$group_name/${group_name}_${count}_counts_geneName_Organ.tsv"
 
         # Clean up temporary files for this count type
         rm -f "${sample_files[@]}"
@@ -185,17 +188,20 @@ merge_group_counts() {
 # ===============================================
 # MAIN
 # ===============================================
-
-for version in v1 v2; do
-    for Gene_group in "${Fasta_Groups[@]}"; do
-        REF_TSV="$BASE_DIR/5_stringtie/a_Ref_Boilerplate_TSVs/${Gene_group}_REF_BOILERPLATE_TSV.tsv"
-        echo -e "\nChecking for reference TSV: $REF_TSV"
-        Gene_group_path="$INPUTS_DIR/$Gene_group"
-        
-        echo "Merging counts for gene group: $Gene_group, version: $version"
-        merge_group_counts "$Gene_group_path" "$REF_TSV" "$version" "$Gene_group"
-    done
+ 
+for Gene_Group in "${FASTA_Groups[@]}"; do
+    REF_TSV="5_stringtie_WD/0_Ref_Boilerplate_TSVs/${Gene_Group}_REF_BOILERPLATE_TSV.tsv"
+    echo -e "\nChecking for reference TSV: $REF_TSV"
+    if [[ ! -f "$REF_TSV" ]]; then 
+        echo "Reference TSV file not found: $REF_TSV. Skipping group $Gene_Group."
+        continue
+    else
+        echo "Found reference TSV: $REF_TSV" 
+    fi
+    Gene_Group_PATH="$INPUTS_DIR/$Gene_Group"
+    
+    echo "Merging counts for gene group: $Gene_Group"
+    merge_group_counts "$Gene_Group" "$Gene_Group_PATH" "$REF_TSV"
 done
 
 echo "All groups processed. Count matrices are located in: $OUT_DIR"
-

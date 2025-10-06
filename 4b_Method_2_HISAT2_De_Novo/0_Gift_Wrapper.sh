@@ -6,6 +6,6 @@ Run this script in sequence:
 2. Rscript b_heatmap_DeSeq2_v2.R
 DESCRIPTIONS
 
-bash a_stringtie_method_2.2.sh
+bash a_stringtie_matrix_builder_m2_v4.sh
 
-Rscript --verbose b_heatmap_METHOD2_RESULTS_matrices.R
+Rscript --verbose b_make_heatmap_of_matrices_v4.R
