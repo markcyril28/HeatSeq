@@ -21,10 +21,10 @@ set -euo pipefail  # Exit on error, undefined vars, pipe failures
 BASE_DIR="$PWD"
 INPUTS_DIR="5_stringtie_WD/a_Method_2_RAW_RESULTs"
 OUT_DIR="5_stringtie_WD/b_Method_2_COUNT_MATRICES"
-LOG_FILE="$OUT_DIR/matrix_builder_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="$OUT_DIR/logs/matrix_builder_$(date +%Y%m%d_%H%M%S).log"
 
 # Create output directory and initialize logging
-mkdir -p "$OUT_DIR"
+mkdir -p "$OUT_DIR/logs"
 exec 1> >(tee -a "$LOG_FILE")
 exec 2> >(tee -a "$LOG_FILE" >&2)
 
@@ -39,12 +39,12 @@ QUERY_AGAINST_ALL_SMELGENES=FALSE
 
 # Gene groups to process (uncomment as needed)
 Gene_Groups_Boilerplates=(
-	SmelDMP_CDS_Control_Best              # Active: DMP CDS with best control genes
-	#SmelGIF_with_Best_Control_Cyclo      # GIF with best control cyclophilin
-	#SmelGRF_with_Best_Control_Cyclo      # GRF with best control cyclophilin  
-	#SmelGRF-GIF_with_Best_Control_Cyclo  # Combined GRF-GIF with controls
-    #SmelGIF_with_Cell_Cycle_Control_genes # GIF with cell cycle controls
-    #SmelGRF_with_Cell_Cycle_Control_genes # GRF with cell cycle controls
+	SmelDMP_CDS_Control_Best                # Active: DMP CDS with best control genes
+	#SmelGIF_with_Best_Control_Cyclo        # GIF with best control cyclophilin
+	#SmelGRF_with_Best_Control_Cyclo        # GRF with best control cyclophilin  
+	#SmelGRF-GIF_with_Best_Control_Cyclo    # Combined GRF-GIF with controls
+    #SmelGIF_with_Cell_Cycle_Control_genes  # GIF with cell cycle controls
+    #SmelGRF_with_Cell_Cycle_Control_genes  # GRF with cell cycle controls
 )
 
 # Sample lists from different projects
@@ -77,7 +77,11 @@ SRR_LIST_SAMN28540068=(
 )
 
 # Combined list of all samples across projects
-SRR_LIST_COMBINED=("${SRR_LIST_PRJNA328564[@]}" "${SRR_LIST_SAMN28540077[@]}" "${SRR_LIST_SAMN28540068[@]}")
+SRR_LIST_COMBINED=(
+    "${SRR_LIST_PRJNA328564[@]}" 
+    #"${SRR_LIST_SAMN28540077[@]}" 
+    #"${SRR_LIST_SAMN28540068[@]}"
+)
 
 # Mapping from SRR IDs to organ names for matrix headers
 declare -A SRR_TO_ORGAN=(
@@ -176,8 +180,8 @@ merge_group_counts() {
     #head -5 "$tmpdir/gene_names.txt"
     #tail -n 5 "$tmpdir/gene_names.txt"
 
-    for count in coverage fpkm tpm; do
-        local COUNT_COL_VAR="${count^^}_COL"
+    for count_type in coverage fpkm tpm; do
+        local COUNT_COL_VAR="${count_type^^}_COL"
         local COUNT_COL="${!COUNT_COL_VAR}"
 
         # Extract count data from each sample file
