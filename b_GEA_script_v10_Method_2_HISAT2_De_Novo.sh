@@ -1,23 +1,20 @@
 #!/bin/bash
 
 set -euo pipefail
-
-# Chmod and Converts the file to Unix line endings
-#chmod +x ./*.sh   # Ensure the run script is executable
-#dos2unix ./*.sh   # Convert Windows line endings to Unix
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
-THREADS=84  # Number of threads to use for parallel operations
-
+THREADS=32  # Number of threads to use for parallel operations
 # ==============================================================================
 # INPUT FILES
 # ==============================================================================
 #All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
 #Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4_1_transcripts_function.fa"
 
+
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
+	#"0_INPUT_FASTAs/All_SmelGenes.fasta"
 	"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
@@ -28,8 +25,10 @@ ALL_FASTA_FILES=(
 	#"0_INPUT_FASTAs/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 )
 
+# SRA Run Selector Tool link: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
+
 SRR_LIST_PRJNA328564=(
-	# List of SRR sample IDs to process
+	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	#SRR3884664 # Fruits Calyx Stage 2
 	SRR3884653 # Fruits Flesh Stage 2
 	SRR3884631 # Fruits 6 cm
@@ -46,13 +45,12 @@ SRR_LIST_PRJNA328564=(
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	SRR2072232	# mature_fruits
-	SRR20722226	# young_fruits
+	#SRR2072232	# mature_fruits
+	#SRR20722226	# young_fruits
 	SRR20722234	# flowers
 
 	#SRR20722228	# sepals
 	#SRR20722230	# mature_leaves
-	#SRR20722225	# young_leaves
 	#SRR20722227	# stems
 	#SRR20722233	# leaf_buds
 	#SRR20722229	# roots
@@ -62,16 +60,20 @@ SRR_LIST_SAMN28540068=(
 	#Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540068&o=acc_s%3Aa
 	# Solanum virginianum. wild eggplant or Thai green eggplant, but it is not the same species as the common eggplant (Solanum melongena).
 )
+# Almost Complete Dataset: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa
 
 OTHER_SRR_LIST=(
 	# Possible Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP390977&o=acc_s%3Aa
 	SRR34564302	# Fruits (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR34564302&display=metadata)
 	SRR34848077 # Leaves (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&page_size=10&acc=SRR34848077&display=metadata)
+	PRJNA613773 # Leaf (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA613773&o=acc_s%3Aa)
 		# Cotyledons (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3884677&display=metadata)
 	SRR3479277 # Pistil (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3479277&display=metadata)
 	SRR3884597 # Flowers (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3884597&display=metadata)
 		SRR3884686 # Buds 0.7 cm
-	 # Buds, Opened Buds
+	PRJNA941250 # Buds, Opened Buds
+	PRJNA341784 # Flower buds (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA341784&o=acc_s%3Aa)
+	PRJNA477924 # Leaf and Root (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA477924&o=acc_s%3Aa)
 	 # Leaves
 	 # Stems
 	 # Radicles
@@ -85,26 +87,20 @@ SRR_COMBINED_LIST=(
 	#"${OTHER_SRR_LIST[@]}"
 )
 
-for SRR in "${SRR_COMBINED_LIST[@]}"; do
-	echo "$SRR"
-done
-
 #: << 'OFF'
 RAW_DIR_ROOT="1_RAW_SRR"
 TRIM_DIR_ROOT="2_TRIMMED_SRR"
 FASTQC_ROOT="3_FastQC"
 
-HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_RESULTS"
-HISAT2_DE_NOVO_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/index"
-STRINGTIE_HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie/a_Method_2_Results"
+HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD"
+HISAT2_DE_NOVO_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD/index"
+STRINGTIE_HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie_WD/a_Method_2_RAW_RESULTs"
 
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
 
 # SWITCHES. 
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE
-RUN_HISAT2_INDEX_ALIGN_SORT=FALSE
-RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY=FALSE
-RUN_CLEANUP_BAM=TRUE
+RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
 
 #HISAT2_DE_NOVO_ROOT="02_HISAT2/"
 #HISAT2_DE_NOVO_INDEX_DIR="02_HISAT2/index"
@@ -160,6 +156,10 @@ run_with_time_to_log() {
 	/usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
 }
 
+log_info "SRR samples to process:"
+for SRR in "${SRR_COMBINED_LIST[@]}"; do
+	log_info "$SRR"
+done
 # ==============================================================================
 # FUNCTIONS
 # ==============================================================================
@@ -231,12 +231,13 @@ download_and_trim_srrs() {
 	done
 }
 
-hisat2_index_align_sort() {
-	# Build HISAT2 index from FASTA and align trimmed reads for each sample
+hisat2_index_align_sort_stringtie_pipeline() {
+	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			--FASTA)      fasta="$2"; shift 2;;
+			--FASTA)
+				fasta="$2"; shift 2;;
 			--RNASEQ_LIST)
 				shift
 				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
@@ -244,201 +245,107 @@ hisat2_index_align_sort() {
 					shift
 				done
 				;;
-			*)         echo "Unknown option: $1" >&2; return 1;;
+			*)
+				log_error "Unknown option: $1"
+				return 1;;
 		esac
 	done
+	
 	if [[ -z "$fasta" ]]; then
 		log_error "No FASTA file specified. Use --FASTA <fasta_file>."
 		return 1
 	fi
 	if [[ ! -f "$fasta" ]]; then
-		log_error "Fasta file '$fasta' not found."
+		log_error "FASTA file '$fasta' not found."
 		return 1
 	fi
 	if [[ ${#rnaseq_list[@]} -eq 0 ]]; then
 		rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
 	fi
-	mkdir -p "$HISAT2_DE_NOVO_INDEX_DIR"
+
 	local fasta_base fasta_tag index_prefix
 	fasta_base="$(basename "$fasta")"
 	fasta_tag="${fasta_base%.*}"
 	index_prefix="$HISAT2_DE_NOVO_INDEX_DIR/${fasta_tag}_index"
+
+	# BUILD HISAT2 INDEX
+	mkdir -p "$HISAT2_DE_NOVO_INDEX_DIR"
 	if ls "${index_prefix}".*.ht2 >/dev/null 2>&1; then
-		log_info "HISAT2 index already exists at $HISAT2_DE_NOVO_INDEX_DIR for $fasta_base. Skipping build."
+		log_info "HISAT2 index already exists for $fasta_base. Skipping build."
 	else
-		log_info "Building HISAT2 index at $HISAT2_DE_NOVO_INDEX_DIR from $fasta ..."
+		log_info "Building HISAT2 index from $fasta ..."
 		run_with_time_to_log hisat2-build -p "${THREADS}" "$fasta" "$index_prefix"
 	fi
-	export HISAT2_DE_NOVO_INDEX_DIR
-	export HISAT2_INDEX_PREFIX="$index_prefix"
+
+	# ALIGNMENT, SORTING, AND STRINGTIE ASSEMBLY for each SRR
 	for SRR in "${rnaseq_list[@]}"; do
 		local HISAT2_DIR="$HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
 		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
 		local trimmed1="" trimmed2=""
 		mkdir -p "$HISAT2_DIR"
-		# Check for uncompressed trimmed FASTQ files
+		
+		# Find trimmed FASTQ files
 		if [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq" ]]; then
 			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
 			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
-		# Check for compressed trimmed FASTQ files
 		elif [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq.gz" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq.gz" ]]; then
 			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq.gz"
 			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq.gz"
-		# Fallback: match any file pattern for trimmed FASTQ
 		elif compgen -G "$TrimGalore_DIR/${SRR}*val_1.*" >/dev/null 2>&1 && compgen -G "$TrimGalore_DIR/${SRR}*val_2.*" >/dev/null 2>&1; then
-			local _a=( $TrimGalore_DIR/${SRR}*val_1.* ); trimmed1="${_a[0]}"
-			local _b=( $TrimGalore_DIR/${SRR}*val_2.* ); trimmed2="${_b[0]}"
+			local files1=( "$TrimGalore_DIR"/${SRR}*val_1.* )
+			local files2=( "$TrimGalore_DIR"/${SRR}*val_2.* )
+			trimmed1="${files1[0]}"
+			trimmed2="${files2[0]}"
 		fi
+		
 		if [[ -z "$trimmed1" || -z "$trimmed2" ]]; then
-			log_warn "Trimmed FASTQ for $SRR not found in $TrimGalore_DIR; skipping alignment."
+			log_warn "Trimmed FASTQ for $SRR not found in $TrimGalore_DIR; skipping."
 			continue
 		fi
+
 		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 		local sam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped.sam"
+		
+		# Align and sort if BAM doesn't exist
 		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
 			log_info "BAM for $SRR and $fasta_tag already exists. Skipping alignment."
-			continue
+		else
+			log_info "Aligning $fasta_tag with $SRR..."
+			run_with_time_to_log \
+				hisat2 -p "${THREADS}" --dta \
+					-x "$index_prefix" \
+					-1 "$trimmed1" \
+					-2 "$trimmed2" \
+					-S "$sam"
+			
+			log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR..."
+			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			run_with_time_to_log samtools index -@ "${THREADS}" "$bam"
+			rm -f "$sam"
+			log_info "Done aligning $fasta_tag with $SRR."
 		fi
-		log_info "Aligning $fasta_tag with $SRR..."
-		run_with_time_to_log \
-			hisat2 -p "${THREADS}" --dta \
-				-x "$index_prefix" \
-				-1 "$trimmed1" \
-				-2 "$trimmed2" \
-				-S "$sam"
-		log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR..."
-		run_with_time_to_log \
-			samtools sort -@ "${THREADS}" -o "$bam" "$sam"
-		run_with_time_to_log \
-			samtools index -@ "${THREADS}" "$bam"
-		rm -f "$sam"
-		log_info "Done aligning $fasta_tag with $SRR."
-	done
-}
 
-stringtie_assemble() {
-	# Assemble transcripts for each sample using StringTie
-	local fasta rnaseq_list=()
-
-	# Parse arguments
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--FASTA) fasta="$2"; shift 2;;
-			--RNASEQ_LIST) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do rnaseq_list+=("$1"); shift; done;;
-			*) shift;;
-		esac
-	done
-
-	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
-	for SRR in "${rnaseq_list[@]}"; do
+		# StringTie assembly
 		local out_dir="$STRINGTIE_HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
-		local bam="$HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
 		local out_gtf="$out_dir/${SRR}_${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf"
-
+		local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_gene_abundances_de_novo.tsv"
 		mkdir -p "$out_dir"
-		[[ -f "$out_gtf" ]] && log_info "Assembly exists for $fasta_tag/$SRR. Skipping." && continue
-
-		log_info "Assembling transcripts for $fasta_tag with $SRR ..."
-		run_with_time_to_log \
-			stringtie -p "$THREADS" "$bam" \
-				-o "$out_gtf" \
-				-A "$out_dir/${SRR}_${fasta_tag}_gene_abundances_de_novo_v1.tsv"
+		
+		if [[ -f "$out_gtf" ]]; then
+			log_info "Assembly exists for $fasta_tag/$SRR. Skipping."
+		else
+			log_info "Assembling transcripts for $fasta_tag with $SRR ..."
+			run_with_time_to_log \
+				stringtie -p "$THREADS" "$bam" \
+					-o "$out_gtf" \
+					-A "$out_gene_abundances_tsv"
+		fi
+		
+		log_info "Deleting the BAM file."
+		rm -f "$bam" "${bam}.bai"
+		log_info "Done processing $fasta_tag with $SRR."
+		log_info "--------------------------------------------------"
 	done
-}
-
-stringtie_merge() {
-	# Merge all StringTie assemblies for a given FASTA into a single GTF
-	local fasta
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--FASTA) fasta="$2"; shift 2;;
-			--RNASEQ_LIST) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do shift; done;;
-			*) shift;;
-		esac
-	done
-
-	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
-	local MERGELIST="$STRINGTIE_HISAT2_DE_NOVO_ROOT/mergelist_${fasta_tag}.txt"
-	mkdir -p "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
-	find "$(realpath "$STRINGTIE_HISAT2_DE_NOVO_ROOT/$fasta_tag")" -type f \
-		-name "*${fasta_tag}_trimmed_mapped_sorted_stringtie_assembled_de_novo.gtf" > "$MERGELIST"
-
-	local merged_gtf="$STRINGTIE_HISAT2_DE_NOVO_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
-	[[ -s "$merged_gtf" ]] && log_info "Merged GTF for $fasta_tag already exists. Skipping." && return
-
-	log_info "Merging StringTie assemblies for $fasta_tag into $merged_gtf ..."
-	run_with_time_to_log \
-		stringtie --merge -p "$THREADS" -o "$merged_gtf" "$MERGELIST"
-}
-
-stringtie_quantify() {
-	# Quantify gene expression for each sample using merged GTF
-	local fasta rnaseq_list=()
-
-	# Parse arguments
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--FASTA) fasta="$2"; shift 2;;
-			--RNASEQ_LIST) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do rnaseq_list+=("$1"); shift; done;;
-			*) shift;;
-		esac
-	done
-
-	local fasta_tag="${fasta##*/}"; fasta_tag="${fasta_tag%.*}"
-	local merged_gtf="$STRINGTIE_HISAT2_DE_NOVO_ROOT/merged_transcripts_de_novo_${fasta_tag}.gtf"
-	[[ ! -s "$merged_gtf" ]] && log_error "Merged GTF not found at $merged_gtf. Run stringtie_merge first." && return 1
-
-	for SRR in "${rnaseq_list[@]}"; do
-		local HISAT2_DIR="$HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
-		local STRINGTIE_DIR="$STRINGTIE_HISAT2_DE_NOVO_ROOT/$fasta_tag/$SRR"
-		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trimmed_mapped_sorted.bam"
-		local out_gtf="$STRINGTIE_DIR/${SRR}_${fasta_tag}_expression_estimates_de_novo_v2.gtf"
-
-		mkdir -p "$STRINGTIE_DIR"
-		[[ -f "$out_gtf" ]] && log_info "Quantification exists for $fasta_tag/$SRR. Skipping." && continue
-
-		log_info "Quantifying expression for $fasta_tag with $SRR using merged GTF ..."
-		run_with_time_to_log \
-			stringtie -p "$THREADS" -e -B "$bam" \
-				-G "$merged_gtf" \
-				-o "$out_gtf" \
-				-A "$STRINGTIE_DIR/${SRR}_${fasta_tag}_gene_abundances_de_novo_v2.tsv" \
-				-C "$STRINGTIE_DIR/${SRR}_${fasta_tag}_transcripts_with_coverage_de_novo.gtf"
-	done
-}
-
-cleanup_bam_files() {
-	# Optionally clean up BAM files after processing
-	# Accepts --FASTA argument for per-fasta cleanup
-	local fasta=""
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--FASTA)
-				fasta="$2"; shift 2;;
-			*)
-				shift;;
-		esac
-	done
-	local keep_bam="$keep_bam_global"
-	if [[ ! "$keep_bam" =~ ^[yYnN]$ ]]; then
-		log_error "Invalid input for BAM cleanup: $keep_bam. Please enter 'y' or 'n'."
-		exit 1
-	fi
-	keep_bam="${keep_bam,,}"
-
-	local fasta_base fasta_tag
-	fasta_base="$(basename "$fasta")"
-	fasta_tag="${fasta_base%.*}"
-	local bam_dir="$HISAT2_DE_NOVO_ROOT/$fasta_tag"
-
-	if [[ "$keep_bam" == "n" ]]; then
-		log_info "Deleting BAM files as per user request..."
-		run_with_time_to_log find "$bam_dir" -type f -name "*.bam" -exec rm -f {} +
-		run_with_time_to_log find "$bam_dir" -type f -name "*.bam.bai" -exec rm -f {} +
-		log_info "BAM files deleted."
-	else
-		log_info "Keeping BAM files as per user request."
-	fi
 }
 
 # ==============================================================================
@@ -446,7 +353,7 @@ cleanup_bam_files() {
 # ==============================================================================
 run_all() {
 	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
-	# Steps: logging, tool check, download, trim, align, assemble, merge, quantify, cleanup
+	# Steps: Logging, Download and  Trim, HISAT2 alignment to Stringtie, and Cleanup. 
 		local fasta=""
 		local rnaseq_list=()
 		# Parse arguments
@@ -476,25 +383,12 @@ run_all() {
 			download_and_trim_srrs "${rnaseq_list[@]}"
 		fi
 
-		if [[ $RUN_HISAT2_INDEX_ALIGN_SORT == "TRUE" ]]; then
+		if [[ $RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE == "TRUE" ]]; then
 			log_step "STEP 02: Build HISAT2 index and align"
-			hisat2_index_align_sort --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+			hisat2_index_align_sort_stringtie_pipeline \
+				--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 		fi
 
-		if [[ $RUN_STRINGTIE_ASSEMBLE_MERGE_QUANTIFY == "TRUE" ]]; then
-			log_step "STEP 03: StringTie assembly, merge, and quantification"
-			stringtie_assemble --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-			stringtie_merge --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-			stringtie_quantify --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-		fi
-
-		if [[ $RUN_CLEANUP_BAM == "TRUE" ]]; then
-			log_step "STEP 04: Optional BAM cleanup"
-			cleanup_bam_files --FASTA "$fasta"
-		else
-			log_info "Skipping BAM cleanup as per configuration."
-		fi
-		
 		end_time=$(date +%s)
 		log_step "Final timing"
 		log_info "Script ended at: $(date -d @$end_time)"
@@ -506,12 +400,13 @@ run_all() {
 # Run the pipeline for each FASTA input and SRR list.
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 	# Run the pipeline for each FASTA file and all SRR samples
-	#run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_LIST_PRJNA328564[@]}"
-	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_COMBINED_LIST[@]}"
+	run_all \
+		--FASTA "$fasta_input" \
+		--RNASEQ_LIST "${SRR_COMBINED_LIST[@]}"
 done
 
 # Zip all the content of this folder: STRINGTIE_HISAT2_DE_NOVO_ROOT="03_stringtie/"
-#
+
 #tar -czvf 03_stringtie__$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/  # Archive all StringTie results for sharing or backup
 
 #OFF

@@ -14,8 +14,8 @@ library(tibble)
 
 # Input and output directories
 BASE_DIR <- getwd()
-MATRICES_DIR <- "5_stringtie/a_Method_2_Results_matrices_post-processed"
-HEATMAP_OUT_DIR <- "6_Heatmap_Visualization/a_Method_2_Results_matriced_heatmapped"
+MATRICES_DIR <- "5_stringtie_WD/b_Method_2_COUNT_MATRICES"
+HEATMAP_OUT_DIR <- "6_Heatmap_Visualizations"
 
 # Clear and create output directory
 if (dir.exists(HEATMAP_OUT_DIR)) {
@@ -23,18 +23,17 @@ if (dir.exists(HEATMAP_OUT_DIR)) {
 }
 dir.create(HEATMAP_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
-# Gene groups and versions
+# Gene groups
 FASTA_GROUPS <- c(
   #"TEST",
-  #"SmelDMP_CDS_Control_Best", 
+  #"All_Smel_Genes",
+  #"SmelDMP_CDS_Control_Best"
   #"SmelGIF_with_Best_Control_Cyclo",
   #"SmelGRF_with_Best_Control_Cyclo",
-  #"SmelGRF-GIF_with_Best_Control_Cyclo",
-  "SmelGIF_with_Cell_Cycle_Control_genes",
-  "SmelGRF_with_Cell_Cycle_Control_genes"
+  "SmelGRF-GIF_with_Best_Control_Cyclo",
+  #"SmelGIF_with_Cell_Cycle_Control_genes",
+  #"SmelGRF_with_Cell_Cycle_Control_genes"
 )
-
-VERSIONS <- c("v1", "v2")
 COUNT_TYPES <- c("coverage", "fpkm", "tpm")
 GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c("SRR", "Organ")
@@ -56,6 +55,32 @@ SAMPLE_LABELS <- c(
 # ===============================================
 # FUNCTIONS
 # ===============================================
+
+# Function to save matrix data as TSV
+save_matrix_data <- function(data_matrix, output_path) {
+  tryCatch({
+    # Create matrix path by changing .png to .tsv
+    matrix_path <- gsub("\\.png$", ".tsv", output_path)
+    
+    # Convert matrix to data frame with row names as first column
+    matrix_df <- data.frame(
+      Gene_ID = rownames(data_matrix),
+      data_matrix,
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+    
+    # Write to TSV file
+    write.table(matrix_df, file = matrix_path, sep = "\t", 
+                row.names = FALSE, col.names = TRUE, quote = FALSE)
+    
+    cat("Matrix saved to:", matrix_path, "\n")
+    return(TRUE)
+  }, error = function(e) {
+    cat("Error saving matrix:", e$message, "\n")
+    return(FALSE)
+  })
+}
 
 # Function to read and preprocess count matrix
 read_count_matrix <- function(file_path) {
@@ -86,8 +111,9 @@ read_count_matrix <- function(file_path) {
       data_matrix[is.na(data_matrix)] <- 0
     }
     
-    row_sums <- rowSums(data_matrix, na.rm = TRUE)
-    data_matrix <- data_matrix[row_sums > 0, , drop = FALSE]
+    # Keep all genes, including those with all zeros
+    # row_sums <- rowSums(data_matrix, na.rm = TRUE)
+    # data_matrix <- data_matrix[row_sums > 0, , drop = FALSE]  # REMOVED: Now keeping zero-sum rows
     
     # 🔴 Removed the transpose step – keep genes in rows, samples in columns
     
@@ -108,10 +134,14 @@ preprocess_for_heatmap <- function(data_matrix, count_type) {
   
   row_vars <- apply(data_processed, 1, var, na.rm = TRUE)
   row_vars[is.na(row_vars)] <- 0
-  if (any(row_vars == 0)) {
-    cat("Removing", sum(row_vars == 0), "genes with zero variance\n")
-    data_processed <- data_processed[row_vars > 0, , drop = FALSE]
-  }
+  
+  # Keep genes with zero variance by adding a small pseudocount for heatmap visualization
+  # if (any(row_vars == 0)) {
+  #   cat("Removing", sum(row_vars == 0), "genes with zero variance\n")
+  #   data_processed <- data_processed[row_vars > 0, , drop = FALSE]
+  # }
+  # MODIFIED: Now keeping all genes, including those with zero variance
+  cat("Keeping all", nrow(data_processed), "genes (including", sum(row_vars == 0), "with zero variance)\n")
   
   if (nrow(data_processed) > 10) {
     gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
@@ -134,9 +164,13 @@ preprocess_for_raw_data <- function(data_matrix) {
   
   gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
   gene_vars[is.na(gene_vars)] <- 0
-  if (any(gene_vars == 0)) {
-    data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
-  }
+  
+  # Keep all genes, including those with zero variance
+  # if (any(gene_vars == 0)) {
+  #   data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
+  # }
+  # MODIFIED: Now keeping all genes for complete representation
+  
   return(data_processed)
 }
 
@@ -158,9 +192,13 @@ preprocess_for_count_type_normalized <- function(data_matrix, count_type) {
   data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
   gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
   gene_vars[is.na(gene_vars)] <- 0
-  if (any(gene_vars == 0)) {
-    data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
-  }
+  
+  # Keep all genes, including those with zero variance
+  # if (any(gene_vars == 0)) {
+  #   data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
+  # }
+  # MODIFIED: Now keeping all genes for complete representation
+  
   return(data_processed)
 }
 
@@ -185,6 +223,9 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
     data_matrix[is.na(data_matrix) | is.infinite(data_matrix)] <- 0
   }
   if (length(unique(as.vector(data_matrix))) == 1) return(FALSE)
+  
+  # Save matrix data as TSV
+  save_matrix_data(data_matrix, output_path)
   
   eggplant_colors <- colorRampPalette(c(
     "#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
@@ -255,6 +296,9 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
   }
   if (length(unique(as.vector(data_matrix))) == 1) return(FALSE)
   
+  # Save matrix data as TSV
+  save_matrix_data(data_matrix, output_path)
+  
   eggplant_colors <- colorRampPalette(c(
     "#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
     "#8E24AA","#6A1B9A","#4A148C","#2F1B69"
@@ -314,15 +358,14 @@ total_heatmaps <- 0
 successful_heatmaps <- 0
 
 for (group in FASTA_GROUPS) {
-  for (version in VERSIONS) {
-    for (count_type in COUNT_TYPES) {
-      for (gene_type in GENE_TYPES) {
-        for (label_type in LABEL_TYPES) {
-          input_file <- file.path(MATRICES_DIR, group, version, 
-                                 paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, ".tsv"))
-          if (!file.exists(input_file)) next
-          
-          output_dir <- file.path(HEATMAP_OUT_DIR, group, version)
+  for (count_type in COUNT_TYPES) {
+    for (gene_type in GENE_TYPES) {
+      for (label_type in LABEL_TYPES) {
+        input_file <- file.path(MATRICES_DIR, group, 
+                               paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, ".tsv"))
+        if (!file.exists(input_file)) next
+        
+        output_dir <- file.path(HEATMAP_OUT_DIR, group)
           dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
           dir.create(file.path(output_dir, "raw_copy"), showWarnings = FALSE)
           dir.create(file.path(output_dir, "raw_normalized"), showWarnings = FALSE)
@@ -373,7 +416,6 @@ for (group in FASTA_GROUPS) {
               successful_heatmaps <- successful_heatmaps + 1
             }
           }
-        }
       }
     }
   }
@@ -401,7 +443,7 @@ if (successful_heatmaps > 0) {
 }
 
 # Current structure processes:
-# - Each combination of (group, version, count_type, gene_type, label_type) 
+# - Each combination of (group, count_type, gene_type, label_type) 
 #   corresponds to exactly one TSV file
 # - Each TSV file generates multiple heatmaps under different normalization types
 # - Orientation: genes in rows, samples in columns (no transposition)
