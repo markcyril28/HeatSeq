@@ -5,17 +5,22 @@ set -euo pipefail
 # CONFIGURATION
 # ============================================================================== 
 THREADS=32  # Number of threads to use for parallel operations
+
+# SWITCHES. 
+RUN_DOWNLOAD_and_TRIM_SRR=TRUE
+RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
+
 # ==============================================================================
 # INPUT FILES
 # ==============================================================================
+
 #All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
 #Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4_1_transcripts_function.fa"
 
-
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	#"0_INPUT_FASTAs/All_SmelGenes.fasta"
-	"0_INPUT_FASTAs/TEST.fasta"
+	"0_INPUT_FASTAs/All_SmelGenes.fasta"
+	#"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Best_Control_Cyclo.fasta"
@@ -29,39 +34,38 @@ ALL_FASTA_FILES=(
 
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
-	#SRR3884664 # Fruits Calyx Stage 2
-	SRR3884653 # Fruits Flesh Stage 2
-	SRR3884631 # Fruits 6 cm
-	#SRR3884677 # Cotyledons
-	#SRR3884679 # Pistils
-	SRR3884597 # Flowers
-	SRR3884686 # Buds 0.7 cm
-	SRR3884687 # Buds, Opened Buds
-	SRR3884689 # Leaves
-	SRR3884690 # Stems
-	#SRR3884685 # Radicles
-	SRR3884675 # Roots
+	#SRR3884653 	# Fruits Flesh Stage 2 #SRR3884664 # Fruits Calyx Stage 2
+	SRR3884631 	# Fruits 6 cm #SRR3884677 # Cotyledons #SRR3884679 # Pistils
+	SRR3884597 	# Flowers
+	SRR3884686 	# Buds 0.7 cm #SRR3884687 	# Buds, Opened Buds
+	SRR3884689 	# Leaves
+	SRR3884690 	# Stems
+	SRR3884675 	# Roots #SRR3884685 # Radicles
 )
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	#SRR2072232	# mature_fruits
-	#SRR20722226	# young_fruits
-	SRR20722234	# flowers
-
-	#SRR20722228	# sepals
-	#SRR20722230	# mature_leaves
-	#SRR20722227	# stems
-	#SRR20722233	# leaf_buds
-	#SRR20722229	# roots
+	SRR2072232	# mature_fruits #SRR20722226	# young_fruits
+	SRR20722234	# flowers #SRR20722228	# sepals
+	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018
+	SRR20722230	# mature_leaves #SRR20722233	# leaf_buds
+	SRR20722227	# stems
+	SRR20722229	# roots
 )
 
 SRR_LIST_SAMN28540068=(
 	#Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540068&o=acc_s%3Aa
-	# Solanum virginianum. wild eggplant or Thai green eggplant, but it is not the same species as the common eggplant (Solanum melongena).
+	SRR20722387 # mature_fruits
+	SRR23909863 # Fully Develop (FD) Flower ID: PRJNA941250
+	SRR20722297 # flower_buds #SRR20722385 # sepals
+	SRR20722386 # mature_leaves #SRR20722383 # young_leaves #SRR20722296 # leaf_buds
+	SRR20722384 # stems
+	SRR31755282 # Roots (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP552204&o=acc_s%3Aa)
 )
-# Almost Complete Dataset: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa
 
+# A Good Dataset for SmelDMP GEA: 
+# 	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa PRJNA865018
+#	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
 OTHER_SRR_LIST=(
 	# Possible Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP390977&o=acc_s%3Aa
 	SRR34564302	# Fruits (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR34564302&display=metadata)
@@ -70,24 +74,24 @@ OTHER_SRR_LIST=(
 		# Cotyledons (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3884677&display=metadata)
 	SRR3479277 # Pistil (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3479277&display=metadata)
 	SRR3884597 # Flowers (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3884597&display=metadata)
-		SRR3884686 # Buds 0.7 cm
-	PRJNA941250 # Buds, Opened Buds
-	PRJNA341784 # Flower buds (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA341784&o=acc_s%3Aa)
+
+	PRJNA341784 # Flower buds lang (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA341784&o=acc_s%3Aa)
 	PRJNA477924 # Leaf and Root (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA477924&o=acc_s%3Aa)
 	 # Leaves
 	 # Stems
 	 # Radicles
-	SRR20722229 # Roots (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR20722229&display=metadata)
+	
 	# Add other SRR IDs here if needed
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"
+	"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
+	"${SRR_LIST_SAMN28540068[@]}"
 	#"${OTHER_SRR_LIST[@]}"
 )
 
-#: << 'OFF'
+#:<< 'OFF'
 RAW_DIR_ROOT="1_RAW_SRR"
 TRIM_DIR_ROOT="2_TRIMMED_SRR"
 FASTQC_ROOT="3_FastQC"
@@ -98,15 +102,10 @@ STRINGTIE_HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie_WD/a_Metho
 
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
 
-# SWITCHES. 
-RUN_DOWNLOAD_and_TRIM_SRR=TRUE
-RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
-
-#HISAT2_DE_NOVO_ROOT="02_HISAT2/"
-#HISAT2_DE_NOVO_INDEX_DIR="02_HISAT2/index"
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
-#rm -rf $TRIM_DIR_ROOT
+rm -rf "$RAW_DIR_ROOT"               		 # Remove previous raw SRR files
+#rm -rf $FASTQC_ROOT               		 # Remove previous FastQC results
 #rm -rf $HISAT2_DE_NOVO_ROOT      		 # Remove previous HISAT2 results
 #rm -rf $HISAT2_DE_NOVO_INDEX_DIR 		 # Remove previous HISAT2 index
 #rm -rf $STRINGTIE_HISAT2_DE_NOVO_ROOT   # Remove previous StringTie results
@@ -354,47 +353,47 @@ hisat2_index_align_sort_stringtie_pipeline() {
 run_all() {
 	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
 	# Steps: Logging, Download and  Trim, HISAT2 alignment to Stringtie, and Cleanup. 
-		local fasta=""
-		local rnaseq_list=()
-		# Parse arguments
-		while [[ $# -gt 0 ]]; do
-			case "$1" in
-				--FASTA)
-					fasta="$2"; shift 2;;
-				--RNASEQ_LIST)
+	local fasta=""
+	local rnaseq_list=()
+	# Parse arguments
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA)
+				fasta="$2"; shift 2;;
+			--RNASEQ_LIST)
+				shift
+				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+					rnaseq_list+=("$1")
 					shift
-					while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-						rnaseq_list+=("$1")
-						shift
-					done
-					;;
-				*)
-					shift;;
-			esac
-		done
+				done
+				;;
+			*)
+				shift;;
+		esac
+	done
 
-		local start_time end_time elapsed formatted_elapsed
-		start_time=$(date +%s)
-		setup_logging
-		log_step "Script started at: $(date -d @$start_time)"
+	local start_time end_time elapsed formatted_elapsed
+	start_time=$(date +%s)
+	setup_logging
+	log_step "Script started at: $(date -d @$start_time)"
 
-		if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
-			log_step "STEP 01: Download and trim RNA-seq data"
-			download_and_trim_srrs "${rnaseq_list[@]}"
-		fi
+	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
+		log_step "STEP 01: Download and trim RNA-seq data"
+		download_and_trim_srrs "${rnaseq_list[@]}"
+	fi
 
-		if [[ $RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE == "TRUE" ]]; then
-			log_step "STEP 02: Build HISAT2 index and align"
-			hisat2_index_align_sort_stringtie_pipeline \
-				--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
-		fi
+	if [[ $RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE == "TRUE" ]]; then
+		log_step "STEP 02: Build HISAT2 index and align"
+		hisat2_index_align_sort_stringtie_pipeline \
+			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+	fi
 
-		end_time=$(date +%s)
-		log_step "Final timing"
-		log_info "Script ended at: $(date -d @$end_time)"
-		elapsed=$((end_time - start_time))
-		formatted_elapsed=$(date -u -d @${elapsed} +%H:%M:%S)
-		log_info "Elapsed time: $formatted_elapsed"	
+	end_time=$(date +%s)
+	log_step "Final timing"
+	log_info "Script ended at: $(date -d @$end_time)"
+	elapsed=$((end_time - start_time))
+	formatted_elapsed=$(date -u -d @${elapsed} +%H:%M:%S)
+	log_info "Elapsed time: $formatted_elapsed"
 }
 
 # Run the pipeline for each FASTA input and SRR list.
