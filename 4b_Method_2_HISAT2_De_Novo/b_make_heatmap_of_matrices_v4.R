@@ -28,9 +28,9 @@ FASTA_GROUPS <- c(
   #"TEST",
   #"All_Smel_Genes",
   #"SmelDMP_CDS_Control_Best"
-  #"SmelGIF_with_Best_Control_Cyclo",
+  "SmelGIF_with_Best_Control_Cyclo"
   #"SmelGRF_with_Best_Control_Cyclo",
-  "SmelGRF-GIF_with_Best_Control_Cyclo",
+  #"SmelGRF-GIF_with_Best_Control_Cyclo",
   #"SmelGIF_with_Cell_Cycle_Control_genes",
   #"SmelGRF_with_Cell_Cycle_Control_genes"
 )
@@ -39,7 +39,7 @@ GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c("SRR", "Organ")
 
 # Sample metadata for better labeling (ordered to match bash script)
-SAMPLE_LABELS <- c(
+SAMPLE_LABELS_OFF <- c(
   "SRR3884631" = "Fruits_6cm",
   "SRR3884677" = "Cotyledons", 
   "SRR3884679" = "Pistils",
@@ -50,6 +50,39 @@ SAMPLE_LABELS <- c(
   "SRR3884690" = "Stems", 
   "SRR3884685" = "Radicles",
   "SRR3884675" = "Roots"
+)
+
+# Mapping from SRR IDs to organ names for matrix headers
+SAMPLE_LABELS <- c(
+  # Fruits
+  "SRR3884631" = "Fruits_1",      # PRJNA328564
+  "SRR2072232" = "Fruits_2",      # SAMN28540077
+  "SRR20722387" = "Fruits_3",     # SAMN28540068
+  
+  # Flowers
+  "SRR3884597" = "Flowers_1",     # PRJNA328564
+  "SRR20722234" = "Flowers_2",    # SAMN28540077
+  "SRR23909863" = "Flowers_3",    # SAMN28540068
+  
+  # Buds
+  "SRR3884686" = "Buds_1",        # PRJNA328564
+  "SRR21010466" = "Buds_2",       # SAMN28540077
+  "SRR20722297" = "Buds_3",       # SAMN28540068
+  
+  # Leaves
+  "SRR3884689" = "Leaves_1",      # PRJNA328564
+  "SRR20722230" = "Leaves_2",     # SAMN28540077
+  "SRR20722386" = "Leaves_3",     # SAMN28540068
+  
+  # Stems
+  "SRR3884690" = "Stems_1",       # PRJNA328564
+  "SRR20722227" = "Stems_2",      # SAMN28540077
+  "SRR20722384" = "Stems_3",      # SAMN28540068
+  
+  # Roots
+  "SRR3884675" = "Roots_1",       # PRJNA328564
+  "SRR20722229" = "Roots_2",      # SAMN28540077
+  "SRR31755282" = "Roots_3"       # SAMN28540068
 )
 
 # ===============================================
