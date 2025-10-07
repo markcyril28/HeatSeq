@@ -88,7 +88,7 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	"${SRR_LIST_PRJNA328564[@]}"
+	#"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
 	"${SRR_LIST_SAMN28540068[@]}"
 	#"${OTHER_SRR_LIST[@]}"
@@ -837,6 +837,150 @@ trinity_de_novo_alignment_pipeline() {
 	log_info "DeSeq2 input files prepared in: $deseq2_dir"
 	log_info "Sample table: $sample_table"
 }
+
+salmon_saf_pipeline() {
+    # Quantify expression using decoy-aware Salmon (Selective Alignment)
+    local fasta="" genome="" rnaseq_list=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --FASTA) fasta="$2"; shift 2;;
+            --GENOME) genome="$2"; shift 2;;
+            --RNASEQ_LIST)
+                shift
+                while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do rnaseq_list+=("$1"); shift; done;;
+            *) log_error "Unknown arg: $1"; return 1;;
+        esac
+    done
+
+    [[ -z "$fasta" || -z "$genome" ]] && { log_error "Usage: --FASTA genes.fa --GENOME genome.fa"; return 1; }
+    [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
+
+    local tag="$(basename "${fasta%.*}")"
+    local work="tmp_${tag}_gentrome"
+    local idx_dir="$SALMON_INDEX_ROOT/${tag}_decoySAF"
+    local quant_root="$SALMON_QUANT_ROOT/$tag"
+    local matrix_dir="$SALMON_MATRIX_ROOT/$tag"
+
+    mkdir -p "$SALMON_INDEX_ROOT" "$quant_root" "$matrix_dir" "$work"
+
+    # --- Build decoy-aware index ---
+    if [[ -f "$idx_dir/versionInfo.json" ]]; then
+        log_info "Salmon decoy index already exists. Skipping."
+    else
+        log_info "Building decoy-aware Salmon index for $tag..."
+        awk '/^>/{print substr($0,2); next}{next}' "$genome" > "$work/decoys.txt"
+        cat "$fasta" "$genome" > "$work/gentrome.fa"
+        run_with_time_to_log salmon index \
+            -t "$work/gentrome.fa" \
+            -d "$work/decoys.txt" \
+            -i "$idx_dir" \
+            -k 31 -p "$THREADS"
+        rm -rf "$work"
+    fi
+
+    # --- Quantification per SRR ---
+    for SRR in "${rnaseq_list[@]}"; do
+        local tdir="$TRIM_DIR_ROOT/$SRR"
+        local r1=$(ls "$tdir"/${SRR}*val_1.* 2>/dev/null | head -n1)
+        local r2=$(ls "$tdir"/${SRR}*val_2.* 2>/dev/null | head -n1)
+        [[ -z "$r1" || -z "$r2" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
+
+        local out_dir="$quant_root/$SRR"
+        mkdir -p "$out_dir"
+        if [[ -f "$out_dir/quant.sf" ]]; then
+            log_info "Quantification already exists for $SRR. Skipping."
+            continue
+        fi
+
+        log_info "Quantifying expression for $SRR..."
+        run_with_time_to_log salmon quant \
+            -i "$idx_dir" -l A \
+            -1 "$r1" -2 "$r2" \
+            -p "$THREADS" \
+            --validateMappings \
+            --seqBias --gcBias \
+            --rangeFactorizationBins 4 \
+            --numBootstraps 100 \
+            -o "$out_dir"
+    done
+
+    # --- Merge matrices ---
+    log_info "Generating gene and transcript matrices..."
+    run_with_time_to_log abundance_estimates_to_matrix.pl \
+        --est_method salmon \
+        --gene_trans_map "$fasta".gene_trans_map \
+        --out_prefix "$matrix_dir/genes" \
+        --name_sample_by_basedir "$quant_root"/*/quant.sf
+
+    log_info "✅ Completed Salmon-SAF pipeline for $tag"
+    log_info "Outputs: $matrix_dir/"
+}
+
+bowtie2_rsem_pipeline() {
+    # Quantify expression using Bowtie2 + RSEM
+    local fasta="" rnaseq_list=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --FASTA) fasta="$2"; shift 2;;
+            --RNASEQ_LIST)
+                shift
+                while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do rnaseq_list+=("$1"); shift; done;;
+            *) log_error "Unknown arg: $1"; return 1;;
+        esac
+    done
+
+    [[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa"; return 1; }
+    [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
+
+    local tag="$(basename "${fasta%.*}")"
+    local rsem_idx="$RSEM_INDEX_ROOT/${tag}_rsem"
+    local quant_root="$RSEM_QUANT_ROOT/$tag"
+    local matrix_dir="$RSEM_MATRIX_ROOT/$tag"
+
+    mkdir -p "$RSEM_INDEX_ROOT" "$quant_root" "$matrix_dir"
+
+    # --- Prepare reference ---
+    if [[ -f "${rsem_idx}.grp" ]]; then
+        log_info "RSEM reference already exists. Skipping."
+    else
+        log_info "Building RSEM reference for $tag..."
+        run_with_time_to_log rsem-prepare-reference --bowtie2 "$fasta" "$rsem_idx"
+    fi
+
+    # --- Quantify each SRR ---
+    for SRR in "${rnaseq_list[@]}"; do
+        local tdir="$TRIM_DIR_ROOT/$SRR"
+        local r1=$(ls "$tdir"/${SRR}*val_1.* 2>/dev/null | head -n1)
+        local r2=$(ls "$tdir"/${SRR}*val_2.* 2>/dev/null | head -n1)
+        [[ -z "$r1" || -z "$r2" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
+
+        local out_dir="$quant_root/$SRR"
+        mkdir -p "$out_dir"
+        if [[ -f "$out_dir/${SRR}.genes.results" ]]; then
+            log_info "RSEM results already exist for $SRR. Skipping."
+            continue
+        fi
+
+        log_info "Running Bowtie2 + RSEM for $SRR..."
+        run_with_time_to_log rsem-calculate-expression \
+            --paired-end \
+            --bowtie2 \
+            --num-threads "$THREADS" \
+            "$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
+    done
+
+    # --- Merge matrices ---
+    log_info "Generating gene and transcript matrices..."
+    run_with_time_to_log abundance_estimates_to_matrix.pl \
+        --est_method RSEM \
+        --gene_trans_map "$fasta".gene_trans_map \
+        --out_prefix "$matrix_dir/genes" \
+        --name_sample_by_basedir "$quant_root"/*/*.genes.results
+
+    log_info "✅ Completed Bowtie2–RSEM pipeline for $tag"
+    log_info "Outputs: $matrix_dir/"
+}
+
 
 # ==============================================================================
 # RUN / ENTRYPOINT
