@@ -8,4 +8,6 @@ DESCRIPTIONS
 
 bash a_stringtie_matrix_builder_m2_v4.sh
 
+#Rscript --verbose test_heatmap_libraries.R
+
 Rscript --verbose b_make_heatmap_of_matrices_v4.R

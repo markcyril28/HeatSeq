@@ -39,10 +39,12 @@ QUERY_AGAINST_ALL_SMELGENES=FALSE
 
 # Gene groups to process (uncomment as needed)
 Gene_Groups_Boilerplates=(
-	SmelDMP_CDS_Control_Best                # Active: DMP CDS with best control genes
-	#SmelGIF_with_Best_Control_Cyclo         # GIF with best control cyclophilin
-	#SmelGRF_with_Best_Control_Cyclo        # GRF with best control cyclophilin  
-	#SmelGRF-GIF_with_Best_Control_Cyclo    # Combined GRF-GIF with controls
+	"SmelDMP_CDS_Control_Best"                # Active: DMP CDS with best control genes
+    #"SmelDMP_CDS_with_18s"                    # Active: DMP CDS with 18S rRNA
+    #"SmelDMP_CDS_with_Cyclo"                  # DMP CDS with cyclophilin control
+	#"SmelGIF_with_Best_Control_Cyclo"         # GIF with best control cyclophilin
+	#"SmelGRF_with_Best_Control_Cyclo"        # GRF with best control cyclophilin
+	#"SmelGRF-GIF_with_Best_Control_Cyclo"    # Combined GRF-GIF with controls
     #SmelGIF_with_Cell_Cycle_Control_genes  # GIF with cell cycle controls
     #SmelGRF_with_Cell_Cycle_Control_genes  # GRF with cell cycle controls
 )
