@@ -47,7 +47,7 @@ set -euo pipefail
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=4                               # Number of threads to use for parallel operations
+THREADS=8                               # Number of threads to use for parallel operations
 JOBS=3                                  # Number of parallel jobs for GNU Parallel 
 
 # RNA-seq Library Configuration
