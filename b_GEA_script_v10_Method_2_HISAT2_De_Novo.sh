@@ -199,7 +199,8 @@ download_and_trim_srrs() {
 			log_info "Raw fastq files for $SRR already exist. Skipping download."
 		else
 			log_info "Downloading $SRR..."
-			fasterq-dump --split-files "$SRR" -O "$raw_files_DIR"
+			prefetch "$SRR" --output-directory "$raw_files_DIR"
+			#fasterq-dump --split-files "$raw_files_DIR/$SRR" -O "$raw_files_DIR"
 			
 			# Set raw file paths after download
 			if [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
