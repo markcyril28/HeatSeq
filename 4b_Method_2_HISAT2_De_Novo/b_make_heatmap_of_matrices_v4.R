@@ -40,6 +40,8 @@ FASTA_GROUPS <- c(
   #"TEST",
   #"All_Smel_Genes",
   "SmelDMP_CDS_Control_Best"
+  #"SmelDMP_CDS_with_18s",                    # Active: DMP CDS with 18S rRNA
+  #"SmelDMP_CDS_with_Cyclo"                   # DMP CDS with cyclophilin control
   #"SmelGIF_with_Best_Control_Cyclo"
   #"SmelGRF_with_Best_Control_Cyclo",
   #"SmelGRF-GIF_with_Best_Control_Cyclo",
