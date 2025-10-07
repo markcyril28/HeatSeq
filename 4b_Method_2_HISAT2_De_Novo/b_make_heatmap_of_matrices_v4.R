@@ -329,12 +329,17 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
       # Heatmap body settings
       rect_gp = gpar(col = "white", lwd = 0.5),
       
-      # Legend settings
+      # Legend settings - larger and positioned at top right
       heatmap_legend_param = list(
         title = "Z-score",
         legend_direction = "vertical",
-        title_gp = gpar(fontsize = 12),
-        labels_gp = gpar(fontsize = 10)
+        legend_height = unit(8, "cm"),
+        legend_width = unit(2.0, "cm"),
+        title_gp = gpar(fontsize = 14, fontface = "bold"),
+        labels_gp = gpar(fontsize = 12),
+        grid_height = unit(1.8, "cm"),
+        grid_width = unit(0.8, "cm"),
+        just = c("left", "top")
       ),
       
       # Title
@@ -344,7 +349,11 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
     
     # Save the heatmap
     png(output_path, width = 16, height = 12, units = "in", res = 300)
-    draw(ht)
+    draw(ht, 
+         heatmap_legend_side = "right", 
+         annotation_legend_side = "right",
+         merge_legends = TRUE,
+         gap = unit(5, "mm"))
     dev.off()
     
     return(TRUE)
@@ -378,12 +387,17 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
         # Heatmap body settings
         rect_gp = gpar(col = "white", lwd = 0.5),
         
-        # Legend settings
+        # Legend settings - larger and positioned at top right
         heatmap_legend_param = list(
           title = "Raw Values",
           legend_direction = "vertical",
-          title_gp = gpar(fontsize = 12),
-          labels_gp = gpar(fontsize = 10)
+          legend_height = unit(8, "cm"),
+          legend_width = unit(2, "cm"),
+          title_gp = gpar(fontsize = 14, fontface = "bold"),
+          labels_gp = gpar(fontsize = 12),
+          grid_height = unit(1.8, "cm"),
+          grid_width = unit(0.8, "cm"),
+          just = c("left", "top")
         ),
         
         # Title
@@ -393,7 +407,11 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
       
       # Save the heatmap
       png(output_path, width = 16, height = 12, units = "in", res = 300)
-      draw(ht)
+      draw(ht, 
+           heatmap_legend_side = "right", 
+           annotation_legend_side = "right",
+           merge_legends = TRUE,
+           gap = unit(5, "mm"))
       dev.off()
       
       return(TRUE)
@@ -486,12 +504,17 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
       # Heatmap body settings
       rect_gp = gpar(col = "white", lwd = 0.3),
       
-      # Legend settings
+      # Legend settings - larger and positioned at top right
       heatmap_legend_param = list(
         title = legend_title,
         legend_direction = "vertical",
-        title_gp = gpar(fontsize = 12),
-        labels_gp = gpar(fontsize = 10)
+        legend_height = unit(8, "cm"),
+        legend_width = unit(2, "cm"),
+        title_gp = gpar(fontsize = 14, fontface = "bold"),
+        labels_gp = gpar(fontsize = 12),
+        grid_height = unit(1.8, "cm"),
+        grid_width = unit(0.8, "cm"),
+        just = c("left", "top")
       ),
       
       # Title
@@ -501,7 +524,11 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
     
     # Save the heatmap
     png(output_path, width = 18, height = 14, units = "in", res = 300)
-    draw(ht)
+    draw(ht, 
+         heatmap_legend_side = "right", 
+         annotation_legend_side = "right",
+         merge_legends = TRUE,
+         gap = unit(5, "mm"))
     dev.off()
     
     return(TRUE)
