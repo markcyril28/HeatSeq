@@ -113,11 +113,11 @@ SRR_LIST_PRJNA328564=(
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	#SRR2072232	# mature_fruits #SRR20722226	# young_fruits
-	#SRR20722234	# flowers #SRR20722228	# sepals
+	SRR2072232	# mature_fruits #SRR20722226	# young_fruits
+	SRR20722234	# flowers #SRR20722228	# sepals
 	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018
 	SRR20722230	# mature_leaves #SRR20722233	# leaf_buds
-	#SRR20722227	# stems
+	SRR20722227	# stems
 	SRR20722229	# roots
 )
 
@@ -154,10 +154,9 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"
+	"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
-	#"${SRR_LIST_SAMN28540068[@]}"
-	#"${OTHER_SRR_LIST[@]}"
+	"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -318,12 +317,12 @@ check_statistical_power() {
 	log_info "Number of samples: $n_samples"
 	
 	if [[ $n_samples -lt 3 ]]; then
-		log_warn "⚠️  Sample size ($n_samples) may be insufficient for robust DE analysis"
-		log_warn "⚠️  Minimum 3 replicates per condition recommended for statistical power"
+		log_warn "WARNING: Sample size ($n_samples) may be insufficient for robust DE analysis"
+		log_warn "WARNING: Minimum 3 replicates per condition recommended for statistical power"
 	elif [[ $n_samples -lt 6 ]]; then
-		log_warn "ℹ️  Sample size ($n_samples) is adequate but consider more replicates for higher power"
+		log_warn "INFO: Sample size ($n_samples) is adequate but consider more replicates for higher power"
 	else
-		log_info "✅ Sample size ($n_samples) is good for robust statistical analysis"
+		log_info "GOOD: Sample size ($n_samples) is good for robust statistical analysis"
 	fi
 	log_info "===================================="
 }
@@ -332,18 +331,18 @@ show_pipeline_configuration() {
 	# Display which pipelines are enabled for this run
 	log_info "=== PIPELINE CONFIGURATION ==="
 	log_info "Data Processing:"
-	log_info "  Download & Trim SRR: $([ "$RUN_DOWNLOAD_and_TRIM_SRR" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
-	log_info "  Quality Control: $([ "$RUN_QUALITY_CONTROL" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Download & Trim SRR: $([ "$RUN_DOWNLOAD_and_TRIM_SRR" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
+	log_info "  Quality Control: $([ "$RUN_QUALITY_CONTROL" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
 	
 	log_info "Analysis Methods:"
-	log_info "  Method 1 - HISAT2 Ref-Guided: $([ "$RUN_METHOD_1_HISAT2_REF_GUIDED" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
-	log_info "  Method 2 - HISAT2 De Novo: $([ "$RUN_METHOD_2_HISAT2_DE_NOVO" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
-	log_info "  Method 3 - Trinity De Novo: $([ "$RUN_METHOD_3_TRINITY_DE_NOVO" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
-	log_info "  Method 4 - Salmon SAF: $([ "$RUN_METHOD_4_SALMON_SAF" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
-	log_info "  Method 5 - Bowtie2 + RSEM: $([ "$RUN_METHOD_5_BOWTIE2_RSEM" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Method 1 - HISAT2 Ref-Guided: $([ "$RUN_METHOD_1_HISAT2_REF_GUIDED" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
+	log_info "  Method 2 - HISAT2 De Novo: $([ "$RUN_METHOD_2_HISAT2_DE_NOVO" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
+	log_info "  Method 3 - Trinity De Novo: $([ "$RUN_METHOD_3_TRINITY_DE_NOVO" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
+	log_info "  Method 4 - Salmon SAF: $([ "$RUN_METHOD_4_SALMON_SAF" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
+	log_info "  Method 5 - Bowtie2 + RSEM: $([ "$RUN_METHOD_5_BOWTIE2_RSEM" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
 	
 	log_info "Validation & Comparison:"
-	log_info "  Method Comparison: $([ "$RUN_METHOD_COMPARISON" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Method Comparison: $([ "$RUN_METHOD_COMPARISON" = "TRUE" ] && echo "[ENABLED]" || echo "[DISABLED]")"
 	
 	# Count enabled methods
 	local enabled_methods=0
@@ -356,9 +355,9 @@ show_pipeline_configuration() {
 	log_info "Total Methods Enabled: $enabled_methods"
 	
 	if [[ $enabled_methods -eq 0 ]]; then
-		log_warn "⚠️  No analysis methods are enabled! Please enable at least one method."
+		log_warn "WARNING: No analysis methods are enabled! Please enable at least one method."
 	elif [[ $enabled_methods -gt 1 && "$RUN_METHOD_COMPARISON" = "TRUE" ]]; then
-		log_info "✅ Multiple methods enabled with comparison - excellent for validation!"
+		log_info "EXCELLENT: Multiple methods enabled with comparison - excellent for validation!"
 	fi
 	
 	log_info "============================="
@@ -648,12 +647,12 @@ download_and_trim_srrs_wget_parallel() {
         local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
         local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
 
-        log_info "▶ Working on $SRR..."
+        log_info "PROCESSING: Working on $SRR..."
         mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
 
         # Skip if trimming already completed
         if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            log_info "✔ Trimmed files exist for $SRR — skipping."
+            log_info "SKIPPED: Trimmed files exist for $SRR - skipping."
             return 0
         fi
 
@@ -665,26 +664,26 @@ download_and_trim_srrs_wget_parallel() {
                      | tail -n +2)
 
         if [[ -z "$ena_links" ]]; then
-            log_warn "⚠ No ENA FASTQ links found for $SRR. Skipping."
+            log_warn "WARNING: No ENA FASTQ links found for $SRR. Skipping."
             return 1
         fi
 
         fq1="ftp://$(echo "$ena_links" | cut -f1 -d';')"
         fq2="ftp://$(echo "$ena_links" | cut -f2 -d';')"
 
-        log_info "⬇ Downloading FASTQs for $SRR using wget..."
+        log_info "DOWNLOADING: FASTQs for $SRR using wget..."
         wget -q -c -P "$raw_files_DIR" "$fq1" "$fq2"
 
         # Verify successful download
         if [[ ! -s "$raw_files_DIR/${SRR}_1.fastq.gz" || ! -s "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
-            log_warn "❌ FASTQ download failed for $SRR. Check ENA mirrors."
+            log_warn "FAILED: FASTQ download failed for $SRR. Check ENA mirrors."
             return 1
         fi
 
         # ----------------------------------------
         # Trim Galore (low RAM, single-thread)
         # ----------------------------------------
-        log_info "✂ Trimming adapters for $SRR..."
+        log_info "TRIMMING: Adapters for $SRR..."
         run_with_time_to_log trim_galore --cores 1 \
             --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
             --output_dir "$TrimGalore_DIR"
@@ -693,11 +692,11 @@ download_and_trim_srrs_wget_parallel() {
         # Cleanup if trimming successful
         # ----------------------------------------
         if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            log_info "🧹 Removing raw FASTQs for $SRR..."
+            log_info "CLEANUP: Removing raw FASTQs for $SRR..."
             rm -f "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz"
         fi
 
-        log_info "✅ Finished $SRR."
+        log_info "COMPLETED: Finished $SRR."
         log_info "--------------------------------------------------"
     }
 
@@ -706,9 +705,9 @@ download_and_trim_srrs_wget_parallel() {
     # --------------------------------------------
     # Run jobs in parallel
     # --------------------------------------------
-    log_info "🚀 Starting parallel ENA downloads and trimming..."
+    log_info "STARTING: Parallel ENA downloads and trimming..."
     printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr_wget {}
-    log_info "🎯 All parallel wget + trimming jobs complete."
+    log_info "COMPLETED: All parallel wget + trimming jobs complete."
 }
 
 # ------------------------------------------------------------------------------
@@ -1347,7 +1346,7 @@ salmon_saf_pipeline() {
         --out_prefix "$matrix_dir/genes" \
         --name_sample_by_basedir "$quant_root"/*/quant.sf
 
-    log_info "✅ Completed Salmon-SAF pipeline for $tag"
+    log_info "COMPLETED: Salmon-SAF pipeline for $tag"
     log_info "Outputs: $matrix_dir/"
 }
 
@@ -1421,7 +1420,7 @@ bowtie2_rsem_pipeline() {
         --out_prefix "$matrix_dir/genes" \
         --name_sample_by_basedir "$quant_root"/*/*.genes.results
 
-    log_info "✅ Completed Bowtie2–RSEM pipeline for $tag"
+    log_info "COMPLETED: Bowtie2-RSEM pipeline for $tag"
     log_info "Outputs: $matrix_dir/"
 }
 
