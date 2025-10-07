@@ -39,8 +39,8 @@ QUERY_AGAINST_ALL_SMELGENES=FALSE
 
 # Gene groups to process (uncomment as needed)
 Gene_Groups_Boilerplates=(
-	#SmelDMP_CDS_Control_Best                # Active: DMP CDS with best control genes
-	SmelGIF_with_Best_Control_Cyclo         # GIF with best control cyclophilin
+	SmelDMP_CDS_Control_Best                # Active: DMP CDS with best control genes
+	#SmelGIF_with_Best_Control_Cyclo         # GIF with best control cyclophilin
 	#SmelGRF_with_Best_Control_Cyclo        # GRF with best control cyclophilin  
 	#SmelGRF-GIF_with_Best_Control_Cyclo    # Combined GRF-GIF with controls
     #SmelGIF_with_Cell_Cycle_Control_genes  # GIF with cell cycle controls
@@ -49,32 +49,34 @@ Gene_Groups_Boilerplates=(
 
 # Sample lists from different projects
 SRR_LIST_PRJNA328564=(
-	SRR3884631 # Fruits 6 cm #SRR3884677 # Cotyledons #SRR3884679 # Pistils
-	SRR3884597 # Flowers #SRR3884687 # Opened Buds
-	SRR3884686 # Buds 0.7 cm
-	SRR3884689 # Leaves
-	SRR3884690 # Stems #SRR3884685 # Radicles
-	SRR3884675 # Roots
+    SRR3884675 # Roots
+    SRR3884690 # Stems #SRR3884685 # Radicles
+    SRR3884689 # Leaves
+    SRR3884686 # Buds 0.7 cm
+    SRR3884687 # Opened Buds
+    SRR3884597 # Flowers 
+    SRR3884631 # Fruits 6 cm #SRR3884677 # Cotyledons #SRR3884679 # Pistils
 )
 
 SRR_LIST_SAMN28540077=(
-	SRR2072232   # Fruits
-	SRR20722234  # Flowers
-	SRR21010466  # Buds
-	SRR20722230  # Leaves
-	SRR20722227  # Stems
-	SRR20722229  # Roots
+    SRR20722229  # Roots
+    SRR20722227  # Stems
+    SRR20722230  # Leaves
+    SRR21010466  # Buds
+    SRR20722234  # Flowers
+    SRR2072232   # Fruits
 )
 
 # Source: SAMN28540068 project samples
 SRR_LIST_SAMN28540068=(
-	SRR20722387  # Fruits
-	SRR23909863  # Flowers
-	SRR20722297  # Buds
-	SRR20722386  # Leaves
-	SRR20722384  # Stems
-	SRR31755282  # Roots
+    SRR31755282  # Roots
+    SRR20722384  # Stems
+    SRR20722386  # Leaves
+    SRR20722297  # Buds
+    SRR23909863  # Flowers
+    SRR20722387  # Fruits
 )
+
 
 # Combined list of all samples across projects
 SRR_LIST_COMBINED=(
@@ -85,35 +87,38 @@ SRR_LIST_COMBINED=(
 
 # Mapping from SRR IDs to organ names for matrix headers
 declare -A SRR_TO_ORGAN=(
-    # Fruits
-    ["SRR3884631"]="Fruits_1"	  # PRJNA328564
-    ["SRR2072232"]="Fruits_2"     # SAMN28540077
-    ["SRR20722387"]="Fruits_3"    # SAMN28540068
-    
-    # Flowers
-    ["SRR3884597"]="Flowers_1"    # PRJNA328564
-    ["SRR20722234"]="Flowers_2"   # SAMN28540077
-    ["SRR23909863"]="Flowers_3"   # SAMN28540068
-    
-    # Buds
-    ["SRR3884686"]="Buds_1"       # PRJNA328564
-    ["SRR21010466"]="Buds_2"      # SAMN28540077
-    ["SRR20722297"]="Buds_3"      # SAMN28540068
-    
-    # Leaves
-    ["SRR3884689"]="Leaves_1"     # PRJNA328564
-    ["SRR20722230"]="Leaves_2"    # SAMN28540077
-    ["SRR20722386"]="Leaves_3"    # SAMN28540068
+    # Roots
+    ["SRR3884675"]="Roots_1"      # PRJNA328564
+    ["SRR20722229"]="Roots_2"     # SAMN28540077
+    ["SRR31755282"]="Roots_3"     # SAMN28540068
     
     # Stems
     ["SRR3884690"]="Stems_1"      # PRJNA328564
     ["SRR20722227"]="Stems_2"     # SAMN28540077
     ["SRR20722384"]="Stems_3"     # SAMN28540068
     
-    # Roots
-    ["SRR3884675"]="Roots_1"      # PRJNA328564
-    ["SRR20722229"]="Roots_2"     # SAMN28540077
-    ["SRR31755282"]="Roots_3"     # SAMN28540068
+    # Leaves
+    ["SRR3884689"]="Leaves_1"     # PRJNA328564
+    ["SRR20722230"]="Leaves_2"    # SAMN28540077
+    ["SRR20722386"]="Leaves_3"    # SAMN28540068
+
+    # Opened Buds
+    ["SRR3884687"]="Opened_Buds_1" # PRJNA328564
+
+    # Buds
+    ["SRR3884686"]="Buds_1"       # PRJNA328564
+    ["SRR21010466"]="Buds_2"      # SAMN28540077
+    ["SRR20722297"]="Buds_3"      # SAMN28540068
+    
+    # Flowers
+    ["SRR3884597"]="Flowers_1"    # PRJNA328564
+    ["SRR20722234"]="Flowers_2"   # SAMN28540077
+    ["SRR23909863"]="Flowers_3"   # SAMN28540068
+    
+    # Fruits
+    ["SRR3884631"]="Fruits_1"	  # PRJNA328564
+    ["SRR2072232"]="Fruits_2"     # SAMN28540077
+    ["SRR20722387"]="Fruits_3"    # SAMN28540068
 )
 
 # StringTie abundance file column indices (1-based)
