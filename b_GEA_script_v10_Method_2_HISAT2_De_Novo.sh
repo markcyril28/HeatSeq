@@ -4,7 +4,7 @@ set -euo pipefail
 # ============================================================================== 
 # CONFIGURATION
 # ============================================================================== 
-THREADS=32  # Number of threads to use for parallel operations
+THREADS=16  # Number of threads to use for parallel operations
 
 # SWITCHES. 
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE

@@ -1,10 +1,10 @@
 #!/bin/bash 
 
 # Set variables
-mkdir -p "$LOG_DIR"
 RUN_ID="${RUN_ID:-$(date +%Y%m%d_%H%M%S)}"
 LOG_DIR="logs"
 LOG_FILE="$LOG_DIR/pipeline_${RUN_ID}_script.log"
+mkdir -p "$LOG_DIR"
 
 # Forces removal and ignores errors if files do not exist.
 rm -rf "$LOG_DIR"/*
