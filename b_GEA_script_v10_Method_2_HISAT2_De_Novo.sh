@@ -7,7 +7,7 @@ set -euo pipefail
 # ============================================================================== 
 # CONFIGURATION and SWITCHES
 # ============================================================================== 
-THREADS=16  # Number of threads to use for parallel operations
+THREADS=8  # Number of threads to use for parallel operations
 JOBS=3      # Number of parallel jobs for GNU Parallel 
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE
 RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
