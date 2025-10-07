@@ -1,10 +1,13 @@
 #!/bin/bash
 
 set -euo pipefail
+#conda install -c conda-forge aria2 -y
+#conda install -c bioconda -c conda-forge parallel-fastq-dump -y
+
 # ============================================================================== 
 # CONFIGURATION and SWITCHES
 # ============================================================================== 
-THREADS=8  # Number of threads to use for parallel operations
+THREADS=16  # Number of threads to use for parallel operations
 JOBS=3     # Number of parallel jobs for GNU Parallel 
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE
 RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
@@ -154,11 +157,6 @@ run_with_time_to_log() {
 	# Run a command and log resource usage (tracks time and memory)
 	/usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
 }
-
-log_info "SRR samples to process:"
-for SRR in "${SRR_COMBINED_LIST[@]}"; do
-	log_info "$SRR"
-done
 # ==============================================================================
 # FUNCTIONS
 # ==============================================================================
@@ -247,6 +245,93 @@ download_and_trim_srrs() {
     done
 }
 
+download_and_trim_srrs_wget_parallel() {
+    # ============================================
+    # Parallel ENA FASTQ Download (wget) + Trim Galore
+    # ============================================
+
+    local SRR_LIST=("$@")
+    if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
+        SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
+    fi
+
+    export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
+    export -f timestamp log log_info log_warn log_error run_with_time_to_log
+
+    # --------------------------------------------
+    # Worker function for one SRR
+    # --------------------------------------------
+    _process_single_srr_wget() {
+        local SRR="$1"
+        local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
+        local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+        local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+        local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+
+        log_info "▶ Working on $SRR..."
+        mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
+
+        # Skip if trimming already completed
+        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+            log_info "✔ Trimmed files exist for $SRR — skipping."
+            return 0
+        fi
+
+        # ----------------------------------------
+        # Fetch ENA FASTQ URLs dynamically
+        # ----------------------------------------
+        local ena_links fq1 fq2
+        ena_links=$(curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${SRR}&result=read_run&fields=fastq_ftp&format=tsv" \
+                     | tail -n +2)
+
+        if [[ -z "$ena_links" ]]; then
+            log_warn "⚠ No ENA FASTQ links found for $SRR. Skipping."
+            return 1
+        fi
+
+        fq1="ftp://$(echo "$ena_links" | cut -f1 -d';')"
+        fq2="ftp://$(echo "$ena_links" | cut -f2 -d';')"
+
+        log_info "⬇ Downloading FASTQs for $SRR using wget..."
+        wget -q -c -P "$raw_files_DIR" "$fq1" "$fq2"
+
+        # Verify successful download
+        if [[ ! -s "$raw_files_DIR/${SRR}_1.fastq.gz" || ! -s "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+            log_warn "❌ FASTQ download failed for $SRR. Check ENA mirrors."
+            return 1
+        fi
+
+        # ----------------------------------------
+        # Trim Galore (low RAM, single-thread)
+        # ----------------------------------------
+        log_info "✂ Trimming adapters for $SRR..."
+        run_with_time_to_log trim_galore --cores 1 \
+            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
+            --output_dir "$TrimGalore_DIR"
+
+        # ----------------------------------------
+        # Cleanup if trimming successful
+        # ----------------------------------------
+        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+            log_info "🧹 Removing raw FASTQs for $SRR..."
+            rm -f "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz"
+        fi
+
+        log_info "✅ Finished $SRR."
+        log_info "--------------------------------------------------"
+    }
+
+    export -f _process_single_srr_wget
+
+    # --------------------------------------------
+    # Run jobs in parallel
+    # --------------------------------------------
+    log_info "🚀 Starting parallel ENA downloads and trimming..."
+    printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr_wget {}
+    log_info "🎯 All parallel wget + trimming jobs complete."
+}
+
+
 download_and_trim_srrs_parallel() {
     # ============================================
     # Parallel Download and Trimming of SRR Samples
@@ -257,8 +342,8 @@ download_and_trim_srrs_parallel() {
         SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
     fi
 
-    export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS
-    export -f log_info log_warn run_with_time_to_log
+    export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
+    export -f timestamp log log_info log_warn log_error run_with_time_to_log
 
     # Define per-SRR worker function
     _process_single_srr() {
@@ -329,6 +414,92 @@ download_and_trim_srrs_parallel() {
     printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr {}
     log_info "All parallel SRR jobs completed."
 }
+
+download_and_trim_srrs_parallel_fastqdump() {
+    # =========================================================
+    # Parallel SRA Download and Trimming using parallel-fastq-dump
+    # =========================================================
+
+    local SRR_LIST=("$@")
+    if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
+        SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
+    fi
+
+    export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
+    export -f timestamp log log_info log_warn log_error run_with_time_to_log
+
+    # ---------------------------------------------------------
+    # Inner worker function for one SRR
+    # ---------------------------------------------------------
+    _process_single_srr_fastqdump() {
+        local SRR="$1"
+        local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
+        local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+        local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+        local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+
+        log_info "Working on $SRR..."
+        mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
+
+        # Skip if trimmed files already exist
+        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+            log_info "Trimmed files for $SRR already exist. Skipping."
+            log_info "--------------------------------------------------"
+            return 0
+        fi
+
+        # ---------------------------------------------------------
+        # Download and extract FASTQs using parallel-fastq-dump
+        # ---------------------------------------------------------
+        log_info "Downloading and converting $SRR with parallel-fastq-dump..."
+        parallel-fastq-dump --sra-id "$SRR" \
+            --threads "${THREADS}" \
+            --split-files \
+            --outdir "$raw_files_DIR" \
+            --gzip \
+            --tmpdir "$raw_files_DIR/tmp" || {
+                log_warn "parallel-fastq-dump failed for $SRR"
+                return 1
+            }
+
+        # ---------------------------------------------------------
+        # Verify FASTQ presence
+        # ---------------------------------------------------------
+        if [[ ! -f "$raw_files_DIR/${SRR}_1.fastq.gz" || ! -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+            log_warn "FASTQs not found after parallel-fastq-dump for $SRR"
+            return 1
+        fi
+
+        # ---------------------------------------------------------
+        # Trim reads with Trim Galore
+        # ---------------------------------------------------------
+        log_info "Trimming $SRR..."
+        run_with_time_to_log trim_galore --cores "${THREADS}" \
+            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
+            --output_dir "$TrimGalore_DIR"
+
+        log_info "Done working on $SRR."
+        log_info "--------------------------------------------------"
+
+        # ---------------------------------------------------------
+        # Cleanup raw files if trimming successful
+        # ---------------------------------------------------------
+        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+            log_info "Trimming successful. Deleting raw FASTQs for $SRR..."
+            rm -f "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz"
+        fi
+    }
+
+    export -f _process_single_srr_fastqdump
+
+    # ---------------------------------------------------------
+    # Batch execution across SRRs in parallel
+    # ---------------------------------------------------------
+    log_info "Starting batch processing with parallel-fastq-dump..."
+    printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-4}" _process_single_srr_fastqdump {}
+    log_info "All SRRs processed with parallel-fastq-dump."
+}
+
 
 
 hisat2_index_align_sort_stringtie_pipeline() {
@@ -478,10 +649,17 @@ run_all() {
 	setup_logging
 	log_step "Script started at: $(date -d @$start_time)"
 
+	log_info "SRR samples to process:"
+	for SRR in "${rnaseq_list[@]}"; do
+		log_info "$SRR"
+	done
+
 	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01: Download and trim RNA-seq data"
 		#download_and_trim_srrs "${rnaseq_list[@]}"
 		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
+		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
+		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
 	fi
 
 	if [[ $RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE == "TRUE" ]]; then
