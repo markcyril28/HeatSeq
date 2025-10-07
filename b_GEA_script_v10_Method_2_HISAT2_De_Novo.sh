@@ -19,7 +19,8 @@ RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
 
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	"0_INPUT_FASTAs/All_SmelGenes.fasta"
+	"0_INPUT_FASTAs/All_Smel_Genes.fasta"
+	#"0_INPUT_FASTAs/Eggplant_V4.1_transcripts.function.fa"
 	#"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
