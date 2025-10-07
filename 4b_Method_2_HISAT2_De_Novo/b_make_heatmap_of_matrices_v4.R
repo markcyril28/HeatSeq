@@ -1,12 +1,30 @@
 # ===============================================
 # HEATMAP GENERATION FOR METHOD2 RESULTS
 # ===============================================
+#
+# UPDATES in this version:
+# - Replaced pheatmap with ComplexHeatmap for better label control
+# - Row labels (genes) now positioned on the LEFT side
+# - Column labels (samples) now positioned at the TOP
+# - Added 45-degree rotation for column labels for better readability
+# - Implemented label truncation for long gene names
+# - Enhanced color palette with proper color mapping
+# - Improved legend positioning and formatting
+# - Better error handling and debugging output
+#
+# Required packages: ComplexHeatmap, circlize, RColorBrewer, dplyr, tibble, grid
+# Run test_heatmap_libraries.R first to install missing packages
+# ===============================================
 
 # Load required libraries
-library(pheatmap)
-library(RColorBrewer)
-library(dplyr)
-library(tibble)
+suppressPackageStartupMessages({
+  library(ComplexHeatmap)
+  library(circlize)
+  library(RColorBrewer)
+  library(dplyr)
+  library(tibble)
+  library(grid)
+})
 
 # ===============================================
 # CONFIGURATION
@@ -89,6 +107,17 @@ SAMPLE_LABELS <- c(
 # ===============================================
 # FUNCTIONS
 # ===============================================
+
+# Function to truncate long labels for better readability
+truncate_labels <- function(labels, max_length = 25) {
+  sapply(labels, function(x) {
+    if (nchar(x) > max_length) {
+      paste0(substr(x, 1, max_length - 3), "...")
+    } else {
+      x
+    }
+  })
+}
 
 # Function to save matrix data as TSV
 save_matrix_data <- function(data_matrix, output_path) {
@@ -261,61 +290,116 @@ generate_heatmap <- function(data_matrix, output_path, title, count_type, label_
   # Save matrix data as TSV
   save_matrix_data(data_matrix, output_path)
   
-  eggplant_colors <- colorRampPalette(c(
-    "#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
-    "#8E24AA","#6A1B9A","#4A148C","#2F1B69"
-  ))(100)
+  # Define eggplant color palette
+  eggplant_colors <- colorRamp2(
+    seq(min(data_matrix), max(data_matrix), length = 8),
+    c("#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
+      "#8E24AA","#6A1B9A","#4A148C","#2F1B69")
+  )
   
   tryCatch({
-    pheatmap(
-      data_matrix,
-      color = eggplant_colors,
-      scale = "row",
+    # Scale by rows (genes)
+    data_scaled <- t(scale(t(data_matrix)))
+    data_scaled[is.na(data_scaled)] <- 0
+    
+    # Truncate row names for better display
+    row_labels <- truncate_labels(rownames(data_matrix), max_length = 30)
+    rownames(data_scaled) <- row_labels
+    
+    # Create the heatmap
+    ht <- Heatmap(
+      data_scaled,
+      name = "Expression",
+      col = eggplant_colors,
+      
+      # Row (gene) settings - labels on the LEFT
+      show_row_names = TRUE,
+      row_names_side = "left",
+      row_names_gp = gpar(fontsize = 8),
+      row_names_max_width = unit(10, "cm"),
       cluster_rows = FALSE,
-      cluster_cols = FALSE,
-      show_rownames = TRUE,
-      show_colnames = ifelse(ncol(data_matrix) > 50, FALSE, TRUE),
-      legend = TRUE,
-      main = title,
-      fontsize = 12,
-      fontsize_row = 10,
-      fontsize_col = 10,
-      filename = output_path,
-      width = 16,
-      height = 12,
-      dpi = 300,
-      units = "in",
-      res = 300
+      
+      # Column (sample) settings - labels at the TOP
+      show_column_names = TRUE,
+      column_names_side = "top",
+      column_names_gp = gpar(fontsize = 10),
+      column_names_rot = 45,
+      cluster_columns = FALSE,
+      
+      # Heatmap body settings
+      rect_gp = gpar(col = "white", lwd = 0.5),
+      
+      # Legend settings
+      heatmap_legend_param = list(
+        title = "Z-score",
+        legend_direction = "vertical",
+        title_gp = gpar(fontsize = 12),
+        labels_gp = gpar(fontsize = 10)
+      ),
+      
+      # Title
+      column_title = title,
+      column_title_gp = gpar(fontsize = 14, fontface = "bold")
     )
-    if (length(dev.list()) > 0) dev.off()
+    
+    # Save the heatmap
+    png(output_path, width = 16, height = 12, units = "in", res = 300)
+    draw(ht)
+    dev.off()
+    
     return(TRUE)
   }, error = function(e) {
     cat("Row scaling failed, trying without scaling...\n")
     tryCatch({
-      pheatmap(
+      # Truncate row names for better display
+      row_labels <- truncate_labels(rownames(data_matrix), max_length = 30)
+      rownames(data_matrix) <- row_labels
+      
+      # Create heatmap without scaling
+      ht <- Heatmap(
         data_matrix,
-        color = eggplant_colors,
-        scale = "none",
+        name = "Expression",
+        col = eggplant_colors,
+        
+        # Row (gene) settings - labels on the LEFT
+        show_row_names = TRUE,
+        row_names_side = "left",
+        row_names_gp = gpar(fontsize = 8),
+        row_names_max_width = unit(10, "cm"),
         cluster_rows = FALSE,
-        cluster_cols = FALSE,
-        show_rownames = TRUE,
-        show_colnames = ifelse(ncol(data_matrix) > 50, FALSE, TRUE),
-        legend = TRUE,
-        main = paste(title, "(No Scaling)"),
-        fontsize = 12,
-        fontsize_row = 10,
-        fontsize_col = 10,
-        filename = output_path,
-        width = 16,
-        height = 12,
-        dpi = 300,
-        units = "in",
-        res = 300
+        
+        # Column (sample) settings - labels at the TOP
+        show_column_names = TRUE,
+        column_names_side = "top",
+        column_names_gp = gpar(fontsize = 10),
+        column_names_rot = 45,
+        cluster_columns = FALSE,
+        
+        # Heatmap body settings
+        rect_gp = gpar(col = "white", lwd = 0.5),
+        
+        # Legend settings
+        heatmap_legend_param = list(
+          title = "Raw Values",
+          legend_direction = "vertical",
+          title_gp = gpar(fontsize = 12),
+          labels_gp = gpar(fontsize = 10)
+        ),
+        
+        # Title
+        column_title = paste(title, "(No Scaling)"),
+        column_title_gp = gpar(fontsize = 14, fontface = "bold")
       )
-      if (length(dev.list()) > 0) dev.off()
+      
+      # Save the heatmap
+      png(output_path, width = 16, height = 12, units = "in", res = 300)
+      draw(ht)
+      dev.off()
+      
       return(TRUE)
     }, error = function(e2) {
       cat("Error generating heatmap for:", title, "\n")
+      cat("Error details:", e2$message, "\n")
       return(FALSE)
     })
   })
@@ -333,10 +417,7 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
   # Save matrix data as TSV
   save_matrix_data(data_matrix, output_path)
   
-  eggplant_colors <- colorRampPalette(c(
-    "#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
-    "#8E24AA","#6A1B9A","#4A148C","#2F1B69"
-  ))(100)
+  # Prepare column labels
   col_labels <- colnames(data_matrix)
   if (label_type == "SRR") {
     col_labels <- colnames(data_matrix)
@@ -346,6 +427,17 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
                          colnames(data_matrix))
   }
   
+  # Set column names for the matrix
+  colnames(data_matrix) <- col_labels
+  
+  # Define eggplant color palette
+  eggplant_colors <- colorRamp2(
+    seq(min(data_matrix), max(data_matrix), length = 8),
+    c("#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
+      "#8E24AA","#6A1B9A","#4A148C","#2F1B69")
+  )
+  
+  # Determine scaling method
   scale_method <- switch(normalization_type,
                          "raw_normalized" = "row",
                          "Count-Type_Normalized" = "none", 
@@ -353,32 +445,69 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
                          "row")
   
   tryCatch({
-    pheatmap(
-      data_matrix,
-      color = eggplant_colors,
-      scale = scale_method,
+    # Apply scaling if needed
+    if (scale_method == "row") {
+      data_scaled <- t(scale(t(data_matrix)))
+      data_scaled[is.na(data_scaled)] <- 0
+      legend_title <- "Z-score"
+    } else {
+      data_scaled <- data_matrix
+      legend_title <- "Expression"
+    }
+    
+    # Truncate row names for better display (only if many genes)
+    if (nrow(data_matrix) > 50) {
+      row_labels <- truncate_labels(rownames(data_scaled), max_length = 20)
+    } else {
+      row_labels <- truncate_labels(rownames(data_scaled), max_length = 30)
+    }
+    rownames(data_scaled) <- row_labels
+    
+    # Create the heatmap
+    ht <- Heatmap(
+      data_scaled,
+      name = legend_title,
+      col = eggplant_colors,
+      
+      # Row (gene) settings - labels on the LEFT
+      show_row_names = ifelse(nrow(data_matrix) > 50, FALSE, TRUE),
+      row_names_side = "left",
+      row_names_gp = gpar(fontsize = 7),
+      row_names_max_width = unit(10, "cm"),
       cluster_rows = FALSE,
-      cluster_cols = FALSE,
-      show_rownames = ifelse(nrow(data_matrix) > 50, FALSE, TRUE),
-      show_colnames = TRUE,
-      labels_col = col_labels,
-      legend = TRUE,
-      main = paste(title, "-", normalization_type),
-      fontsize = 12,
-      fontsize_row = 8,
-      fontsize_col = 10,
-      filename = output_path,
-      width = 18,
-      height = 14,
-      dpi = 300,
-      units = "in",
-      res = 300,
-      border_color = NA
+      
+      # Column (sample) settings - labels at the TOP
+      show_column_names = TRUE,
+      column_names_side = "top",
+      column_names_gp = gpar(fontsize = 10),
+      column_names_rot = 45,
+      cluster_columns = FALSE,
+      
+      # Heatmap body settings
+      rect_gp = gpar(col = "white", lwd = 0.3),
+      
+      # Legend settings
+      heatmap_legend_param = list(
+        title = legend_title,
+        legend_direction = "vertical",
+        title_gp = gpar(fontsize = 12),
+        labels_gp = gpar(fontsize = 10)
+      ),
+      
+      # Title
+      column_title = paste(title, "-", normalization_type),
+      column_title_gp = gpar(fontsize = 14, fontface = "bold")
     )
-    if (length(dev.list()) > 0) dev.off()
+    
+    # Save the heatmap
+    png(output_path, width = 18, height = 14, units = "in", res = 300)
+    draw(ht)
+    dev.off()
+    
     return(TRUE)
   }, error = function(e) {
     cat("Error generating normalized heatmap for:", title, "\n")
+    cat("Error details:", e$message, "\n")
     return(FALSE)
   })
 }
