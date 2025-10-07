@@ -250,92 +250,6 @@ download_and_trim_srrs() {
     done
 }
 
-download_and_trim_srrs_wget_parallel() {
-    # ============================================
-    # Parallel ENA FASTQ Download (wget) + Trim Galore
-    # ============================================
-
-    local SRR_LIST=("$@")
-    if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
-        SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
-    fi
-
-    export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
-    export -f timestamp log log_info log_warn log_error run_with_time_to_log
-
-    # --------------------------------------------
-    # Worker function for one SRR
-    # --------------------------------------------
-    _process_single_srr_wget() {
-        local SRR="$1"
-        local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
-        local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
-        local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
-        local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
-
-        log_info "▶ Working on $SRR..."
-        mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
-
-        # Skip if trimming already completed
-        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            log_info "✔ Trimmed files exist for $SRR — skipping."
-            return 0
-        fi
-
-        # ----------------------------------------
-        # Fetch ENA FASTQ URLs dynamically
-        # ----------------------------------------
-        local ena_links fq1 fq2
-        ena_links=$(curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${SRR}&result=read_run&fields=fastq_ftp&format=tsv" \
-                     | tail -n +2)
-
-        if [[ -z "$ena_links" ]]; then
-            log_warn "⚠ No ENA FASTQ links found for $SRR. Skipping."
-            return 1
-        fi
-
-        fq1="ftp://$(echo "$ena_links" | cut -f1 -d';')"
-        fq2="ftp://$(echo "$ena_links" | cut -f2 -d';')"
-
-        log_info "⬇ Downloading FASTQs for $SRR using wget..."
-        wget -q -c -P "$raw_files_DIR" "$fq1" "$fq2"
-
-        # Verify successful download
-        if [[ ! -s "$raw_files_DIR/${SRR}_1.fastq.gz" || ! -s "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
-            log_warn "❌ FASTQ download failed for $SRR. Check ENA mirrors."
-            return 1
-        fi
-
-        # ----------------------------------------
-        # Trim Galore (low RAM, single-thread)
-        # ----------------------------------------
-        log_info "✂ Trimming adapters for $SRR..."
-        run_with_time_to_log trim_galore --cores 1 \
-            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
-            --output_dir "$TrimGalore_DIR"
-
-        # ----------------------------------------
-        # Cleanup if trimming successful
-        # ----------------------------------------
-        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            log_info "🧹 Removing raw FASTQs for $SRR..."
-            rm -f "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz"
-        fi
-
-        log_info "✅ Finished $SRR."
-        log_info "--------------------------------------------------"
-    }
-
-    export -f _process_single_srr_wget
-
-    # --------------------------------------------
-    # Run jobs in parallel
-    # --------------------------------------------
-    log_info "🚀 Starting parallel ENA downloads and trimming..."
-    printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr_wget {}
-    log_info "🎯 All parallel wget + trimming jobs complete."
-}
-
 download_and_trim_srrs_parallel() {
     # ============================================
     # Parallel Download and Trimming of SRR Samples
@@ -504,7 +418,93 @@ download_and_trim_srrs_parallel_fastqdump() {
     log_info "All SRRs processed with parallel-fastq-dump."
 }
 
-hisat2_index_align_sort_stringtie_pipeline() {
+download_and_trim_srrs_wget_parallel() {
+    # ============================================
+    # Parallel ENA FASTQ Download (wget) + Trim Galore
+    # ============================================
+
+    local SRR_LIST=("$@")
+    if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
+        SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
+    fi
+
+    export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
+    export -f timestamp log log_info log_warn log_error run_with_time_to_log
+
+    # --------------------------------------------
+    # Worker function for one SRR
+    # --------------------------------------------
+    _process_single_srr_wget() {
+        local SRR="$1"
+        local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
+        local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+        local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+        local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+
+        log_info "▶ Working on $SRR..."
+        mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
+
+        # Skip if trimming already completed
+        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+            log_info "✔ Trimmed files exist for $SRR — skipping."
+            return 0
+        fi
+
+        # ----------------------------------------
+        # Fetch ENA FASTQ URLs dynamically
+        # ----------------------------------------
+        local ena_links fq1 fq2
+        ena_links=$(curl -s "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${SRR}&result=read_run&fields=fastq_ftp&format=tsv" \
+                     | tail -n +2)
+
+        if [[ -z "$ena_links" ]]; then
+            log_warn "⚠ No ENA FASTQ links found for $SRR. Skipping."
+            return 1
+        fi
+
+        fq1="ftp://$(echo "$ena_links" | cut -f1 -d';')"
+        fq2="ftp://$(echo "$ena_links" | cut -f2 -d';')"
+
+        log_info "⬇ Downloading FASTQs for $SRR using wget..."
+        wget -q -c -P "$raw_files_DIR" "$fq1" "$fq2"
+
+        # Verify successful download
+        if [[ ! -s "$raw_files_DIR/${SRR}_1.fastq.gz" || ! -s "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+            log_warn "❌ FASTQ download failed for $SRR. Check ENA mirrors."
+            return 1
+        fi
+
+        # ----------------------------------------
+        # Trim Galore (low RAM, single-thread)
+        # ----------------------------------------
+        log_info "✂ Trimming adapters for $SRR..."
+        run_with_time_to_log trim_galore --cores 1 \
+            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
+            --output_dir "$TrimGalore_DIR"
+
+        # ----------------------------------------
+        # Cleanup if trimming successful
+        # ----------------------------------------
+        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+            log_info "🧹 Removing raw FASTQs for $SRR..."
+            rm -f "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz"
+        fi
+
+        log_info "✅ Finished $SRR."
+        log_info "--------------------------------------------------"
+    }
+
+    export -f _process_single_srr_wget
+
+    # --------------------------------------------
+    # Run jobs in parallel
+    # --------------------------------------------
+    log_info "🚀 Starting parallel ENA downloads and trimming..."
+    printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr_wget {}
+    log_info "🎯 All parallel wget + trimming jobs complete."
+}
+
+hisat2_de_novo_index_align_sort_stringtie_pipeline() {
 	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -883,7 +883,7 @@ run_all() {
 
 	if [[ $RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE == "TRUE" ]]; then
 		log_step "STEP 02: Build HISAT2 index and align"
-		hisat2_index_align_sort_stringtie_pipeline \
+		hisat2_de_novo_index_align_sort_stringtie_pipeline \
 			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 	fi
 
