@@ -12,4 +12,3 @@ sample1 sample1.gtf
 sample2 sample2.gtf
 ...
 EXAMPLE
-
