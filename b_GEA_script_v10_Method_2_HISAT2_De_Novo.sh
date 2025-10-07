@@ -8,7 +8,7 @@ set -euo pipefail
 # CONFIGURATION and SWITCHES
 # ============================================================================== 
 THREADS=16  # Number of threads to use for parallel operations
-JOBS=3     # Number of parallel jobs for GNU Parallel 
+JOBS=3      # Number of parallel jobs for GNU Parallel 
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE
 RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
 
@@ -88,7 +88,7 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"
+	"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
 	"${SRR_LIST_SAMN28540068[@]}"
 	#"${OTHER_SRR_LIST[@]}"
@@ -103,7 +103,12 @@ HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD"
 HISAT2_DE_NOVO_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD/index"
 STRINGTIE_HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie_WD/a_Method_2_RAW_RESULTs"
 
-mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" "$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
+TRINITY_DE_NOVO_ROOT="4c_Method_3_Trinity_De_Novo/4_Trinity_WD"
+STRINGTIE_TRINITY_DE_NOVO_ROOT="4c_Method_3_Trinity_De_Novo/5_stringtie_WD/a_Method_3_RAW_RESULTs"
+
+mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
+	"$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT" \
+	"$TRINITY_DE_NOVO_ROOT" "$STRINGTIE_TRINITY_DE_NOVO_ROOT"
 
 # ==============================================================================
 # CLEANUP OPTIONS and Testing Essentials
@@ -331,7 +336,6 @@ download_and_trim_srrs_wget_parallel() {
     log_info "🎯 All parallel wget + trimming jobs complete."
 }
 
-
 download_and_trim_srrs_parallel() {
     # ============================================
     # Parallel Download and Trimming of SRR Samples
@@ -496,11 +500,9 @@ download_and_trim_srrs_parallel_fastqdump() {
     # Batch execution across SRRs in parallel
     # ---------------------------------------------------------
     log_info "Starting batch processing with parallel-fastq-dump..."
-    printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-4}" _process_single_srr_fastqdump {}
+    printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr_fastqdump {}
     log_info "All SRRs processed with parallel-fastq-dump."
 }
-
-
 
 hisat2_index_align_sort_stringtie_pipeline() {
 	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
@@ -617,6 +619,223 @@ hisat2_index_align_sort_stringtie_pipeline() {
 		log_info "Done processing $fasta_tag with $SRR."
 		log_info "--------------------------------------------------"
 	done
+}
+
+# Trinity de novo alignment, stringtie quantification that can an input to DeSeq2 pipeline
+trinity_de_novo_alignment_pipeline() {
+	local fasta="" rnaseq_list=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA)
+				fasta="$2"; shift 2;;
+			--RNASEQ_LIST)
+				shift
+				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+					rnaseq_list+=("$1")
+					shift
+				done
+				;;
+			*)
+				log_error "Unknown option: $1"
+				return 1;;
+		esac
+	done
+	
+	if [[ -z "$fasta" ]]; then
+		log_error "No FASTA file specified. Use --FASTA <fasta_file>."
+		return 1
+	fi
+	if [[ ! -f "$fasta" ]]; then
+		log_error "FASTA file '$fasta' not found."
+		return 1
+	fi
+	if [[ ${#rnaseq_list[@]} -eq 0 ]]; then
+		rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
+	fi
+
+	local fasta_base fasta_tag trinity_out_dir trinity_fasta
+	fasta_base="$(basename "$fasta")"
+	fasta_tag="${fasta_base%.*}"
+	trinity_out_dir="$TRINITY_DE_NOVO_ROOT/${fasta_tag}_trinity_out_dir"
+	trinity_fasta="$trinity_out_dir/Trinity.fasta"
+
+	# STEP 1: DE NOVO TRANSCRIPTOME ASSEMBLY WITH TRINITY
+	log_step "Trinity de novo transcriptome assembly for $fasta_tag"
+	
+	if [[ -f "$trinity_fasta" ]]; then
+		log_info "Trinity assembly already exists for $fasta_tag. Skipping assembly."
+	else
+		log_info "Starting Trinity de novo assembly for $fasta_tag..."
+		mkdir -p "$trinity_out_dir"
+		
+		# Collect all trimmed FASTQ files for Trinity
+		local left_reads=() right_reads=()
+		for SRR in "${rnaseq_list[@]}"; do
+			local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+			local trimmed1="" trimmed2=""
+			
+			# Find trimmed FASTQ files
+			if [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq" ]]; then
+				trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+				trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+			elif [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq.gz" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq.gz" ]]; then
+				trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq.gz"
+				trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq.gz"
+			elif compgen -G "$TrimGalore_DIR/${SRR}*val_1.*" >/dev/null 2>&1 && compgen -G "$TrimGalore_DIR/${SRR}*val_2.*" >/dev/null 2>&1; then
+				local files1=( "$TrimGalore_DIR"/${SRR}*val_1.* )
+				local files2=( "$TrimGalore_DIR"/${SRR}*val_2.* )
+				trimmed1="${files1[0]}"
+				trimmed2="${files2[0]}"
+			fi
+			
+			if [[ -n "$trimmed1" && -n "$trimmed2" ]]; then
+				left_reads+=("$trimmed1")
+				right_reads+=("$trimmed2")
+			else
+				log_warn "Trimmed FASTQ for $SRR not found; skipping from Trinity input."
+			fi
+		done
+		
+		if [[ ${#left_reads[@]} -eq 0 ]]; then
+			log_error "No trimmed FASTQ files found for Trinity assembly."
+			return 1
+		fi
+		
+		# Run Trinity
+		local left_files=$(IFS=,; echo "${left_reads[*]}")
+		local right_files=$(IFS=,; echo "${right_reads[*]}")
+		
+		log_info "Running Trinity with ${#left_reads[@]} sample pairs..."
+		run_with_time_to_log Trinity \
+			--seqType fq \
+			--left "$left_files" \
+			--right "$right_files" \
+			--CPU "$THREADS" \
+			--max_memory 20G \
+			--output "$trinity_out_dir" \
+			--normalize_reads \
+			--full_cleanup
+	fi
+
+	# STEP 2: ALIGN READS TO TRINITY ASSEMBLY AND RUN STRINGTIE FOR QUANTIFICATION
+	for SRR in "${rnaseq_list[@]}"; do
+		local HISAT2_DIR="$HISAT2_DE_NOVO_ROOT/${fasta_tag}_trinity/$SRR"
+		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+		local trimmed1="" trimmed2=""
+		mkdir -p "$HISAT2_DIR"
+		
+		# Find trimmed FASTQ files
+		if [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq" ]]; then
+			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+		elif [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq.gz" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq.gz" ]]; then
+			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq.gz"
+			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq.gz"
+		elif compgen -G "$TrimGalore_DIR/${SRR}*val_1.*" >/dev/null 2>&1 && compgen -G "$TrimGalore_DIR/${SRR}*val_2.*" >/dev/null 2>&1; then
+			local files1=( "$TrimGalore_DIR"/${SRR}*val_1.* )
+			local files2=( "$TrimGalore_DIR"/${SRR}*val_2.* )
+			trimmed1="${files1[0]}"
+			trimmed2="${files2[0]}"
+		fi
+		
+		if [[ -z "$trimmed1" || -z "$trimmed2" ]]; then
+			log_warn "Trimmed FASTQ for $SRR not found in $TrimGalore_DIR; skipping."
+			continue
+		fi
+
+		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trinity_mapped_sorted.bam"
+		
+		# Align reads directly to Trinity assembly using bowtie2 (Trinity's preferred aligner)
+		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
+			log_info "BAM for $SRR and Trinity assembly of $fasta_tag already exists. Skipping alignment."
+		else
+			log_info "Building bowtie2 index and aligning $SRR to Trinity assembly of $fasta_tag..."
+			
+			# Build bowtie2 index for Trinity assembly
+			local trinity_index="$HISAT2_DIR/${fasta_tag}_trinity_index"
+			if [[ ! -f "${trinity_index}.1.bt2" ]]; then
+				run_with_time_to_log bowtie2-build "$trinity_fasta" "$trinity_index"
+			fi
+			
+			# Align with bowtie2
+			local sam="$HISAT2_DIR/${SRR}_${fasta_tag}_trinity_mapped.sam"
+			run_with_time_to_log \
+				bowtie2 -p "${THREADS}" --local --no-unal \
+					-x "$trinity_index" \
+					-1 "$trimmed1" \
+					-2 "$trimmed2" \
+					-S "$sam"
+			
+			log_info "Converting SAM to sorted BAM for Trinity assembly of $fasta_tag with $SRR..."
+			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			run_with_time_to_log samtools index -@ "${THREADS}" "$bam"
+			rm -f "$sam"
+		fi
+
+		# StringTie quantification for DeSeq2 compatibility
+		local out_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/$SRR"
+		local out_gtf="$out_dir/${SRR}_${fasta_tag}_trinity_stringtie_quantified.gtf"
+		local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
+		local out_transcript_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_trinity_transcript_abundances.tsv"
+		mkdir -p "$out_dir"
+		
+		if [[ -f "$out_gtf" && -f "$out_gene_abundances_tsv" ]]; then
+			log_info "StringTie quantification exists for Trinity assembly of $fasta_tag/$SRR. Skipping."
+		else
+			log_info "Quantifying transcripts with StringTie for Trinity assembly of $fasta_tag with $SRR..."
+			
+			# First pass: assemble transcripts without reference
+			run_with_time_to_log \
+				stringtie -p "$THREADS" "$bam" \
+					-o "$out_gtf" \
+					-A "$out_gene_abundances_tsv" \
+					-C "$out_dir/${SRR}_${fasta_tag}_trinity_cov_refs.gtf" \
+					-B \
+					-e \
+					-G "$out_gtf"
+					
+			# Create transcript abundance file for DeSeq2
+			run_with_time_to_log \
+				stringtie -p "$THREADS" "$bam" \
+					-e -B \
+					-G "$out_gtf" \
+					-A "$out_transcript_abundances_tsv" \
+					-o "$out_dir/${SRR}_${fasta_tag}_trinity_final.gtf"
+		fi
+		
+		# Cleanup BAM files if specified
+		if [[ "$keep_bam_global" != "y" ]]; then
+			log_info "Deleting the BAM file for $SRR."
+			rm -f "$bam" "${bam}.bai"
+		fi
+		
+		log_info "Done processing Trinity assembly of $fasta_tag with $SRR."
+		log_info "--------------------------------------------------"
+	done
+	
+	# STEP 3: PREPARE DESEQ2 INPUT FILES
+	log_info "Preparing count matrices for DeSeq2..."
+	local deseq2_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/deseq2_input"
+	mkdir -p "$deseq2_dir"
+	
+	# Create sample table for DESeq2
+	local sample_table="$deseq2_dir/sample_table.csv"
+	echo "sample,condition,path" > "$sample_table"
+	
+	for SRR in "${rnaseq_list[@]}"; do
+		local out_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/$SRR"
+		local gene_count_file="$out_dir/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
+		
+		if [[ -f "$gene_count_file" ]]; then
+			# Extract condition from SRR (you may need to customize this)
+			local condition="sample"  # Default condition, customize based on your metadata
+			echo "$SRR,$condition,$gene_count_file" >> "$sample_table"
+		fi
+	done
+	
+	log_info "Trinity de novo pipeline completed for $fasta_tag."
+	log_info "DeSeq2 input files prepared in: $deseq2_dir"
+	log_info "Sample table: $sample_table"
 }
 
 # ==============================================================================
