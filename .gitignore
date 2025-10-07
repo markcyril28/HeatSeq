@@ -1,5 +1,9 @@
 .vscode/launch.json
 
+1_RAW_SRR/PRJNA865018_SraRunTable(1).csv
+1_RAW_SRR/SAMN28540068_SraRunTable(1).csv
+1_RAW_SRR/*
+
 4b_Method_2_HISAT2_De_Novo/.Rhistory
 4b_Method_2_HISAT2_De_Novo/.RData
 4b_Method_2_HISAT2_De_Novo/z_archive/*
