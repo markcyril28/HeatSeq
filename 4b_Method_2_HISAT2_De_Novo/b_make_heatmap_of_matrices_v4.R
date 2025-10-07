@@ -34,6 +34,7 @@ FASTA_GROUPS <- c(
   #"SmelGIF_with_Cell_Cycle_Control_genes",
   #"SmelGRF_with_Cell_Cycle_Control_genes"
 )
+
 COUNT_TYPES <- c("coverage", "fpkm", "tpm")
 GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c("SRR", "Organ")
@@ -336,9 +337,10 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
     "#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
     "#8E24AA","#6A1B9A","#4A148C","#2F1B69"
   ))(100)
-  
   col_labels <- colnames(data_matrix)
-  if (label_type == "SRR" && exists("SAMPLE_LABELS")) {
+  if (label_type == "SRR") {
+    col_labels <- colnames(data_matrix)
+  } else if (label_type == "Organ" && exists("SAMPLE_LABELS")) {
     col_labels <- ifelse(colnames(data_matrix) %in% names(SAMPLE_LABELS),
                          SAMPLE_LABELS[colnames(data_matrix)],
                          colnames(data_matrix))
