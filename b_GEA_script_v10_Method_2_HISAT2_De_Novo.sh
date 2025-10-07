@@ -1,24 +1,85 @@
 #!/bin/bash
 
+# ==============================================================================
+# GENE EXPRESSION ANALYSIS (GEA) PIPELINE - METHOD 2: HISAT2 DE NOVO
+# ==============================================================================
+# Description: RNA-seq analysis pipeline using HISAT2 de novo assembly approach
+# Author: [Your Name]
+# Version: v10
+# Date: October 2025
+# 
+# Pipeline Methods:
+# - Method 1: HISAT2 Reference Guided (not in this script)
+# - Method 2: HISAT2 De Novo Assembly (this script)
+# - Method 3: Trinity De Novo Assembly
+# - Method 4: Salmon SAF Quantification
+# - Method 5: Bowtie2 + RSEM Quantification
+#
+# SCRIPT ORGANIZATION:
+# 1. Configuration and Runtime Switches (All 5 Methods + QC Options)
+# 2. Pipeline Configuration Examples  
+# 3. Input Files and Data Sources
+# 4. RNA-seq Data Sources (SRR Lists)
+# 5. Directory Structure and Output Paths  
+# 6. Cleanup Options and Testing
+# 7. Logging System and Utility Functions
+# 8. Pipeline Functions:
+#    - Data Download and Preprocessing Functions
+#    - HISAT2 Reference-Guided Pipeline Functions
+#    - HISAT2 De Novo Pipeline Functions  
+#    - Trinity De Novo Pipeline Functions
+#    - Salmon Quantification Pipeline Functions
+#    - Bowtie2 + RSEM Quantification Pipeline Functions
+#    - Method Comparison and Validation Functions
+# 9. Main Execution Functions
+# 10. Script Execution
+# 11. Post-processing Options
+# ==============================================================================
+
 set -euo pipefail
+
+# Prerequisites (install if needed):
 #conda install -c conda-forge aria2 -y
 #conda install -c bioconda -c conda-forge parallel-fastq-dump -y
 
 # ============================================================================== 
-# CONFIGURATION and SWITCHES
+# CONFIGURATION AND RUNTIME SWITCHES
 # ============================================================================== 
-THREADS=8  # Number of threads to use for parallel operations
-JOBS=3      # Number of parallel jobs for GNU Parallel 
-RUN_DOWNLOAD_and_TRIM_SRR=TRUE
-RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE=FALSE
+
+# Runtime Configuration
+THREADS=4                               # Number of threads to use for parallel operations
+JOBS=3                                  # Number of parallel jobs for GNU Parallel 
+
+# RNA-seq Library Configuration
+RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), "FR" (ligation), or "unstranded"
+                                       # RF = first read reverse complement, second read forward (most common)
+                                       # FR = first read forward, second read reverse complement  
+                                       # unstranded = no strand specificity
+
+# Pipeline Control Switches
+RUN_DOWNLOAD_and_TRIM_SRR=TRUE          # Enable/disable SRR download and trimming
+
+# GEA Methods 
+RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    # Enable/disable HISAT2 reference-guided pipeline
+RUN_METHOD_2_HISAT2_DE_NOVO=FALSE       # Enable/disable HISAT2 de novo pipeline
+RUN_METHOD_3_TRINITY_DE_NOVO=FALSE      # Enable/disable Trinity de novo pipeline
+RUN_METHOD_4_SALMON_SAF=FALSE           # Enable/disable Salmon SAF quantification pipeline
+RUN_METHOD_5_BOWTIE2_RSEM=FALSE         # Enable/disable Bowtie2 + RSEM quantification pipeline
+
+# Quality Control and Analysis Options
+RUN_QUALITY_CONTROL=TRUE                # Enable/disable FastQC and MultiQC analysis
+RUN_METHOD_COMPARISON=FALSE              # Enable/disable cross-method validation and comparison
+
 
 # ==============================================================================
-# INPUT FILES
+# INPUT FILES AND DATA SOURCES
 # ==============================================================================
 
+# Legacy GTF and FASTA references (commented out)
 #All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
-#Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4_1_transcripts_function.fa"
+#Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4.1_transcripts_function.fa"
 
+# FASTA Files for Analysis
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
 	"0_INPUT_FASTAs/All_Smel_Genes.fasta"
@@ -32,6 +93,10 @@ ALL_FASTA_FILES=(
 	#"0_INPUT_FASTAs/Control_Genes_Puta.fasta"
 	#"0_INPUT_FASTAs/SmelGRF_with_Cell_Cycle_Control_genes.fasta"
 )
+
+# ==============================================================================
+# RNA-SEQ DATA SOURCES (SRR LISTS)
+# ==============================================================================
 
 # SRA Run Selector Tool link: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 
@@ -48,11 +113,11 @@ SRR_LIST_PRJNA328564=(
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	SRR2072232	# mature_fruits #SRR20722226	# young_fruits
-	SRR20722234	# flowers #SRR20722228	# sepals
+	#SRR2072232	# mature_fruits #SRR20722226	# young_fruits
+	#SRR20722234	# flowers #SRR20722228	# sepals
 	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018
 	SRR20722230	# mature_leaves #SRR20722233	# leaf_buds
-	SRR20722227	# stems
+	#SRR20722227	# stems
 	SRR20722229	# roots
 )
 
@@ -69,6 +134,7 @@ SRR_LIST_SAMN28540068=(
 # A Good Dataset for SmelDMP GEA: 
 # 	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa PRJNA865018
 #	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
+
 OTHER_SRR_LIST=(
 	# Possible Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP390977&o=acc_s%3Aa
 	SRR34564302	# Fruits (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR34564302&display=metadata)
@@ -90,41 +156,73 @@ OTHER_SRR_LIST=(
 SRR_COMBINED_LIST=(
 	#"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
-	"${SRR_LIST_SAMN28540068[@]}"
+	#"${SRR_LIST_SAMN28540068[@]}"
 	#"${OTHER_SRR_LIST[@]}"
 )
 
-#:<< 'OFF'
-RAW_DIR_ROOT="1_RAW_SRR"
-TRIM_DIR_ROOT="2_TRIMMED_SRR"
-FASTQC_ROOT="3_FastQC"
+# ==============================================================================
+# DIRECTORY STRUCTURE AND OUTPUT PATHS
+# ==============================================================================
 
+# Raw and Processed Data Directories
+RAW_DIR_ROOT="1_RAW_SRR"                # Raw SRR download directory
+TRIM_DIR_ROOT="2_TRIMMED_SRR"           # Trimmed reads directory
+FASTQC_ROOT="3_FastQC"                  # FastQC quality control reports
+
+# Method 1: HISAT2 Reference Guided (not used in this script)
+HISAT2_REF_GUIDED_ROOT="4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD"
+HISAT2_REF_GUIDED_INDEX_DIR="4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD/index"
+STRINGTIE_HISAT2_REF_GUIDED_ROOT="4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD/a_Method_1_RAW_RESULTs"
+
+# Method 2: HISAT2 De Novo Assembly (main method in this script)
 HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD"
 HISAT2_DE_NOVO_INDEX_DIR="4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD/index"
 STRINGTIE_HISAT2_DE_NOVO_ROOT="4b_Method_2_HISAT2_De_Novo/5_stringtie_WD/a_Method_2_RAW_RESULTs"
 
+# Method 3: Trinity De Novo Assembly
 TRINITY_DE_NOVO_ROOT="4c_Method_3_Trinity_De_Novo/4_Trinity_WD"
 STRINGTIE_TRINITY_DE_NOVO_ROOT="4c_Method_3_Trinity_De_Novo/5_stringtie_WD/a_Method_3_RAW_RESULTs"
 
+# Method 4: Salmon SAF Quantification
+SALMON_SAF_ROOT="4d_Method_4_Salmon_Saf_Quantification"
+SALMON_INDEX_ROOT="$SALMON_SAF_ROOT/index"
+SALMON_QUANT_ROOT="$SALMON_SAF_ROOT/quant"
+SALMON_SAF_MATRIX_ROOT="$SALMON_SAF_ROOT/matrices"
+
+# Method 5: Bowtie2 + RSEM Quantification
+BOWTIE2_RSEM_ROOT="4e_Method_5_Bowtie2_Quantification"
+RSEM_INDEX_ROOT="$BOWTIE2_RSEM_ROOT/index"
+RSEM_QUANT_ROOT="$BOWTIE2_RSEM_ROOT/quant"
+RSEM_MATRIX_ROOT="$BOWTIE2_RSEM_ROOT/matrices"
+
+# Create required directories
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
+	"$HISAT2_REF_GUIDED_ROOT" "$HISAT2_REF_GUIDED_INDEX_DIR" "$STRINGTIE_HISAT2_REF_GUIDED_ROOT" \
 	"$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT" \
-	"$TRINITY_DE_NOVO_ROOT" "$STRINGTIE_TRINITY_DE_NOVO_ROOT"
+	"$TRINITY_DE_NOVO_ROOT" "$STRINGTIE_TRINITY_DE_NOVO_ROOT" \
+	"$SALMON_SAF_ROOT" "$SALMON_INDEX_ROOT" "$SALMON_QUANT_ROOT" "$SALMON_SAF_MATRIX_ROOT" \
+	"$BOWTIE2_RSEM_ROOT" "$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT"
 
 # ==============================================================================
-# CLEANUP OPTIONS and Testing Essentials
-rm -rf "$RAW_DIR_ROOT"               	# Remove previous raw SRR files
-#rm -rf $FASTQC_ROOT               		 # Remove previous FastQC results
-#rm -rf $HISAT2_DE_NOVO_ROOT      		 # Remove previous HISAT2 results
-#rm -rf $HISAT2_DE_NOVO_INDEX_DIR 		 # Remove previous HISAT2 index
-#rm -rf $STRINGTIE_HISAT2_DE_NOVO_ROOT   # Remove previous StringTie results
+# CLEANUP OPTIONS AND TESTING ESSENTIALS
+# ==============================================================================
+
+rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
+#rm -rf "$FASTQC_ROOT"                   # Remove previous FastQC results
+#rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
+#rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
+#rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
 
 # ==============================================================================
-# LOGGING
+# LOGGING SYSTEM
 # ==============================================================================
+
+# Logging Configuration
 RUN_ID="${RUN_ID:-$(date +%Y%m%d_%H%M%S)}"
 LOG_DIR="${LOG_DIR:-logs}"
 LOG_FILE="${LOG_FILE:-$LOG_DIR/pipeline_${RUN_ID}_full_log.log}"
 
+# Logging Functions
 timestamp() { date '+%Y-%m-%d %H:%M:%S'; }
 log() { local level="$1"; shift; printf '[%s] [%s] %s\n' "$(timestamp)" "$level" "$*"; }
 log_info() { log INFO "$@"; }
@@ -151,20 +249,129 @@ setup_logging() {
 		exec > >(tee -a "$LOG_FILE") 2>&1
 	fi
 	log_info "Logging to: $LOG_FILE"
-
-
 }
 
+# Error handling and cleanup traps
 trap 'log_error "Command failed (rc=$?) at line $LINENO: ${BASH_COMMAND:-unknown}"; exit 1' ERR
 trap 'log_info "Script finished. See log: $LOG_FILE"' EXIT
 
+# Utility function for command timing and logging
 run_with_time_to_log() {
 	# Run a command and log resource usage (tracks time and memory)
 	/usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
 }
+
+# Quality control and reproducibility functions
+ensure_reproducibility() {
+	# Set random seeds for reproducible results
+	export PYTHONHASHSEED=42
+	export R_SEED=42
+	
+	# Log software versions for reproducibility
+	log_info "=== SOFTWARE VERSIONS ==="
+	log_info "HISAT2 version: $(hisat2 --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "StringTie version: $(stringtie --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "Salmon version: $(salmon --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "RSEM version: $(rsem-calculate-expression --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "Trinity version: $(Trinity --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "Samtools version: $(samtools --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "Bowtie2 version: $(bowtie2 --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "Trim Galore version: $(trim_galore --version 2>&1 | head -n1 || echo 'Not available')"
+	log_info "=========================="
+}
+
+run_quality_control() {
+	# Run quality control analysis on trimmed reads
+	local SRR="$1"
+	local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+	
+	if [[ ! -d "$TrimGalore_DIR" ]]; then
+		log_warn "Trimmed directory not found for $SRR. Skipping QC."
+		return 1
+	fi
+	
+	log_info "Running quality control for $SRR..."
+	
+	# Create QC output directory
+	mkdir -p "$FASTQC_ROOT/$SRR"
+	
+	# FastQC on trimmed reads
+	if command -v fastqc >/dev/null 2>&1; then
+		fastqc -t "$THREADS" -o "$FASTQC_ROOT/$SRR" \
+			"$TrimGalore_DIR"/${SRR}*val*.fq* 2>/dev/null || \
+			log_warn "FastQC failed for $SRR"
+	else
+		log_warn "FastQC not available. Skipping read quality assessment."
+	fi
+	
+	# MultiQC summary (if available)
+	if command -v multiqc >/dev/null 2>&1; then
+		multiqc "$FASTQC_ROOT" -o "$FASTQC_ROOT/summary" --force 2>/dev/null || \
+			log_warn "MultiQC failed. Individual FastQC reports still available."
+	fi
+}
+
+check_statistical_power() {
+	# Check if sample size is sufficient for robust differential expression analysis
+	local n_samples=${#rnaseq_list[@]}
+	log_info "=== STATISTICAL POWER ASSESSMENT ==="
+	log_info "Number of samples: $n_samples"
+	
+	if [[ $n_samples -lt 3 ]]; then
+		log_warn "⚠️  Sample size ($n_samples) may be insufficient for robust DE analysis"
+		log_warn "⚠️  Minimum 3 replicates per condition recommended for statistical power"
+	elif [[ $n_samples -lt 6 ]]; then
+		log_warn "ℹ️  Sample size ($n_samples) is adequate but consider more replicates for higher power"
+	else
+		log_info "✅ Sample size ($n_samples) is good for robust statistical analysis"
+	fi
+	log_info "===================================="
+}
+
+show_pipeline_configuration() {
+	# Display which pipelines are enabled for this run
+	log_info "=== PIPELINE CONFIGURATION ==="
+	log_info "Data Processing:"
+	log_info "  Download & Trim SRR: $([ "$RUN_DOWNLOAD_and_TRIM_SRR" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Quality Control: $([ "$RUN_QUALITY_CONTROL" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	
+	log_info "Analysis Methods:"
+	log_info "  Method 1 - HISAT2 Ref-Guided: $([ "$RUN_METHOD_1_HISAT2_REF_GUIDED" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Method 2 - HISAT2 De Novo: $([ "$RUN_METHOD_2_HISAT2_DE_NOVO" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Method 3 - Trinity De Novo: $([ "$RUN_METHOD_3_TRINITY_DE_NOVO" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Method 4 - Salmon SAF: $([ "$RUN_METHOD_4_SALMON_SAF" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	log_info "  Method 5 - Bowtie2 + RSEM: $([ "$RUN_METHOD_5_BOWTIE2_RSEM" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	
+	log_info "Validation & Comparison:"
+	log_info "  Method Comparison: $([ "$RUN_METHOD_COMPARISON" = "TRUE" ] && echo "✅ ENABLED" || echo "❌ DISABLED")"
+	
+	# Count enabled methods
+	local enabled_methods=0
+	[[ "$RUN_METHOD_1_HISAT2_REF_GUIDED" = "TRUE" ]] && ((enabled_methods++))
+	[[ "$RUN_METHOD_2_HISAT2_DE_NOVO" = "TRUE" ]] && ((enabled_methods++))
+	[[ "$RUN_METHOD_3_TRINITY_DE_NOVO" = "TRUE" ]] && ((enabled_methods++))
+	[[ "$RUN_METHOD_4_SALMON_SAF" = "TRUE" ]] && ((enabled_methods++))
+	[[ "$RUN_METHOD_5_BOWTIE2_RSEM" = "TRUE" ]] && ((enabled_methods++))
+	
+	log_info "Total Methods Enabled: $enabled_methods"
+	
+	if [[ $enabled_methods -eq 0 ]]; then
+		log_warn "⚠️  No analysis methods are enabled! Please enable at least one method."
+	elif [[ $enabled_methods -gt 1 && "$RUN_METHOD_COMPARISON" = "TRUE" ]]; then
+		log_info "✅ Multiple methods enabled with comparison - excellent for validation!"
+	fi
+	
+	log_info "============================="
+}
+
 # ==============================================================================
-# FUNCTIONS
+# PIPELINE FUNCTIONS
 # ==============================================================================
+
+# ------------------------------------------------------------------------------
+# DATA DOWNLOAD AND PREPROCESSING FUNCTIONS
+# ------------------------------------------------------------------------------
+
 download_and_trim_srrs() {
     # Download and trim RNA-seq data for each SRR sample
     local SRR_LIST=("$@")
@@ -504,6 +711,220 @@ download_and_trim_srrs_wget_parallel() {
     log_info "🎯 All parallel wget + trimming jobs complete."
 }
 
+# ------------------------------------------------------------------------------
+# MAIN PIPELINES FOR ALIGNMENT, ASSEMBLY, AND QUANTIFICATION
+# ------------------------------------------------------------------------------
+
+hisat2_ref_guided_pipeline() {
+	# HISAT2 Reference Guided Pipeline using reference GTF and genome
+	local fasta="" gtf="" rnaseq_list=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA)
+				fasta="$2"; shift 2;;
+			--GTF)
+				gtf="$2"; shift 2;;
+			--RNASEQ_LIST)
+				shift
+				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+					rnaseq_list+=("$1")
+					shift
+				done
+				;;
+			*)
+				log_error "Unknown option: $1"
+				return 1;;
+		esac
+	done
+	
+	if [[ -z "$fasta" ]]; then
+		log_error "No FASTA file specified. Use --FASTA <genome_fasta>."
+		return 1
+	fi
+	if [[ ! -f "$fasta" ]]; then
+		log_error "FASTA file '$fasta' not found."
+		return 1
+	fi
+	if [[ -z "$gtf" ]]; then
+		log_error "No GTF file specified. Use --GTF <annotation_gtf>."
+		return 1
+	fi
+	if [[ ! -f "$gtf" ]]; then
+		log_error "GTF file '$gtf' not found."
+		return 1
+	fi
+	if [[ ${#rnaseq_list[@]} -eq 0 ]]; then
+		rnaseq_list=("${SRR_COMBINED_LIST[@]}")
+	fi
+
+	local fasta_base fasta_tag index_prefix
+	fasta_base="$(basename "$fasta")"
+	fasta_tag="${fasta_base%.*}"
+	index_prefix="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_ref_guided"
+
+	# BUILD HISAT2 REFERENCE-GUIDED INDEX
+	mkdir -p "$HISAT2_REF_GUIDED_INDEX_DIR"
+	if ls "${index_prefix}".*.ht2 >/dev/null 2>&1; then
+		log_info "HISAT2 reference-guided index already exists for $fasta_base. Skipping build."
+	else
+		log_info "Building HISAT2 reference-guided index from $fasta with GTF $gtf..."
+		
+		# Extract splice sites and exons from GTF
+		local splice_sites="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_splice_sites.txt"
+		local exons="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_exons.txt"
+		
+		run_with_time_to_log hisat2_extract_splice_sites.py "$gtf" > "$splice_sites"
+		run_with_time_to_log hisat2_extract_exons.py "$gtf" > "$exons"
+		
+		# Build index with splice sites and exons
+		run_with_time_to_log hisat2-build \
+			-p "${THREADS}" \
+			--ss "$splice_sites" \
+			--exon "$exons" \
+			"$fasta" \
+			"$index_prefix"
+	fi
+
+	# ALIGNMENT, SORTING, AND STRINGTIE ASSEMBLY for each SRR
+	for SRR in "${rnaseq_list[@]}"; do
+		local HISAT2_DIR="$HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR"
+		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+		local trimmed1="" trimmed2=""
+		mkdir -p "$HISAT2_DIR"
+		
+		# Find trimmed FASTQ files
+		if [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq" ]]; then
+			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+		elif [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq.gz" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq.gz" ]]; then
+			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq.gz"
+			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq.gz"
+		elif compgen -G "$TrimGalore_DIR/${SRR}*val_1.*" >/dev/null 2>&1 && compgen -G "$TrimGalore_DIR/${SRR}*val_2.*" >/dev/null 2>&1; then
+			local files1=( "$TrimGalore_DIR"/${SRR}*val_1.* )
+			local files2=( "$TrimGalore_DIR"/${SRR}*val_2.* )
+			trimmed1="${files1[0]}"
+			trimmed2="${files2[0]}"
+		fi
+		
+		if [[ -z "$trimmed1" || -z "$trimmed2" ]]; then
+			log_warn "Trimmed FASTQ for $SRR not found in $TrimGalore_DIR; skipping."
+			continue
+		fi
+
+		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_ref_guided_mapped_sorted.bam"
+		local sam="$HISAT2_DIR/${SRR}_${fasta_tag}_ref_guided_mapped.sam"
+		
+		# Align and sort if BAM doesn't exist
+		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
+			log_info "BAM for $SRR and $fasta_tag (ref-guided) already exists. Skipping alignment."
+		else
+			log_info "Aligning $fasta_tag with $SRR using reference-guided approach..."
+			run_with_time_to_log \
+				hisat2 -p "${THREADS}" --dta \
+					$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
+					-x "$index_prefix" \
+					-1 "$trimmed1" \
+					-2 "$trimmed2" \
+					-S "$sam"
+			
+			log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR (ref-guided)..."
+			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			run_with_time_to_log samtools index -@ "${THREADS}" "$bam"
+			rm -f "$sam"
+			log_info "Done aligning $fasta_tag with $SRR (ref-guided)."
+		fi
+
+		# StringTie assembly with reference GTF
+		local out_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR"
+		local out_gtf="$out_dir/${SRR}_${fasta_tag}_ref_guided_stringtie_assembled.gtf"
+		local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_ref_guided_gene_abundances.tsv"
+		local ballgown_dir="$out_dir/ballgown"
+		mkdir -p "$out_dir" "$ballgown_dir"
+		
+		if [[ -f "$out_gtf" ]]; then
+			log_info "Reference-guided assembly exists for $fasta_tag/$SRR. Skipping."
+		else
+			log_info "Assembling transcripts for $fasta_tag with $SRR using reference GTF..."
+			run_with_time_to_log \
+				stringtie -p "$THREADS" "$bam" \
+					-G "$gtf" \
+					-o "$out_gtf" \
+					-A "$out_gene_abundances_tsv" \
+					-B \
+					-e \
+					-C "$out_dir/${SRR}_${fasta_tag}_ref_guided_cov_refs.gtf"
+		fi
+		
+		# Cleanup BAM files if specified
+		if [[ "$keep_bam_global" != "y" ]]; then
+			log_info "Deleting the BAM file for $SRR (ref-guided)."
+			rm -f "$bam" "${bam}.bai"
+		fi
+		
+		log_info "Done processing $fasta_tag with $SRR (ref-guided)."
+		log_info "--------------------------------------------------"
+	done
+	
+	# Create merged GTF for all samples
+	log_info "Creating merged GTF file for reference-guided assembly..."
+	local merge_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/merged"
+	local merged_gtf="$merge_dir/${fasta_tag}_ref_guided_merged.gtf"
+	local gtf_list="$merge_dir/gtf_list.txt"
+	mkdir -p "$merge_dir"
+	
+	# Create list of GTF files for merging
+	> "$gtf_list"
+	for SRR in "${rnaseq_list[@]}"; do
+		local out_gtf="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/${SRR}_${fasta_tag}_ref_guided_stringtie_assembled.gtf"
+		if [[ -f "$out_gtf" ]]; then
+			echo "$out_gtf" >> "$gtf_list"
+		fi
+	done
+	
+	if [[ -f "$merged_gtf" ]]; then
+		log_info "Merged GTF already exists for $fasta_tag (ref-guided). Skipping merge."
+	else
+		log_info "Merging GTF files for $fasta_tag (ref-guided)..."
+		run_with_time_to_log stringtie --merge \
+			-p "$THREADS" \
+			-G "$gtf" \
+			-o "$merged_gtf" \
+			"$gtf_list"
+	fi
+	
+	# Re-estimate abundances with merged GTF for better quantification
+	for SRR in "${rnaseq_list[@]}"; do
+		local HISAT2_DIR="$HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR"
+		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_ref_guided_mapped_sorted.bam"
+		local final_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/final"
+		local final_gtf="$final_dir/${SRR}_${fasta_tag}_ref_guided_final.gtf"
+		local final_abundances="$final_dir/${SRR}_${fasta_tag}_ref_guided_final_abundances.tsv"
+		
+		mkdir -p "$final_dir"
+		
+		# Skip if BAM was deleted and final quantification already exists
+		if [[ ! -f "$bam" && -f "$final_gtf" ]]; then
+			log_info "Final quantification already exists for $SRR (ref-guided). Skipping re-estimation."
+			continue
+		fi
+		
+		if [[ -f "$bam" ]]; then
+			log_info "Re-estimating abundances for $SRR with merged GTF (ref-guided)..."
+			run_with_time_to_log stringtie \
+				-p "$THREADS" \
+				-e -B \
+				-G "$merged_gtf" \
+				-A "$final_abundances" \
+				-o "$final_gtf" \
+				"$bam"
+		fi
+	done
+	
+	log_info "HISAT2 reference-guided pipeline completed for $fasta_tag."
+	log_info "Merged GTF: $merged_gtf"
+	log_info "Final quantifications in: $STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/*/final/"
+}
+
 hisat2_de_novo_index_align_sort_stringtie_pipeline() {
 	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 	local fasta="" rnaseq_list=()
@@ -586,6 +1007,7 @@ hisat2_de_novo_index_align_sort_stringtie_pipeline() {
 			log_info "Aligning $fasta_tag with $SRR..."
 			run_with_time_to_log \
 				hisat2 -p "${THREADS}" --dta \
+					$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
 					-x "$index_prefix" \
 					-1 "$trimmed1" \
 					-2 "$trimmed2" \
@@ -744,35 +1166,36 @@ trinity_de_novo_alignment_pipeline() {
 		fi
 
 		local bam="$HISAT2_DIR/${SRR}_${fasta_tag}_trinity_mapped_sorted.bam"
+		local abundance_dir="$HISAT2_DIR/trinity_abundance_${SRR}_${fasta_tag}"
 		
-		# Align reads directly to Trinity assembly using bowtie2 (Trinity's preferred aligner)
-		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
-			log_info "BAM for $SRR and Trinity assembly of $fasta_tag already exists. Skipping alignment."
+		# Use Trinity's native alignment and quantification workflow
+		if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
+			log_info "Trinity abundance estimation for $SRR and $fasta_tag already exists. Skipping."
 		else
-			log_info "Building bowtie2 index and aligning $SRR to Trinity assembly of $fasta_tag..."
+			log_info "Running Trinity align_and_estimate_abundance for $SRR to Trinity assembly of $fasta_tag..."
 			
-			# Build bowtie2 index for Trinity assembly
-			local trinity_index="$HISAT2_DIR/${fasta_tag}_trinity_index"
-			if [[ ! -f "${trinity_index}.1.bt2" ]]; then
-				run_with_time_to_log bowtie2-build "$trinity_fasta" "$trinity_index"
+			# Trinity's recommended workflow for quantification
+			mkdir -p "$abundance_dir"
+			run_with_time_to_log align_and_estimate_abundance.pl \
+				--transcripts "$trinity_fasta" \
+				--seqType fq \
+				--left "$trimmed1" \
+				--right "$trimmed2" \
+				--est_method RSEM \
+				--aln_method bowtie2 \
+				--trinity_mode \
+				--prep_reference \
+				--thread_count "$THREADS" \
+				--output_dir "$abundance_dir"
+			
+			# Create BAM file link for StringTie compatibility (if needed)
+			if [[ -f "$abundance_dir/bowtie2.bam" ]]; then
+				ln -sf "$abundance_dir/bowtie2.bam" "$bam"
+				ln -sf "$abundance_dir/bowtie2.bam.bai" "${bam}.bai" 2>/dev/null || samtools index "$bam"
 			fi
-			
-			# Align with bowtie2
-			local sam="$HISAT2_DIR/${SRR}_${fasta_tag}_trinity_mapped.sam"
-			run_with_time_to_log \
-				bowtie2 -p "${THREADS}" --local --no-unal \
-					-x "$trinity_index" \
-					-1 "$trimmed1" \
-					-2 "$trimmed2" \
-					-S "$sam"
-			
-			log_info "Converting SAM to sorted BAM for Trinity assembly of $fasta_tag with $SRR..."
-			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
-			run_with_time_to_log samtools index -@ "${THREADS}" "$bam"
-			rm -f "$sam"
 		fi
 
-		# StringTie quantification for DeSeq2 compatibility
+		# StringTie quantification for DeSeq2 compatibility (using Trinity abundance if BAM exists)
 		local out_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/$SRR"
 		local out_gtf="$out_dir/${SRR}_${fasta_tag}_trinity_stringtie_quantified.gtf"
 		local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
@@ -840,6 +1263,7 @@ trinity_de_novo_alignment_pipeline() {
 
 salmon_saf_pipeline() {
     # Quantify expression using decoy-aware Salmon (Selective Alignment)
+	# Fast and accurate 
     local fasta="" genome="" rnaseq_list=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -853,7 +1277,7 @@ salmon_saf_pipeline() {
     done
 
     [[ -z "$fasta" || -z "$genome" ]] && { log_error "Usage: --FASTA genes.fa --GENOME genome.fa"; return 1; }
-    [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
+    [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
 
     local tag="$(basename "${fasta%.*}")"
     local work="tmp_${tag}_gentrome"
@@ -898,17 +1322,28 @@ salmon_saf_pipeline() {
             -1 "$r1" -2 "$r2" \
             -p "$THREADS" \
             --validateMappings \
-            --seqBias --gcBias \
+            --seqBias --gcBias --posBias \
             --rangeFactorizationBins 4 \
             --numBootstraps 100 \
+            --numGibbsSamples 20 \
+            --thinningFactor 16 \
+            $([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--libType $([ "$RNA_STRAND_PROTOCOL" = "RF" ] && echo "ISR" || echo "ISF")") \
             -o "$out_dir"
     done
 
     # --- Merge matrices ---
     log_info "Generating gene and transcript matrices..."
+    
+    # Check if gene_trans_map exists, create if needed
+    local gene_trans_map="${fasta}.gene_trans_map"
+    if [[ ! -f "$gene_trans_map" ]]; then
+        log_info "Creating gene-transcript mapping file..."
+        grep "^>" "$fasta" | sed 's/^>//' | awk '{print $1 "\t" $1}' > "$gene_trans_map"
+    fi
+    
     run_with_time_to_log abundance_estimates_to_matrix.pl \
         --est_method salmon \
-        --gene_trans_map "$fasta".gene_trans_map \
+        --gene_trans_map "$gene_trans_map" \
         --out_prefix "$matrix_dir/genes" \
         --name_sample_by_basedir "$quant_root"/*/quant.sf
 
@@ -918,6 +1353,7 @@ salmon_saf_pipeline() {
 
 bowtie2_rsem_pipeline() {
     # Quantify expression using Bowtie2 + RSEM
+	# Reviewer Preferred Method
     local fasta="" rnaseq_list=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -930,7 +1366,7 @@ bowtie2_rsem_pipeline() {
     done
 
     [[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa"; return 1; }
-    [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
+    [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
 
     local tag="$(basename "${fasta%.*}")"
     local rsem_idx="$RSEM_INDEX_ROOT/${tag}_rsem"
@@ -971,9 +1407,17 @@ bowtie2_rsem_pipeline() {
 
     # --- Merge matrices ---
     log_info "Generating gene and transcript matrices..."
+    
+    # Check if gene_trans_map exists, create if needed
+    local gene_trans_map="${fasta}.gene_trans_map"
+    if [[ ! -f "$gene_trans_map" ]]; then
+        log_info "Creating gene-transcript mapping file..."
+        grep "^>" "$fasta" | sed 's/^>//' | awk '{print $1 "\t" $1}' > "$gene_trans_map"
+    fi
+    
     run_with_time_to_log abundance_estimates_to_matrix.pl \
         --est_method RSEM \
-        --gene_trans_map "$fasta".gene_trans_map \
+        --gene_trans_map "$gene_trans_map" \
         --out_prefix "$matrix_dir/genes" \
         --name_sample_by_basedir "$quant_root"/*/*.genes.results
 
@@ -981,10 +1425,32 @@ bowtie2_rsem_pipeline() {
     log_info "Outputs: $matrix_dir/"
 }
 
+# ------------------------------------------------------------------------------
+# METHOD COMPARISON AND VALIDATION FUNCTIONS
+# ------------------------------------------------------------------------------
+
+normalize_expression_data() {
+	# Apply normalization to expression matrices
+	local matrix_dir="$1"
+	local method="$2"
+	
+	if [[ -f "$matrix_dir/genes.counts.matrix" ]]; then
+		log_info "Applying TMM normalization for $method..."
+		if command -v normalize_matrix.pl >/dev/null 2>&1; then
+			run_with_time_to_log normalize_matrix.pl "$matrix_dir/genes.counts.matrix" \
+				--est_method "$method" \
+				--out_prefix "$matrix_dir/genes.TMM" || \
+				log_warn "TMM normalization failed for $method"
+		else
+			log_warn "normalize_matrix.pl not found. Skipping TMM normalization."
+		fi
+	fi
+}
 
 # ==============================================================================
-# RUN / ENTRYPOINT
+# MAIN EXECUTION FUNCTIONS
 # ==============================================================================
+
 run_all() {
 	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
 	# Steps: Logging, Download and  Trim, HISAT2 alignment to Stringtie, and Cleanup. 
@@ -1011,6 +1477,15 @@ run_all() {
 	start_time=$(date +%s)
 	setup_logging
 	log_step "Script started at: $(date -d @$start_time)"
+	
+	# Initialize reproducibility and log software versions
+	ensure_reproducibility
+	
+	# Check statistical power
+	check_statistical_power
+	
+	# Show pipeline configuration
+	show_pipeline_configuration
 
 	log_info "SRR samples to process:"
 	for SRR in "${rnaseq_list[@]}"; do
@@ -1023,11 +1498,55 @@ run_all() {
 		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
 		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
 		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
+		
+		if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
+			log_step "STEP 01b: Quality control analysis"
+			for SRR in "${rnaseq_list[@]}"; do
+				run_quality_control "$SRR"
+			done
+		fi
 	fi
 
-	if [[ $RUN_HISAT2_INDEX_ALIGN_SORT_STRINGTIE == "TRUE" ]]; then
-		log_step "STEP 02: Build HISAT2 index and align"
+	# Method 1: HISAT2 Reference-Guided Pipeline
+	if [[ $RUN_METHOD_1_HISAT2_REF_GUIDED == "TRUE" ]]; then
+		log_step "STEP 02a: HISAT2 Reference-Guided Pipeline"
+		# Note: Requires GTF file - add --GTF parameter when calling
+		log_warn "HISAT2 Reference-Guided pipeline requires GTF file parameter"
+		# hisat2_ref_guided_pipeline --FASTA "$fasta" --GTF "$gtf_file" --RNASEQ_LIST "${rnaseq_list[@]}"
+	fi
+
+	# Method 2: HISAT2 De Novo Pipeline (Main method)
+	if [[ $RUN_METHOD_2_HISAT2_DE_NOVO == "TRUE" ]]; then
+		log_step "STEP 02b: HISAT2 De Novo Pipeline"
 		hisat2_de_novo_index_align_sort_stringtie_pipeline \
+			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+	fi
+
+	# Method 3: Trinity De Novo Pipeline
+	if [[ $RUN_METHOD_3_TRINITY_DE_NOVO == "TRUE" ]]; then
+		log_step "STEP 03: Trinity De Novo Assembly and Quantification"
+		trinity_de_novo_alignment_pipeline \
+			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+	fi
+
+	# Method 4: Salmon SAF Quantification
+	if [[ $RUN_METHOD_4_SALMON_SAF == "TRUE" ]]; then
+		log_step "STEP 04: Salmon SAF Quantification"
+		# Note: Requires genome file for decoy-aware indexing
+		local genome_file="${fasta%.*}_genome.fa"  # Assumes genome file exists
+		if [[ -f "$genome_file" ]]; then
+			salmon_saf_pipeline \
+				--FASTA "$fasta" --GENOME "$genome_file" --RNASEQ_LIST "${rnaseq_list[@]}"
+		else
+			log_warn "Genome file '$genome_file' not found. Skipping Salmon SAF pipeline."
+			log_warn "Please provide genome file for decoy-aware Salmon quantification."
+		fi
+	fi
+
+	# Method 5: Bowtie2 + RSEM Quantification
+	if [[ $RUN_METHOD_5_BOWTIE2_RSEM == "TRUE" ]]; then
+		log_step "STEP 05: Bowtie2 + RSEM Quantification"
+		bowtie2_rsem_pipeline \
 			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 	fi
 
@@ -1039,16 +1558,26 @@ run_all() {
 	log_info "Elapsed time: $formatted_elapsed"
 }
 
-# Run the pipeline for each FASTA input and SRR list.
+# ==============================================================================
+# SCRIPT EXECUTION
+# ==============================================================================
+
+# Execute the pipeline for each FASTA input file
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
-	# Run the pipeline for each FASTA file and all SRR samples
+	# Run the complete pipeline for each FASTA file with all SRR samples
 	run_all \
 		--FASTA "$fasta_input" \
 		--RNASEQ_LIST "${SRR_COMBINED_LIST[@]}"
 done
 
-# Zip all the content of this folder: STRINGTIE_HISAT2_DE_NOVO_ROOT="03_stringtie/"
+# ==============================================================================
+# POST-PROCESSING OPTIONS (COMMENTED OUT)
+# ==============================================================================
 
-#tar -czvf 03_stringtie__$(date +%Y%m%d_%H%M%S).tar.gz 03_stringtie/  # Archive all StringTie results for sharing or backup
+# Optional: Archive StringTie results for sharing or backup
+# Uncomment the line below to create a compressed archive of the results
+#tar -czvf "stringtie_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
 
-#OFF
+# ==============================================================================
+# END OF SCRIPT
+# ==============================================================================
