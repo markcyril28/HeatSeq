@@ -11,6 +11,12 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
-mamba install -y -c conda-forge -c bioconda -c defaults python=3.11 \
-    sra-tools trim-galore hisat2 samtools stringtie \
-    trinity parallel wget curl
+#mamba install -y -c conda-forge -c bioconda -c defaults python=3.11 \
+#    sra-tools trim-galore hisat2 samtools stringtie \
+#    trinity parallel wget curl
+
+mamba install -c conda-forge -c bioconda \
+	aria2 parallel-fastq-dump sra-tools \
+	hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
+	fastqc multiqc \
+	parallel -y
