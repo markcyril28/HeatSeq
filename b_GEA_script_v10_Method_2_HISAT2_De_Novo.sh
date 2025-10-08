@@ -48,8 +48,8 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
                                        # unstranded = no strand specificity
 
 # Pipeline Control Switches
-RUN_MAMBA_INSTALLATION=FALSE
-RUN_DOWNLOAD_and_TRIM_SRR=TRUE          # Enable/disable SRR download and trimming
+RUN_MAMBA_INSTALLATION=TRUE
+RUN_DOWNLOAD_and_TRIM_SRR=FALSE          # Enable/disable SRR download and trimming
 
 # GEA Methods 
 RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    # Enable/disable HISAT2 reference-guided pipeline
@@ -327,11 +327,11 @@ show_pipeline_configuration() {
 # Prerequisites installation - install required bioinformatics tools
 mamba_install() {
 	# Install required bioinformatics tools and dependencies
-	log_info "Installing prerequisites via conda..."
-	
-	# Check if conda is available
-	if ! command -v conda >/dev/null 2>&1; then
-		log_error "Conda not found. Please install conda/miniconda first."
+	log_info "Installing prerequisites via mamba..."
+
+	# Check if mamba is available
+	if ! command -v mamba >/dev/null 2>&1; then
+		log_error "Mamba not found."
 		return 1
 	fi
 	
@@ -1660,7 +1660,7 @@ run_all() {
 	log_step "Script started at: $(date -d @$start_time)"
 	
 	# Initialize reproducibility and log software versions
-	ensure_reproducibility
+	#ensure_reproducibility
 	
 	# Show pipeline configuration
 	show_pipeline_configuration
