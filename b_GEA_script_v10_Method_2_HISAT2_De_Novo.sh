@@ -38,7 +38,7 @@ set -euo pipefail
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=8                               # Number of threads to use for parallel operations
+THREADS=16                               # Number of threads to use for parallel operations
 JOBS=7                                  # Number of parallel jobs for GNU Parallel 
 
 # RNA-seq Library Configuration
@@ -49,7 +49,7 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
-RUN_DOWNLOAD_and_TRIM_SRR=TRUE
+RUN_DOWNLOAD_and_TRIM_SRR=FALSE
 
 # GEA Methods 
 RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    
