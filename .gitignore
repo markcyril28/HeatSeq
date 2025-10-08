@@ -20,3 +20,4 @@ z_ARCHIVE/*
 
 logs/*
 4b_Method_2_HISAT2_De_Novo/Sample_SmelGIF_with_Best_Control_Cyclo_tpm_counts_geneName_Organ_zscore_normalized_heatmap.png
+4b_Method_2_HISAT2_De_Novo/logs/*
