@@ -145,9 +145,9 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"
+	"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
-	#"${SRR_LIST_SAMN28540068[@]}"
+	"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -336,7 +336,7 @@ mamba_install() {
 	fi
 	
 	# Install packages
-	run_with_time_to_log mamba install -c conda-forge -c bioconda \
+	mamba install -c conda-forge -c bioconda \
 		aria2 parallel-fastq-dump sra-tools \
 		hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
 		fastqc multiqc \
