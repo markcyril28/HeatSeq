@@ -38,17 +38,13 @@
 
 set -euo pipefail
 
-# Prerequisites (install if needed):
-#conda install -c conda-forge aria2 -y
-#conda install -c bioconda -c conda-forge parallel-fastq-dump -y
-
 # ============================================================================== 
 # CONFIGURATION AND RUNTIME SWITCHES
 # ============================================================================== 
 
 # Runtime Configuration
 THREADS=8                               # Number of threads to use for parallel operations
-JOBS=3                                  # Number of parallel jobs for GNU Parallel 
+JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # RNA-seq Library Configuration
 RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), "FR" (ligation), or "unstranded"
@@ -57,6 +53,7 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
                                        # unstranded = no strand specificity
 
 # Pipeline Control Switches
+RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE          # Enable/disable SRR download and trimming
 
 # GEA Methods 
@@ -67,9 +64,8 @@ RUN_METHOD_4_SALMON_SAF=FALSE           # Enable/disable Salmon SAF quantificati
 RUN_METHOD_5_BOWTIE2_RSEM=FALSE         # Enable/disable Bowtie2 + RSEM quantification pipeline
 
 # Quality Control and Analysis Options
-RUN_QUALITY_CONTROL=TRUE                # Enable/disable FastQC and MultiQC analysis
+RUN_QUALITY_CONTROL=FALSE                # Enable/disable FastQC and MultiQC analysis
 RUN_METHOD_COMPARISON=FALSE              # Enable/disable cross-method validation and comparison
-
 
 # ==============================================================================
 # INPUT FILES AND DATA SOURCES
@@ -113,11 +109,11 @@ SRR_LIST_PRJNA328564=(
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	SRR2072232	# mature_fruits #SRR20722226	# young_fruits
-	SRR20722234	# flowers #SRR20722228	# sepals
+	#SRR2072232	# mature_fruits #SRR20722226	# young_fruits
+	#SRR20722234	# flowers #SRR20722228	# sepals
 	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018
 	SRR20722230	# mature_leaves #SRR20722233	# leaf_buds
-	SRR20722227	# stems
+	#SRR20722227	# stems
 	SRR20722229	# roots
 )
 
@@ -154,9 +150,9 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	"${SRR_LIST_PRJNA328564[@]}"
+	#"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
-	"${SRR_LIST_SAMN28540068[@]}"
+	#"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -213,7 +209,7 @@ rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
 #rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
 
 # ==============================================================================
-# LOGGING SYSTEM
+# LOGGING SYSTEM, ENVIRONMENT, and PROGRAM
 # ==============================================================================
 
 # Logging Configuration
@@ -361,6 +357,31 @@ show_pipeline_configuration() {
 	fi
 	
 	log_info "============================="
+}
+
+# Prerequisites (install if needed):
+#conda install -c conda-forge aria2 -y
+#conda install -c bioconda -c conda-forge parallel-fastq-dump -y
+
+# Prerequisites installation - install required bioinformatics tools
+mamba_install() {
+	# Install required bioinformatics tools and dependencies
+	log_info "Installing prerequisites via conda..."
+	
+	# Check if conda is available
+	if ! command -v conda >/dev/null 2>&1; then
+		log_error "Conda not found. Please install conda/miniconda first."
+		return 1
+	fi
+	
+	# Install packages
+	run_with_time_to_log mamba install -c conda-forge -c bioconda \
+		aria2 parallel-fastq-dump sra-tools \
+		hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
+		fastqc multiqc \
+		parallel -y
+	
+	log_info "Prerequisites installation completed."
 }
 
 # ==============================================================================
@@ -1493,8 +1514,8 @@ run_all() {
 
 	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01: Download and trim RNA-seq data"
-		#download_and_trim_srrs "${rnaseq_list[@]}"
-		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
+		download_and_trim_srrs "${rnaseq_list[@]}"
+		#download_and_trim_srrs_parallel "${rnaseq_list[@]}"
 		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
 		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
 		
@@ -1560,6 +1581,11 @@ run_all() {
 # ==============================================================================
 # SCRIPT EXECUTION
 # ==============================================================================
+
+# Call the function if installation is enabled
+if [[ $RUN_MAMBA_INSTALLATION == "TRUE" ]]; then
+	mamba_install
+fi
 
 # Execute the pipeline for each FASTA input file
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
