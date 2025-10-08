@@ -24,8 +24,8 @@
 # 6. Cleanup Options and Testing
 # 7. Logging System and Utility Functions
 # 8. Pipeline Functions:
-#    - Data Download and Preprocessing Functions
-#    - Then, Several Pipeline Functions. 
+#    	- Data Download and Preprocessing Functions
+#		- Pipelines Functions	 
 # 9. Main Execution Functions
 # 10. Script Execution
 # 11. Post-processing Options
@@ -104,11 +104,11 @@ SRR_LIST_PRJNA328564=(
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	#SRR2072232	# mature_fruits #SRR20722226	# young_fruits
-	#SRR20722234	# flowers #SRR20722228	# sepals
+	SRR2072232	# mature_fruits #SRR20722226	# young_fruits
+	SRR20722234	# flowers #SRR20722228	# sepals
 	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018
 	SRR20722230	# mature_leaves #SRR20722233	# leaf_buds
-	#SRR20722227	# stems
+	SRR20722227	# stems
 	SRR20722229	# roots
 )
 
@@ -140,6 +140,8 @@ OTHER_SRR_LIST=(
 	 # Leaves
 	 # Stems
 	 # Radicles
+	
+	# Add other SRR IDs here if needed
 )
 
 SRR_COMBINED_LIST=(
@@ -334,12 +336,11 @@ mamba_install() {
 	fi
 	
 	# Install packages
-	run_with_time_to_log \
-		mamba install -c conda-forge -c bioconda \
-			aria2 parallel-fastq-dump sra-tools \
-			hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
-			fastqc multiqc \
-			parallel -y
+	run_with_time_to_log mamba install -c conda-forge -c bioconda \
+		aria2 parallel-fastq-dump sra-tools \
+		hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
+		fastqc multiqc \
+		parallel -y
 	
 	log_info "Prerequisites installation completed."
 }
@@ -420,26 +421,46 @@ download_and_trim_srrs() {
         # Trim reads using Trim Galore
         # --------------------------------------------------
         log_info "Trimming $SRR..."
-		if [[ -n "$raw2" && -f "$raw2" ]]; then
-			# Paired-end reads
-			run_with_time_to_log trim_galore --cores "${THREADS}" \
-			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
-		else
-			# Single-end reads
-			run_with_time_to_log trim_galore --cores "${THREADS}" \
-			"$raw1" --output_dir "$TrimGalore_DIR"
-		fi
+        run_with_time_to_log trim_galore --cores "${THREADS}" \
+            --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
 
         log_info "Done working on $SRR."
         log_info "--------------------------------------------------"
 
         # --------------------------------------------------
-        # Delete raw FASTQ files after successful trimming
+        # Verify trimming success and delete raw files if successful
         # --------------------------------------------------
+        # Check trimmed output files and their sizes
+        local trimming_success=false
+        local trimmed_files_exist=false
+        local trimmed_files_not_empty=false
+
+        # Check if trimmed files exist (either uncompressed or compressed)
         if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+            trimmed_files_exist=true
+            
+            # Check if files have content (not empty)
+            if { [[ -s "$trimmed1" && -s "$trimmed2" ]] || [[ -s "${trimmed1}.gz" && -s "${trimmed2}.gz" ]]; }; then
+                trimmed_files_not_empty=true
+            fi
+        fi
+
+        # Verify overall trimming success
+        if [[ "$trimmed_files_exist" == true && "$trimmed_files_not_empty" == true ]]; then
+            trimming_success=true
+            log_info "Trimming successfully completed for $SRR"
+            
+            # Delete raw files only if trimming was successful
             log_info "Deleting raw FASTQ files for $SRR after successful trimming..."
             rm -f "$raw1" "$raw2"
-            log_info "Raw files deleted for $SRR."
+            log_info "Raw files deleted for $SRR"
+        else
+            log_warn "Trimming may have failed for $SRR - keeping raw files for potential reprocessing"
+            if [[ "$trimmed_files_exist" == false ]]; then
+                log_warn "Trimmed output files not found"
+            elif [[ "$trimmed_files_not_empty" == false ]]; then
+                log_warn "Trimmed output files are empty"
+            fi
         fi
     done
 }
@@ -504,20 +525,40 @@ download_and_trim_srrs_parallel() {
 
         # Trim reads
         log_info "Trimming $SRR..."
-		if [[ -n "$raw2" && -f "$raw2" ]]; then
-			# Paired-end reads
-			run_with_time_to_log trim_galore --cores "${THREADS}" \
-			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
-		else
-			# Single-end reads
-			run_with_time_to_log trim_galore --cores "${THREADS}" \
-			"$raw1" --output_dir "$TrimGalore_DIR"
-		fi
+        run_with_time_to_log trim_galore --cores "${THREADS}" \
+            --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
 
-        # Clean up raw files
+        # --------------------------------------------------
+        # Verify trimming success and cleanup
+        # --------------------------------------------------
+        local trimming_success=false
+        local trimmed_files_exist=false
+        local trimmed_files_not_empty=false
+
+        # Check existence and content of trimmed files
         if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            log_info "Trimming successful; removing raw FASTQs for $SRR..."
+            trimmed_files_exist=true
+            
+            # Verify file sizes
+            if { [[ -s "$trimmed1" && -s "$trimmed2" ]] || [[ -s "${trimmed1}.gz" && -s "${trimmed2}.gz" ]]; }; then
+                trimmed_files_not_empty=true
+            fi
+        fi
+
+        # Process based on verification results
+        if [[ "$trimmed_files_exist" == true && "$trimmed_files_not_empty" == true ]]; then
+            trimming_success=true
+            log_info "Trimming successfully completed for $SRR"
+            log_info "Cleaning up raw FASTQs for $SRR..."
             rm -f "$raw1" "$raw2"
+            log_info "Raw files deleted"
+        else
+            log_warn "Trimming verification failed for $SRR - keeping raw files"
+            if [[ "$trimmed_files_exist" == false ]]; then
+                log_warn "Trimmed files missing"
+            elif [[ "$trimmed_files_not_empty" == false ]]; then
+                log_warn "Trimmed files are empty"
+            fi
         fi
 
         log_info "Done with $SRR."
@@ -592,28 +633,49 @@ download_and_trim_srrs_parallel_fastqdump() {
         # ---------------------------------------------------------
         # Trim reads with Trim Galore
         # ---------------------------------------------------------
-		log_info "Trimming $SRR..."
-		if [[ -n "$raw_files_DIR/${SRR}_2.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
-			# Paired-end reads
-			run_with_time_to_log trim_galore --cores "${THREADS}" \
-			--paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
-			--output_dir "$TrimGalore_DIR"
-		else
-			# Single-end reads
-			run_with_time_to_log trim_galore --cores "${THREADS}" \
-			"$raw_files_DIR/${SRR}_1.fastq.gz" \
-			--output_dir "$TrimGalore_DIR"
-		fi
+        log_info "Trimming $SRR..."
+        run_with_time_to_log trim_galore --cores "${THREADS}" \
+            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
+            --output_dir "$TrimGalore_DIR"
 
-		log_info "Done working on $SRR."
-		log_info "--------------------------------------------------"
+        log_info "Done working on $SRR."
+        log_info "--------------------------------------------------"
 
         # ---------------------------------------------------------
-        # Cleanup raw files if trimming successful
+        # Verify trimming success and cleanup raw files
         # ---------------------------------------------------------
+        local trimming_success=false
+        local trimmed_files_exist=false
+        local trimmed_files_not_empty=false
+        local trimmed_files_complete=false
+
+        # Check for existence of trimmed files
         if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            log_info "Trimming successful. Deleting raw FASTQs for $SRR..."
+            trimmed_files_exist=true
+            
+            # Verify file sizes are non-zero
+            if { [[ -s "$trimmed1" && -s "$trimmed2" ]] || [[ -s "${trimmed1}.gz" && -s "${trimmed2}.gz" ]]; }; then
+                trimmed_files_not_empty=true
+            fi
+
+            # Additional check for complete files (no .part files left)
+            if ! compgen -G "${TrimGalore_DIR}/${SRR}*.part" > /dev/null; then
+                trimmed_files_complete=true
+            fi
+        fi
+
+        # Final verification and cleanup
+        if [[ "$trimmed_files_exist" == true && "$trimmed_files_not_empty" == true && "$trimmed_files_complete" == true ]]; then
+            trimming_success=true
+            log_info "Trimming successfully verified for $SRR"
+            log_info "Cleaning up raw FASTQs..."
             rm -f "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz"
+            log_info "Raw files deleted"
+        else
+            log_warn "Trimming verification failed for $SRR - keeping raw files"
+            [[ "$trimmed_files_exist" == false ]] && log_warn "Trimmed files missing"
+            [[ "$trimmed_files_not_empty" == false ]] && log_warn "Trimmed files are empty"
+            [[ "$trimmed_files_complete" == false ]] && log_warn "Trimming process may be incomplete (.part files found)"
         fi
     }
 
@@ -686,18 +748,10 @@ download_and_trim_srrs_wget_parallel() {
         # ----------------------------------------
         # Trim Galore (low RAM, single-thread)
         # ----------------------------------------
-		log_info "TRIMMING: Adapters for $SRR..."
-		if [[ -n "$raw_files_DIR/${SRR}_2.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
-			# Paired-end reads
-			run_with_time_to_log trim_galore --cores 1 \
-			--paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
-			--output_dir "$TrimGalore_DIR"
-		else
-			# Single-end reads
-			run_with_time_to_log trim_galore --cores 1 \
-			"$raw_files_DIR/${SRR}_1.fastq.gz" \
-			--output_dir "$TrimGalore_DIR"
-		fi
+        log_info "TRIMMING: Adapters for $SRR..."
+        run_with_time_to_log trim_galore --cores 1 \
+            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
+            --output_dir "$TrimGalore_DIR"
 
         # ----------------------------------------
         # Cleanup if trimming successful
@@ -947,7 +1001,7 @@ hisat2_ref_guided_pipeline() {
 	log_info "Final quantifications in: $STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/*/final/"
 }
 
-hisat2_de_novo_pipeline() {
+hisat2_de_novo_index_align_sort_stringtie_pipeline() {
 	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -1205,7 +1259,6 @@ trinity_de_novo_alignment_pipeline() {
 				--output "$trinity_out_dir" \
 				--normalize_reads \
 				--full_cleanup
-		fi
 		fi
 	fi
 
@@ -1643,7 +1696,7 @@ run_all() {
 	# Method 2: HISAT2 De Novo Pipeline (Main method)
 	if [[ $RUN_METHOD_2_HISAT2_DE_NOVO == "TRUE" ]]; then
 		log_step "STEP 02b: HISAT2 De Novo Pipeline"
-		hisat2_de_novo_pipeline \
+		hisat2_de_novo_index_align_sort_stringtie_pipeline \
 			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 	fi
 
