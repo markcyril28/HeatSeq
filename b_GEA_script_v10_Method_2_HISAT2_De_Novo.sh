@@ -1680,7 +1680,7 @@ run_all() {
 	#ensure_reproducibility
 	
 	# Show pipeline configuration
-	show_pipeline_configuration
+	#show_pipeline_configuration
 
 	log_info "SRR samples to process:"
 	for SRR in "${rnaseq_list[@]}"; do
