@@ -39,7 +39,7 @@ set -euo pipefail
 
 # Runtime Configuration
 THREADS=8                               # Number of threads to use for parallel operations
-JOBS=4                                  # Number of parallel jobs for GNU Parallel 
+JOBS=5                                  # Number of parallel jobs for GNU Parallel 
 
 # RNA-seq Library Configuration
 RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), "FR" (ligation), or "unstranded"
