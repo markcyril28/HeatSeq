@@ -49,18 +49,18 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
-RUN_DOWNLOAD_and_TRIM_SRR=TRUE          # Enable/disable SRR download and trimming
+RUN_DOWNLOAD_and_TRIM_SRR=TRUE
 
 # GEA Methods 
-RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    # Enable/disable HISAT2 reference-guided pipeline
-RUN_METHOD_2_HISAT2_DE_NOVO=FALSE       # Enable/disable HISAT2 de novo pipeline
-RUN_METHOD_3_TRINITY_DE_NOVO=FALSE      # Enable/disable Trinity de novo pipeline
-RUN_METHOD_4_SALMON_SAF=FALSE           # Enable/disable Salmon SAF quantification pipeline
-RUN_METHOD_5_BOWTIE2_RSEM=FALSE         # Enable/disable Bowtie2 + RSEM quantification pipeline
+RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    
+RUN_METHOD_2_HISAT2_DE_NOVO=TRUE       	
+RUN_METHOD_3_TRINITY_DE_NOVO=FALSE      
+RUN_METHOD_4_SALMON_SAF=FALSE           
+RUN_METHOD_5_BOWTIE2_RSEM=FALSE          
 
 # Quality Control and Analysis Options
-RUN_QUALITY_CONTROL=FALSE                # Enable/disable FastQC and MultiQC analysis
-RUN_METHOD_COMPARISON=FALSE              # Enable/disable cross-method validation and comparison
+RUN_QUALITY_CONTROL=FALSE
+RUN_METHOD_COMPARISON=FALSE
 
 # ==============================================================================
 # INPUT FILES AND DATA SOURCES
@@ -147,7 +147,7 @@ OTHER_SRR_LIST=(
 SRR_COMBINED_LIST=(
 	"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
-	#"${SRR_LIST_SAMN28540068[@]}"
+	"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -1001,7 +1001,7 @@ hisat2_ref_guided_pipeline() {
 	log_info "Final quantifications in: $STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/*/final/"
 }
 
-hisat2_de_novo_index_align_sort_stringtie_pipeline() {
+hisat2_de_novo_pipeline() {
 	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -1713,7 +1713,7 @@ run_all() {
 	# Method 2: HISAT2 De Novo Pipeline (Main method)
 	if [[ $RUN_METHOD_2_HISAT2_DE_NOVO == "TRUE" ]]; then
 		log_step "STEP 02b: HISAT2 De Novo Pipeline"
-		hisat2_de_novo_index_align_sort_stringtie_pipeline \
+		hisat2_de_novo_pipeline \
 			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 	fi
 
