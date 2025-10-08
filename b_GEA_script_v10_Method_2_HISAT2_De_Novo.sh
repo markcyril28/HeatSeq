@@ -117,7 +117,7 @@ SRR_LIST_SAMN28540068=(
 	SRR20722387 # mature_fruits
 	SRR23909863 # Fully Develop (FD) Flower ID: PRJNA941250
 	SRR20722297 # flower_buds #SRR20722385 # sepals
-	SRR20722296 # leaf_buds SRR20722386 # mature_leaves #SRR20722383 # young_leaves
+	SRR20722296 # leaf_buds #SRR20722386 # mature_leaves #SRR20722383 # young_leaves
 	SRR20722384 # stems
 	SRR31755282 # Roots (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP552204&o=acc_s%3Aa)
 )
