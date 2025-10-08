@@ -53,11 +53,11 @@ RUN_DOWNLOAD_and_TRIM_SRR=FALSE
 RUN_GZIP_TRIMMED_FILES=TRUE
 
 # GEA Methods 
-RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    
-RUN_METHOD_2_HISAT2_DE_NOVO=FALSE       	
-RUN_METHOD_3_TRINITY_DE_NOVO=FALSE      
-RUN_METHOD_4_SALMON_SAF=FALSE           
-RUN_METHOD_5_BOWTIE2_RSEM=FALSE          
+RUN_METHOD_2_HISAT2_DE_NOVO=FALSE	
+RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE
+RUN_METHOD_3_TRINITY_DE_NOVO=FALSE
+RUN_METHOD_4_SALMON_SAF=FALSE
+RUN_METHOD_5_BOWTIE2_RSEM=FALSE
 
 # Quality Control and Analysis Options
 RUN_QUALITY_CONTROL=FALSE
@@ -147,8 +147,8 @@ OTHER_SRR_LIST=(
 
 SRR_COMBINED_LIST=(
 	"${SRR_LIST_PRJNA328564[@]}"
-	#"${SRR_LIST_SAMN28540077[@]}"
-	#"${SRR_LIST_SAMN28540068[@]}"
+	"${SRR_LIST_SAMN28540077[@]}"
+	"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -353,6 +353,12 @@ mamba_install() {
 # ------------------------------------------------------------------------------
 # DATA DOWNLOAD AND PREPROCESSING FUNCTIONS
 # ------------------------------------------------------------------------------
+gzip_trimmed_fastq_files() {
+	# Compress all trimmed FASTQ files in the trimming directory
+	log_info "Compressing all trimmed FASTQ files in $TRIM_DIR_ROOT..."
+	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -exec gzip {} \;
+	log_info "Compression of trimmed FASTQ files completed."
+}
 
 download_and_trim_srrs() {
     # Download and trim RNA-seq data for each SRR sample
@@ -469,124 +475,139 @@ download_and_trim_srrs() {
             fi
         fi
     done
+	gzip_trimmed_fastq_files
+	log_info "All SRR samples processed."
 }
 
-gzip_trimmed_fastq_files() {
-	# Compress all trimmed FASTQ files in the trimming directory
-	log_info "Compressing all trimmed FASTQ files in $TRIM_DIR_ROOT..."
-	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -exec gzip {} \;
-	log_info "Compression of trimmed FASTQ files completed."
-}
 
 download_and_trim_srrs_parallel() {
-    # ============================================
-    # Parallel Download and Trimming of SRR Samples
-    # ============================================
+	# ============================================
+	# Parallel Download and Trimming of SRR Samples
+	# ============================================
 
-    local SRR_LIST=("$@")
-    if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
-        SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
-    fi
+	local SRR_LIST=("$@")
+	if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
+		SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
+	fi
 
-    export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
-    export -f timestamp log log_info log_warn log_error run_with_time_to_log
+	export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
+	export -f timestamp log log_info log_warn log_error run_with_time_to_log
 
-    # Define per-SRR worker function
-    _process_single_srr() {
-        local SRR="$1"
-        local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
-        local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
-        local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
-        local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
-        local raw1 raw2
+	# Define per-SRR worker function
+	_process_single_srr() {
+		local SRR="$1"
+		local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
+		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+		local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+		local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+		local raw1 raw2
 
-        log_info "Working on $SRR..."
-        mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
+		log_info "Working on $SRR..."
+		mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
 
-        # Skip if trimming already done
-        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            log_info "Trimmed files for $SRR already exist. Skipping."
-            log_info "--------------------------------------------------"
-            return 0
-        fi
+		# Skip if trimming already done
+		if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+			log_info "Trimmed files for $SRR already exist. Skipping."
+			log_info "--------------------------------------------------"
+			return 0
+		fi
 
-        # Check for existing raw FASTQs
-        if [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
-            raw1="$raw_files_DIR/${SRR}_1.fastq"
-            raw2="$raw_files_DIR/${SRR}_2.fastq"
-            log_info "Raw FASTQ files for $SRR already exist. Skipping download."
-        elif [[ -f "$raw_files_DIR/${SRR}_1.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
-            raw1="$raw_files_DIR/${SRR}_1.fastq.gz"
-            raw2="$raw_files_DIR/${SRR}_2.fastq.gz"
-            log_info "Compressed FASTQ files for $SRR already exist. Skipping download."
-        else
-            # Download
-            log_info "Downloading $SRR..."
-            prefetch "$SRR" --output-directory "$raw_files_DIR" || {
-                log_warn "Prefetch failed for $SRR"; return 1;
-            }
+		# Check for existing raw FASTQs
+		if [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
+			raw1="$raw_files_DIR/${SRR}_1.fastq"
+			raw2="$raw_files_DIR/${SRR}_2.fastq"
+			log_info "Raw FASTQ files for $SRR already exist. Skipping download."
+		elif [[ -f "$raw_files_DIR/${SRR}_1.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+			raw1="$raw_files_DIR/${SRR}_1.fastq.gz"
+			raw2="$raw_files_DIR/${SRR}_2.fastq.gz"
+			log_info "Compressed FASTQ files for $SRR already exist. Skipping download."
+		else
+			# Download
+			log_info "Downloading $SRR..."
+			prefetch "$SRR" --output-directory "$raw_files_DIR" || {
+				log_warn "Prefetch failed for $SRR"; return 1;
+			}
 
-            # Convert SRA → FASTQ
-            fasterq-dump --split-files --threads "${THREADS}" \
-                "$raw_files_DIR/$SRR/$SRR.sra" -O "$raw_files_DIR" || {
-                log_warn "fasterq-dump failed for $SRR"; return 1;
-            }
+			# Convert SRA → FASTQ
+			fasterq-dump --split-files --threads "${THREADS}" \
+				"$raw_files_DIR/$SRR/$SRR.sra" -O "$raw_files_DIR" || {
+				log_warn "fasterq-dump failed for $SRR"; return 1;
+			}
 
-            raw1="$raw_files_DIR/${SRR}_1.fastq"
-            raw2="$raw_files_DIR/${SRR}_2.fastq"
-        fi
+			# Compress FASTQ files to save space
+			if [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
+				log_info "Compressing FASTQ files for $SRR..."
+				gzip "$raw_files_DIR/${SRR}_1.fastq" "$raw_files_DIR/${SRR}_2.fastq"
+			fi
 
-        # Trim reads
-        log_info "Trimming $SRR..."
-        run_with_time_to_log trim_galore --cores "${THREADS}" \
-            --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+			# Set raw file paths after download and compression
+			if [[ -f "$raw_files_DIR/${SRR}_1.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+				raw1="$raw_files_DIR/${SRR}_1.fastq.gz"
+				raw2="$raw_files_DIR/${SRR}_2.fastq.gz"
+			elif [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
+				raw1="$raw_files_DIR/${SRR}_1.fastq"
+				raw2="$raw_files_DIR/${SRR}_2.fastq"
+			else
+				log_warn "Raw FASTQ for $SRR not found after download; skipping."
+				log_info "--------------------------------------------------"
+				return 1
+			fi
+		fi
 
-        # --------------------------------------------------
-        # Verify trimming success and cleanup
-        # --------------------------------------------------
-        local trimming_success=false
-        local trimmed_files_exist=false
-        local trimmed_files_not_empty=false
+		# Trim reads
+		log_info "Trimming $SRR..."
+		run_with_time_to_log trim_galore --cores "${THREADS}" \
+			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
 
-        # Check existence and content of trimmed files
-        if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-            trimmed_files_exist=true
-            
-            # Verify file sizes
-            if { [[ -s "$trimmed1" && -s "$trimmed2" ]] || [[ -s "${trimmed1}.gz" && -s "${trimmed2}.gz" ]]; }; then
-                trimmed_files_not_empty=true
-            fi
-        fi
+		# --------------------------------------------------
+		# Verify trimming success and cleanup
+		# --------------------------------------------------
+		local trimming_success=false
+		local trimmed_files_exist=false
+		local trimmed_files_not_empty=false
 
-        # Process based on verification results
-        if [[ "$trimmed_files_exist" == true && "$trimmed_files_not_empty" == true ]]; then
-            trimming_success=true
-            log_info "Trimming successfully completed for $SRR"
-            log_info "Cleaning up raw FASTQs for $SRR..."
-            rm -f "$raw1" "$raw2"
-            log_info "Raw files deleted"
-        else
-            log_warn "Trimming verification failed for $SRR - keeping raw files"
-            if [[ "$trimmed_files_exist" == false ]]; then
-                log_warn "Trimmed files missing"
-            elif [[ "$trimmed_files_not_empty" == false ]]; then
-                log_warn "Trimmed files are empty"
-            fi
-        fi
+		# Check existence and content of trimmed files
+		if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+			trimmed_files_exist=true
+			
+			# Verify file sizes
+			if { [[ -s "$trimmed1" && -s "$trimmed2" ]] || [[ -s "${trimmed1}.gz" && -s "${trimmed2}.gz" ]]; }; then
+				trimmed_files_not_empty=true
+			fi
+		fi
 
-        log_info "Done with $SRR."
-        log_info "--------------------------------------------------"
-    }
+		# Process based on verification results
+		if [[ "$trimmed_files_exist" == true && "$trimmed_files_not_empty" == true ]]; then
+			trimming_success=true
+			log_info "Trimming successfully completed for $SRR"
+			log_info "Cleaning up raw FASTQs for $SRR..."
+			rm -f "$raw1" "$raw2"
+			log_info "Raw files deleted"
+		else
+			log_warn "Trimming verification failed for $SRR - keeping raw files"
+			if [[ "$trimmed_files_exist" == false ]]; then
+				log_warn "Trimmed files missing"
+			elif [[ "$trimmed_files_not_empty" == false ]]; then
+				log_warn "Trimmed files are empty"
+			fi
+		fi
 
-    export -f _process_single_srr
+		log_info "Done with $SRR."
+		log_info "--------------------------------------------------"
+	}
 
-    # ============================================
-    # Run jobs in parallel
-    # ============================================
-    log_info "Starting parallel download and trimming..."
-    printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr {}
-    log_info "All parallel SRR jobs completed."
+	export -f _process_single_srr
+
+	# ============================================
+	# Run jobs in parallel
+	# ============================================
+	log_info "Starting parallel download and trimming..."
+	printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr {}
+	log_info "All parallel SRR jobs completed."
+
+	gzip_trimmed_fastq_files
 }
+
 
 download_and_trim_srrs_parallel_fastqdump() {
     # =========================================================
@@ -1689,9 +1710,6 @@ run_all() {
 	start_time=$(date +%s)
 	setup_logging
 	log_step "Script started at: $(date -d @$start_time)"
-	
-	# Initialize reproducibility and log software versions
-	#ensure_reproducibility
 	
 	# Show pipeline configuration
 	#show_pipeline_configuration
