@@ -25,12 +25,7 @@
 # 7. Logging System and Utility Functions
 # 8. Pipeline Functions:
 #    - Data Download and Preprocessing Functions
-#    - HISAT2 Reference-Guided Pipeline Functions
-#    - HISAT2 De Novo Pipeline Functions  
-#    - Trinity De Novo Pipeline Functions
-#    - Salmon Quantification Pipeline Functions
-#    - Bowtie2 + RSEM Quantification Pipeline Functions
-#    - Method Comparison and Validation Functions
+#    - Then, Several Pipeline Functions. 
 # 9. Main Execution Functions
 # 10. Script Execution
 # 11. Post-processing Options
@@ -145,8 +140,6 @@ OTHER_SRR_LIST=(
 	 # Leaves
 	 # Stems
 	 # Radicles
-	
-	# Add other SRR IDs here if needed
 )
 
 SRR_COMBINED_LIST=(
@@ -164,7 +157,7 @@ RAW_DIR_ROOT="1_RAW_SRR"                # Raw SRR download directory
 TRIM_DIR_ROOT="2_TRIMMED_SRR"           # Trimmed reads directory
 FASTQC_ROOT="3_FastQC"                  # FastQC quality control reports
 
-# Method 1: HISAT2 Reference Guided (not used in this script)
+# Method 1: HISAT2 Reference Guided 
 HISAT2_REF_GUIDED_ROOT="4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD"
 HISAT2_REF_GUIDED_INDEX_DIR="4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD/index"
 STRINGTIE_HISAT2_REF_GUIDED_ROOT="4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD/a_Method_1_RAW_RESULTs"
@@ -256,24 +249,6 @@ run_with_time_to_log() {
 	/usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
 }
 
-# Quality control and reproducibility functions
-ensure_reproducibility() {
-	# Set random seeds for reproducible results
-	export PYTHONHASHSEED=42
-	export R_SEED=42
-	
-	# Log software versions for reproducibility
-	log_info "=== SOFTWARE VERSIONS ==="
-	log_info "HISAT2 version: $(hisat2 --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "StringTie version: $(stringtie --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "Salmon version: $(salmon --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "RSEM version: $(rsem-calculate-expression --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "Trinity version: $(Trinity --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "Samtools version: $(samtools --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "Bowtie2 version: $(bowtie2 --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "Trim Galore version: $(trim_galore --version 2>&1 | head -n1 || echo 'Not available')"
-	log_info "=========================="
-}
 
 run_quality_control() {
 	# Run quality control analysis on trimmed reads
@@ -306,22 +281,6 @@ run_quality_control() {
 	fi
 }
 
-check_statistical_power() {
-	# Check if sample size is sufficient for robust differential expression analysis
-	local n_samples=${#rnaseq_list[@]}
-	log_info "=== STATISTICAL POWER ASSESSMENT ==="
-	log_info "Number of samples: $n_samples"
-	
-	if [[ $n_samples -lt 3 ]]; then
-		log_warn "WARNING: Sample size ($n_samples) may be insufficient for robust DE analysis"
-		log_warn "WARNING: Minimum 3 replicates per condition recommended for statistical power"
-	elif [[ $n_samples -lt 6 ]]; then
-		log_warn "INFO: Sample size ($n_samples) is adequate but consider more replicates for higher power"
-	else
-		log_info "GOOD: Sample size ($n_samples) is good for robust statistical analysis"
-	fi
-	log_info "===================================="
-}
 
 show_pipeline_configuration() {
 	# Display which pipelines are enabled for this run
@@ -375,11 +334,12 @@ mamba_install() {
 	fi
 	
 	# Install packages
-	run_with_time_to_log mamba install -c conda-forge -c bioconda \
-		aria2 parallel-fastq-dump sra-tools \
-		hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
-		fastqc multiqc \
-		parallel -y
+	run_with_time_to_log \
+		mamba install -c conda-forge -c bioconda \
+			aria2 parallel-fastq-dump sra-tools \
+			hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
+			fastqc multiqc \
+			parallel -y
 	
 	log_info "Prerequisites installation completed."
 }
@@ -460,8 +420,15 @@ download_and_trim_srrs() {
         # Trim reads using Trim Galore
         # --------------------------------------------------
         log_info "Trimming $SRR..."
-        run_with_time_to_log trim_galore --cores "${THREADS}" \
-            --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+		if [[ -n "$raw2" && -f "$raw2" ]]; then
+			# Paired-end reads
+			run_with_time_to_log trim_galore --cores "${THREADS}" \
+			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+		else
+			# Single-end reads
+			run_with_time_to_log trim_galore --cores "${THREADS}" \
+			"$raw1" --output_dir "$TrimGalore_DIR"
+		fi
 
         log_info "Done working on $SRR."
         log_info "--------------------------------------------------"
@@ -537,8 +504,15 @@ download_and_trim_srrs_parallel() {
 
         # Trim reads
         log_info "Trimming $SRR..."
-        run_with_time_to_log trim_galore --cores "${THREADS}" \
-            --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+		if [[ -n "$raw2" && -f "$raw2" ]]; then
+			# Paired-end reads
+			run_with_time_to_log trim_galore --cores "${THREADS}" \
+			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+		else
+			# Single-end reads
+			run_with_time_to_log trim_galore --cores "${THREADS}" \
+			"$raw1" --output_dir "$TrimGalore_DIR"
+		fi
 
         # Clean up raw files
         if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
@@ -618,13 +592,21 @@ download_and_trim_srrs_parallel_fastqdump() {
         # ---------------------------------------------------------
         # Trim reads with Trim Galore
         # ---------------------------------------------------------
-        log_info "Trimming $SRR..."
-        run_with_time_to_log trim_galore --cores "${THREADS}" \
-            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
-            --output_dir "$TrimGalore_DIR"
+		log_info "Trimming $SRR..."
+		if [[ -n "$raw_files_DIR/${SRR}_2.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+			# Paired-end reads
+			run_with_time_to_log trim_galore --cores "${THREADS}" \
+			--paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
+			--output_dir "$TrimGalore_DIR"
+		else
+			# Single-end reads
+			run_with_time_to_log trim_galore --cores "${THREADS}" \
+			"$raw_files_DIR/${SRR}_1.fastq.gz" \
+			--output_dir "$TrimGalore_DIR"
+		fi
 
-        log_info "Done working on $SRR."
-        log_info "--------------------------------------------------"
+		log_info "Done working on $SRR."
+		log_info "--------------------------------------------------"
 
         # ---------------------------------------------------------
         # Cleanup raw files if trimming successful
@@ -704,10 +686,18 @@ download_and_trim_srrs_wget_parallel() {
         # ----------------------------------------
         # Trim Galore (low RAM, single-thread)
         # ----------------------------------------
-        log_info "TRIMMING: Adapters for $SRR..."
-        run_with_time_to_log trim_galore --cores 1 \
-            --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
-            --output_dir "$TrimGalore_DIR"
+		log_info "TRIMMING: Adapters for $SRR..."
+		if [[ -n "$raw_files_DIR/${SRR}_2.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+			# Paired-end reads
+			run_with_time_to_log trim_galore --cores 1 \
+			--paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
+			--output_dir "$TrimGalore_DIR"
+		else
+			# Single-end reads
+			run_with_time_to_log trim_galore --cores 1 \
+			"$raw_files_DIR/${SRR}_1.fastq.gz" \
+			--output_dir "$TrimGalore_DIR"
+		fi
 
         # ----------------------------------------
         # Cleanup if trimming successful
@@ -839,13 +829,25 @@ hisat2_ref_guided_pipeline() {
 			log_info "BAM for $SRR and $fasta_tag (ref-guided) already exists. Skipping alignment."
 		else
 			log_info "Aligning $fasta_tag with $SRR using reference-guided approach..."
-			run_with_time_to_log \
-				hisat2 -p "${THREADS}" --dta \
-					$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
-					-x "$index_prefix" \
-					-1 "$trimmed1" \
-					-2 "$trimmed2" \
-					-S "$sam"
+			# Check if paired-end or single-end reads
+			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
+				# Paired-end alignment
+				run_with_time_to_log \
+					hisat2 -p "${THREADS}" --dta \
+						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
+						-x "$index_prefix" \
+						-1 "$trimmed1" \
+						-2 "$trimmed2" \
+						-S "$sam"
+			else
+				# Single-end alignment
+				run_with_time_to_log \
+					hisat2 -p "${THREADS}" --dta \
+						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
+						-x "$index_prefix" \
+						-U "$trimmed1" \
+						-S "$sam"
+			fi
 			
 			log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR (ref-guided)..."
 			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
@@ -945,7 +947,7 @@ hisat2_ref_guided_pipeline() {
 	log_info "Final quantifications in: $STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/*/final/"
 }
 
-hisat2_de_novo_index_align_sort_stringtie_pipeline() {
+hisat2_de_novo_pipeline() {
 	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -1025,13 +1027,25 @@ hisat2_de_novo_index_align_sort_stringtie_pipeline() {
 			log_info "BAM for $SRR and $fasta_tag already exists. Skipping alignment."
 		else
 			log_info "Aligning $fasta_tag with $SRR..."
-			run_with_time_to_log \
-				hisat2 -p "${THREADS}" --dta \
-					$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
-					-x "$index_prefix" \
-					-1 "$trimmed1" \
-					-2 "$trimmed2" \
-					-S "$sam"
+			# Check if paired-end or single-end reads
+			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
+				# Paired-end alignment
+				run_with_time_to_log \
+					hisat2 -p "${THREADS}" --dta \
+						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
+						-x "$index_prefix" \
+						-1 "$trimmed1" \
+						-2 "$trimmed2" \
+						-S "$sam"
+			else
+				# Single-end alignment
+				run_with_time_to_log \
+					hisat2 -p "${THREADS}" --dta \
+						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
+						-x "$index_prefix" \
+						-U "$trimmed1" \
+						-S "$sam"
+			fi
 			
 			log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR..."
 			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
@@ -1111,7 +1125,9 @@ trinity_de_novo_alignment_pipeline() {
 		mkdir -p "$trinity_out_dir"
 		
 		# Collect all trimmed FASTQ files for Trinity
-		local left_reads=() right_reads=()
+		local left_reads=() right_reads=() single_reads=()
+		local paired_count=0 single_count=0
+		
 		for SRR in "${rnaseq_list[@]}"; do
 			local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
 			local trimmed1="" trimmed2=""
@@ -1128,35 +1144,69 @@ trinity_de_novo_alignment_pipeline() {
 				local files2=( "$TrimGalore_DIR"/${SRR}*val_2.* )
 				trimmed1="${files1[0]}"
 				trimmed2="${files2[0]}"
+			elif compgen -G "$TrimGalore_DIR/${SRR}*trimmed.*" >/dev/null 2>&1; then
+				# Single-end trimmed files (common pattern)
+				local files=( "$TrimGalore_DIR"/${SRR}*trimmed.* )
+				trimmed1="${files[0]}"
+			elif compgen -G "$TrimGalore_DIR/${SRR}*.fq*" >/dev/null 2>&1; then
+				# Generic single-end pattern
+				local files=( "$TrimGalore_DIR"/${SRR}*.fq* )
+				trimmed1="${files[0]}"
 			fi
 			
-			if [[ -n "$trimmed1" && -n "$trimmed2" ]]; then
+			# Determine if paired-end or single-end
+			if [[ -n "$trimmed1" && -n "$trimmed2" && -f "$trimmed1" && -f "$trimmed2" ]]; then
+				# Paired-end reads
 				left_reads+=("$trimmed1")
 				right_reads+=("$trimmed2")
+				((paired_count++))
+				log_info "Added paired-end reads for $SRR: $trimmed1, $trimmed2"
+			elif [[ -n "$trimmed1" && -f "$trimmed1" ]]; then
+				# Single-end reads
+				single_reads+=("$trimmed1")
+				((single_count++))
+				log_info "Added single-end reads for $SRR: $trimmed1"
 			else
 				log_warn "Trimmed FASTQ for $SRR not found; skipping from Trinity input."
 			fi
 		done
 		
-		if [[ ${#left_reads[@]} -eq 0 ]]; then
+		if [[ ${#left_reads[@]} -eq 0 && ${#single_reads[@]} -eq 0 ]]; then
 			log_error "No trimmed FASTQ files found for Trinity assembly."
 			return 1
 		fi
 		
-		# Run Trinity
-		local left_files=$(IFS=,; echo "${left_reads[*]}")
-		local right_files=$(IFS=,; echo "${right_reads[*]}")
+		log_info "Found $paired_count paired-end samples and $single_count single-end samples"
 		
-		log_info "Running Trinity with ${#left_reads[@]} sample pairs..."
-		run_with_time_to_log Trinity \
-			--seqType fq \
-			--left "$left_files" \
-			--right "$right_files" \
-			--CPU "$THREADS" \
-			--max_memory 20G \
-			--output "$trinity_out_dir" \
-			--normalize_reads \
-			--full_cleanup
+		# Run Trinity based on read type
+		if [[ ${#left_reads[@]} -gt 0 && ${#right_reads[@]} -gt 0 ]]; then
+			# Only paired-end reads
+			local left_files=$(IFS=,; echo "${left_reads[*]}")
+			local right_files=$(IFS=,; echo "${right_files[*]}")
+			log_info "Running Trinity with paired-end reads only..."
+			run_with_time_to_log Trinity \
+				--seqType fq \
+				--left "$left_files" \
+				--right "$right_files" \
+				--CPU "$THREADS" \
+				--max_memory 20G \
+				--output "$trinity_out_dir" \
+				--normalize_reads \
+				--full_cleanup
+		elif [[ ${#single_reads[@]} -gt 0 ]]; then
+			# Only single-end reads
+			local single_files=$(IFS=,; echo "${single_reads[*]}")
+			log_info "Running Trinity with single-end reads only..."
+			run_with_time_to_log Trinity \
+				--seqType fq \
+				--single "$single_files" \
+				--CPU "$THREADS" \
+				--max_memory 20G \
+				--output "$trinity_out_dir" \
+				--normalize_reads \
+				--full_cleanup
+		fi
+		fi
 	fi
 
 	# STEP 2: ALIGN READS TO TRINITY ASSEMBLY AND RUN STRINGTIE FOR QUANTIFICATION
@@ -1166,7 +1216,7 @@ trinity_de_novo_alignment_pipeline() {
 		local trimmed1="" trimmed2=""
 		mkdir -p "$HISAT2_DIR"
 		
-		# Find trimmed FASTQ files
+		# Find trimmed FASTQ files (same logic as above)
 		if [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq" ]]; then
 			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
 			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
@@ -1178,9 +1228,17 @@ trinity_de_novo_alignment_pipeline() {
 			local files2=( "$TrimGalore_DIR"/${SRR}*val_2.* )
 			trimmed1="${files1[0]}"
 			trimmed2="${files2[0]}"
+		elif compgen -G "$TrimGalore_DIR/${SRR}*trimmed.*" >/dev/null 2>&1; then
+			# Single-end trimmed files
+			local files=( "$TrimGalore_DIR"/${SRR}*trimmed.* )
+			trimmed1="${files[0]}"
+		elif compgen -G "$TrimGalore_DIR/${SRR}*.fq*" >/dev/null 2>&1; then
+			# Generic single-end pattern
+			local files=( "$TrimGalore_DIR"/${SRR}*.fq* )
+			trimmed1="${files[0]}"
 		fi
 		
-		if [[ -z "$trimmed1" || -z "$trimmed2" ]]; then
+		if [[ -z "$trimmed1" ]]; then
 			log_warn "Trimmed FASTQ for $SRR not found in $TrimGalore_DIR; skipping."
 			continue
 		fi
@@ -1196,17 +1254,35 @@ trinity_de_novo_alignment_pipeline() {
 			
 			# Trinity's recommended workflow for quantification
 			mkdir -p "$abundance_dir"
-			run_with_time_to_log align_and_estimate_abundance.pl \
-				--transcripts "$trinity_fasta" \
-				--seqType fq \
-				--left "$trimmed1" \
-				--right "$trimmed2" \
-				--est_method RSEM \
-				--aln_method bowtie2 \
-				--trinity_mode \
-				--prep_reference \
-				--thread_count "$THREADS" \
-				--output_dir "$abundance_dir"
+			# Determine if we have paired-end or single-end reads
+			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
+				# Paired-end reads
+				log_info "Using paired-end reads for $SRR"
+				run_with_time_to_log align_and_estimate_abundance.pl \
+					--transcripts "$trinity_fasta" \
+					--seqType fq \
+					--left "$trimmed1" \
+					--right "$trimmed2" \
+					--est_method RSEM \
+					--aln_method bowtie2 \
+					--trinity_mode \
+					--prep_reference \
+					--thread_count "$THREADS" \
+					--output_dir "$abundance_dir"
+			else
+				# Single-end reads
+				log_info "Using single-end reads for $SRR"
+				run_with_time_to_log align_and_estimate_abundance.pl \
+					--transcripts "$trinity_fasta" \
+					--seqType fq \
+					--single "$trimmed1" \
+					--est_method RSEM \
+					--aln_method bowtie2 \
+					--trinity_mode \
+					--prep_reference \
+					--thread_count "$THREADS" \
+					--output_dir "$abundance_dir"
+			fi
 			
 			# Create BAM file link for StringTie compatibility (if needed)
 			if [[ -f "$abundance_dir/bowtie2.bam" ]]; then
@@ -1337,18 +1413,38 @@ salmon_saf_pipeline() {
         fi
 
         log_info "Quantifying expression for $SRR..."
-        run_with_time_to_log salmon quant \
-            -i "$idx_dir" -l A \
-            -1 "$r1" -2 "$r2" \
-            -p "$THREADS" \
-            --validateMappings \
-            --seqBias --gcBias --posBias \
-            --rangeFactorizationBins 4 \
-            --numBootstraps 100 \
-            --numGibbsSamples 20 \
-            --thinningFactor 16 \
-            $([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--libType $([ "$RNA_STRAND_PROTOCOL" = "RF" ] && echo "ISR" || echo "ISF")") \
-            -o "$out_dir"
+		# Determine if we have paired-end or single-end reads
+		if [[ -n "$r2" && -f "$r2" ]]; then
+			# Paired-end reads
+			log_info "Using paired-end reads for $SRR"
+			run_with_time_to_log salmon quant \
+			-i "$idx_dir" -l A \
+			-1 "$r1" -2 "$r2" \
+			-p "$THREADS" \
+			--validateMappings \
+			--seqBias --gcBias --posBias \
+			--rangeFactorizationBins 4 \
+			--numBootstraps 100 \
+			--numGibbsSamples 20 \
+			--thinningFactor 16 \
+			$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--libType $([ "$RNA_STRAND_PROTOCOL" = "RF" ] && echo "ISR" || echo "ISF")") \
+			-o "$out_dir"
+		else
+			# Single-end reads
+			log_info "Using single-end reads for $SRR"
+			run_with_time_to_log salmon quant \
+			-i "$idx_dir" -l A \
+			-r "$r1" \
+			-p "$THREADS" \
+			--validateMappings \
+			--seqBias --gcBias --posBias \
+			--rangeFactorizationBins 4 \
+			--numBootstraps 100 \
+			--numGibbsSamples 20 \
+			--thinningFactor 16 \
+			$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--libType $([ "$RNA_STRAND_PROTOCOL" = "RF" ] && echo "SR" || echo "SF")") \
+			-o "$out_dir"
+		fi
     done
 
     # --- Merge matrices ---
@@ -1418,11 +1514,23 @@ bowtie2_rsem_pipeline() {
         fi
 
         log_info "Running Bowtie2 + RSEM for $SRR..."
-        run_with_time_to_log rsem-calculate-expression \
-            --paired-end \
-            --bowtie2 \
-            --num-threads "$THREADS" \
-            "$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
+		# Determine if we have paired-end or single-end reads
+		if [[ -n "$r2" && -f "$r2" ]]; then
+			# Paired-end reads
+			log_info "Using paired-end reads for $SRR"
+			run_with_time_to_log rsem-calculate-expression \
+			--paired-end \
+			--bowtie2 \
+			--num-threads "$THREADS" \
+			"$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
+		else
+			# Single-end reads
+			log_info "Using single-end reads for $SRR"
+			run_with_time_to_log rsem-calculate-expression \
+			--bowtie2 \
+			--num-threads "$THREADS" \
+			"$r1" "$rsem_idx" "$out_dir/$SRR"
+		fi
     done
 
     # --- Merge matrices ---
@@ -1501,9 +1609,6 @@ run_all() {
 	# Initialize reproducibility and log software versions
 	ensure_reproducibility
 	
-	# Check statistical power
-	check_statistical_power
-	
 	# Show pipeline configuration
 	show_pipeline_configuration
 
@@ -1514,8 +1619,8 @@ run_all() {
 
 	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01: Download and trim RNA-seq data"
-		download_and_trim_srrs "${rnaseq_list[@]}"
-		#download_and_trim_srrs_parallel "${rnaseq_list[@]}"
+		#download_and_trim_srrs "${rnaseq_list[@]}"
+		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
 		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
 		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
 		
@@ -1538,7 +1643,7 @@ run_all() {
 	# Method 2: HISAT2 De Novo Pipeline (Main method)
 	if [[ $RUN_METHOD_2_HISAT2_DE_NOVO == "TRUE" ]]; then
 		log_step "STEP 02b: HISAT2 De Novo Pipeline"
-		hisat2_de_novo_index_align_sort_stringtie_pipeline \
+		hisat2_de_novo_pipeline \
 			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 	fi
 
