@@ -146,8 +146,8 @@ OTHER_SRR_LIST=(
 
 SRR_COMBINED_LIST=(
 	"${SRR_LIST_PRJNA328564[@]}"
-	"${SRR_LIST_SAMN28540077[@]}"
-	"${SRR_LIST_SAMN28540068[@]}"
+	#"${SRR_LIST_SAMN28540077[@]}"
+	#"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -197,7 +197,7 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 # CLEANUP OPTIONS AND TESTING ESSENTIALS
 # ==============================================================================
 
-rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
+#rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
 #rm -rf "$FASTQC_ROOT"                   # Remove previous FastQC results
 #rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
 #rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
@@ -1781,3 +1781,4 @@ done
 # ==============================================================================
 # END OF SCRIPT
 # ==============================================================================
+echo "END OF SCRIPT"
