@@ -4,7 +4,7 @@
 # GENE EXPRESSION ANALYSIS (GEA) PIPELINE - METHOD 2: HISAT2 DE NOVO
 # ==============================================================================
 # Description: RNA-seq analysis pipeline using HISAT2 de novo assembly approach
-# Author: [Your Name]
+# Author: Mark Cyril R. Mercado
 # Version: v10
 # Date: October 2025
 # 
@@ -39,7 +39,7 @@ set -euo pipefail
 
 # Runtime Configuration
 THREADS=8                               # Number of threads to use for parallel operations
-JOBS=5                                  # Number of parallel jobs for GNU Parallel 
+JOBS=7                                  # Number of parallel jobs for GNU Parallel 
 
 # RNA-seq Library Configuration
 RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), "FR" (ligation), or "unstranded"
