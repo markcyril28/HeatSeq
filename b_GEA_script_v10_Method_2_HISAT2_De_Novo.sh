@@ -38,7 +38,7 @@ set -euo pipefail
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=16                               # Number of threads to use for parallel operations
+THREADS=32                               # Number of threads to use for parallel operations
 JOBS=7                                  # Number of parallel jobs for GNU Parallel 
 
 # RNA-seq Library Configuration
@@ -145,9 +145,9 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"
-	"${SRR_LIST_SAMN28540077[@]}"
-	"${SRR_LIST_SAMN28540068[@]}"
+	"${SRR_LIST_PRJNA328564[@]}"
+	#"${SRR_LIST_SAMN28540077[@]}"
+	#"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -199,7 +199,7 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 
 #rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
 #rm -rf "$FASTQC_ROOT"                   # Remove previous FastQC results
-#rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
+rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
 #rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
 #rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
 
