@@ -37,16 +37,29 @@ HEATMAP_OUT_DIR <- "6_Heatmap_Visualizations"
 
 # Gene groups
 FASTA_GROUPS <- c(
-  #"TEST",
-  #"All_Smel_Genes",
-  "SmelDMP_CDS_Control_Best"
-  #"SmelDMP_CDS_with_18s",                    # Active: DMP CDS with 18S rRNA
-  #"SmelDMP_CDS_with_Cyclo"                   # DMP CDS with cyclophilin control
-  #"SmelGIF_with_Best_Control_Cyclo"
-  #"SmelGRF_with_Best_Control_Cyclo",
-  #"SmelGRF-GIF_with_Best_Control_Cyclo",
-  #"SmelGIF_with_Cell_Cycle_Control_genes",
-  #"SmelGRF_with_Cell_Cycle_Control_genes"
+  # GRF-GIF Control Genes
+  #"Smel_GRF-GIF_Best_Cell_Cycle_Control_genes",
+
+  # DMP Control Genes
+  #"Smel_DMP_Best_Control_genes",
+  #"SmelDMP_Best_Control_genes",
+  #"SmelDMP_cds_with_Best_Control_genes",
+  #"SmelDMP_cds_with_18s",
+  #"SmelDMP_cds_with_Cyclo",
+  #"SmelDMP_cds",
+
+  # GIF Gene Groups
+  "SmelGIF_with_Cell_Cycle_Control_genes",
+  "SmelGIF_with_Cyclo",
+  "SmelGIF",
+
+  # GRF Gene Groups
+  "SmelGRF_with_Cell_Cycle_Control_genes",
+  "SmelGRF_with_Cyclo",
+  "SmelGRF",
+
+  # Combined GRF-GIF Groups
+  "SmelGRF-GIF_with_Best_Control_Gene_Cyclo"
 )
 
 COUNT_TYPES <- c("coverage", "fpkm", "tpm")

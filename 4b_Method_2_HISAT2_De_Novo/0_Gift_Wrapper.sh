@@ -39,6 +39,6 @@ fi
 #Rscript --verbose install_heatmap_libraries.R
 #bash setup_mamba_Heatmap_ENV.sh
 
-#bash a_stringtie_matrix_builder_m2_v4.sh
+bash a_stringtie_matrix_builder_m2_v4.sh
 
-#Rscript --verbose b_make_heatmap_of_matrices_v4.R
+Rscript --verbose b_make_heatmap_of_matrices_v4.R

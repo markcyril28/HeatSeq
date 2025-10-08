@@ -355,10 +355,11 @@ mamba_install() {
 # DATA DOWNLOAD AND PREPROCESSING FUNCTIONS
 # ------------------------------------------------------------------------------
 gzip_trimmed_fastq_files() {
-	# Compress all trimmed FASTQ files in the trimming directory
-	log_info "Compressing all trimmed FASTQ files in $TRIM_DIR_ROOT..."
-	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -exec gzip {} \;
-	log_info "Compression of trimmed FASTQ files completed."
+	# Compress all trimmed FASTQ files in the trimming directory using GNU parallel
+	log_info "Compressing all trimmed FASTQ files in $TRIM_DIR_ROOT using GNU parallel..."
+	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -print0 | \
+		parallel -0 -j "$JOBS" gzip {}
+	log_info "Parallel compression of trimmed FASTQ files completed."
 }
 
 download_and_trim_srrs() {
