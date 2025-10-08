@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ENV_NAME="${CONDA_DEFAULT_ENV:-GEA_env}"
+ENV_NAME="${CONDA_DEFAULT_ENV:-Heatmap_ENV}"
 YAML_FILE="$(dirname "${BASH_SOURCE[0]}")/Heatmap_ENV_R.yml"
 
 # Check conda

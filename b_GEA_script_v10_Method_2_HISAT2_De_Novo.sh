@@ -50,7 +50,8 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=FALSE
-RUN_GZIP_TRIMMED_FILES=TRUE
+RUN_GZIP_TRIMMED_FILES=FALSE
+RUN_ZIP_RESULTS=FALSE
 
 # GEA Methods 
 RUN_METHOD_2_HISAT2_DE_NOVO=FALSE	
@@ -200,7 +201,7 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 
 #rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
 #rm -rf "$FASTQC_ROOT"                   # Remove previous FastQC results
-rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
+#rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
 #rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
 #rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
 
@@ -1809,12 +1810,34 @@ for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 done
 
 # ==============================================================================
+# POST-PROCESSING: GIFT WRAPPER EXECUTION
+# ==============================================================================
+
+# Execute the Gift Wrapper script for post-processing
+if [[ -f "4b_Method_2_HISAT2_De_Novo/0_Gift_Wrapper.sh" ]]; then
+	log_step "Executing Gift Wrapper post-processing script"
+	chmod +x 4b_Method_2_HISAT2_De_Novo/*.sh
+	chmod +x 4b_Method_2_HISAT2_De_Novo/0_Gift_Wrapper.sh
+	
+	if bash 4b_Method_2_HISAT2_De_Novo/0_Gift_Wrapper.sh 2>&1; then
+		log_info "Gift Wrapper completed successfully"
+	else
+		log_error "Gift Wrapper failed with exit code $?"
+	fi
+else
+	log_warn "Gift Wrapper script not found - skipping"
+fi
+
+
+# ==============================================================================
 # POST-PROCESSING OPTIONS (COMMENTED OUT)
 # ==============================================================================
 
-# Optional: Archive StringTie results for sharing or backup
-# Uncomment the line below to create a compressed archive of the results
-#tar -czvf "stringtie_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
+if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
+	# Optional: Archive StringTie results for sharing or backup
+	#tar -czvf "stringtie_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
+	tar -czvf HISAT2_DE_NOVO_ROOT_HPC_$(date +%Y%m%d_%H%M%S).tar.gz $HISAT2_DE_NOVO_ROOT
+fi
 
 # ==============================================================================
 # END OF SCRIPT
