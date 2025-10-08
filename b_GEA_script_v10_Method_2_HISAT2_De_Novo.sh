@@ -471,7 +471,7 @@ download_and_trim_srrs() {
     done
 }
 
-gzip_trimmed_files() {
+gzip_trimmed_fastq_files() {
 	# Compress all trimmed FASTQ files in the trimming directory
 	log_info "Compressing all trimmed FASTQ files in $TRIM_DIR_ROOT..."
 	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -exec gzip {} \;
