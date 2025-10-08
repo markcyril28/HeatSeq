@@ -36,7 +36,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Log file: $LOG_FILE"
 
 # Query configuration
 QUERY_AGAINST_MASTER_REFERENCE=TRUE
-MASTER_REFERENCE="SmelGRF-GIF_with_Best_Control_gene_Cyclo"
+MASTER_REFERENCE="SmelGRF-GIF_with_Best_Control_Cyclo"
 #MASTER_REFERENCE="All_SmelGenes"
 
 # Gene groups to process
@@ -51,7 +51,7 @@ Gene_Groups_Boilerplates=(
     #"SmelDMP_cds"
 
     "SmelGIF_with_Cell_Cycle_Control_genes"
-	"SmelGIF_with_Cyclo_gene"
+	"SmelGIF_with_Cyclo"
     "SmelGIF"
 
     "SmelGRF_with_Cell_Cycle_Control_genes"
