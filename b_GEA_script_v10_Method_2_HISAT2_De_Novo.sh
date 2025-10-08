@@ -50,6 +50,7 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=FALSE
+RUN_GZIP_TRIMMED_FILES=TRUE
 
 # GEA Methods 
 RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    
@@ -402,6 +403,11 @@ download_and_trim_srrs() {
             # Important: include .sra file path explicitly
             fasterq-dump --split-files --threads "${THREADS}" \
                 "$raw_files_DIR/$SRR/$SRR.sra" -O "$raw_files_DIR"
+			# Compress FASTQ files to save space
+			if [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
+				log_info "Compressing FASTQ files for $SRR..."
+				gzip "$raw_files_DIR/${SRR}_1.fastq" "$raw_files_DIR/${SRR}_2.fastq"
+			fi
 
             # Set raw file paths after download
             if [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
@@ -463,6 +469,13 @@ download_and_trim_srrs() {
             fi
         fi
     done
+}
+
+gzip_trimmed_files() {
+	# Compress all trimmed FASTQ files in the trimming directory
+	log_info "Compressing all trimmed FASTQ files in $TRIM_DIR_ROOT..."
+	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -exec gzip {} \;
+	log_info "Compression of trimmed FASTQ files completed."
 }
 
 download_and_trim_srrs_parallel() {
@@ -1104,6 +1117,7 @@ hisat2_de_novo_pipeline() {
 			log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR..."
 			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
 			run_with_time_to_log samtools index -@ "${THREADS}" "$bam"
+			log_info "Deleting the SAM file."
 			rm -f "$sam"
 			log_info "Done aligning $fasta_tag with $SRR."
 		fi
@@ -1124,7 +1138,7 @@ hisat2_de_novo_pipeline() {
 					-A "$out_gene_abundances_tsv"
 		fi
 		
-		log_info "Deleting the BAM file."
+		log_info "Deleting the SAM and BAM file."
 		rm -f "$bam" "${bam}.bai"
 		log_info "Done processing $fasta_tag with $SRR."
 		log_info "--------------------------------------------------"
@@ -1702,6 +1716,7 @@ run_all() {
 		fi
 	fi
 
+
 	# Method 1: HISAT2 Reference-Guided Pipeline
 	if [[ $RUN_METHOD_1_HISAT2_REF_GUIDED == "TRUE" ]]; then
 		log_step "STEP 02a: HISAT2 Reference-Guided Pipeline"
@@ -1760,6 +1775,11 @@ run_all() {
 # Call the function if installation is enabled
 if [[ $RUN_MAMBA_INSTALLATION == "TRUE" ]]; then
 	mamba_install
+fi
+
+if [[ $RUN_GZIP_TRIMMED_FILES == "TRUE" ]]; then
+	log_step "Gzipping trimmed FASTQ files to save space"
+	gzip_trimmed_fastq_files
 fi
 
 # Execute the pipeline for each FASTA input file
