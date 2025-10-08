@@ -106,8 +106,8 @@ SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
 	SRR2072232	# mature_fruits #SRR20722226	# young_fruits
 	SRR20722234	# flowers #SRR20722228	# sepals
-	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018
-	SRR20722230	# mature_leaves #SRR20722233	# leaf_buds
+	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018 
+	SRR20722233	# leaf_buds #SRR20722230	# mature_leaves
 	SRR20722227	# stems
 	SRR20722229	# roots
 )
@@ -117,7 +117,7 @@ SRR_LIST_SAMN28540068=(
 	SRR20722387 # mature_fruits
 	SRR23909863 # Fully Develop (FD) Flower ID: PRJNA941250
 	SRR20722297 # flower_buds #SRR20722385 # sepals
-	SRR20722386 # mature_leaves #SRR20722383 # young_leaves #SRR20722296 # leaf_buds
+	SRR20722296 # leaf_buds SRR20722386 # mature_leaves #SRR20722383 # young_leaves
 	SRR20722384 # stems
 	SRR31755282 # Roots (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP552204&o=acc_s%3Aa)
 )
@@ -147,7 +147,7 @@ OTHER_SRR_LIST=(
 SRR_COMBINED_LIST=(
 	"${SRR_LIST_PRJNA328564[@]}"
 	"${SRR_LIST_SAMN28540077[@]}"
-	"${SRR_LIST_SAMN28540068[@]}"
+	#"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -1236,7 +1236,7 @@ trinity_de_novo_alignment_pipeline() {
 		if [[ ${#left_reads[@]} -gt 0 && ${#right_reads[@]} -gt 0 ]]; then
 			# Only paired-end reads
 			local left_files=$(IFS=,; echo "${left_reads[*]}")
-			local right_files=$(IFS=,; echo "${right_files[*]}")
+			local right_files=$(IFS=,; echo "${right_reads[*]}")
 			log_info "Running Trinity with paired-end reads only..."
 			run_with_time_to_log Trinity \
 				--seqType fq \
@@ -1246,7 +1246,8 @@ trinity_de_novo_alignment_pipeline() {
 				--max_memory 20G \
 				--output "$trinity_out_dir" \
 				--normalize_reads \
-				--full_cleanup
+				--full_cleanup \
+				--no_version_check
 		elif [[ ${#single_reads[@]} -gt 0 ]]; then
 			# Only single-end reads
 			local single_files=$(IFS=,; echo "${single_reads[*]}")
@@ -1258,7 +1259,24 @@ trinity_de_novo_alignment_pipeline() {
 				--max_memory 20G \
 				--output "$trinity_out_dir" \
 				--normalize_reads \
-				--full_cleanup
+				--full_cleanup \
+				--no_version_check
+		else
+			log_error "No valid reads found for Trinity assembly."
+			return 1
+		fi
+		
+		# Optional: Compress Trinity assembly to save space
+		if [[ -f "$trinity_fasta" ]]; then
+			log_info "Compressing Trinity assembly to save disk space..."
+			gzip -f "$trinity_fasta"
+			trinity_fasta="${trinity_fasta}.gz"
+		fi
+		
+		# Optional: Remove Trinity intermediate directories if only the assembly is needed
+		log_info "Cleaning up Trinity intermediate files..."
+		find "$trinity_out_dir" -name "chrysalis" -type d -exec rm -rf {} + 2>/dev/null || true
+		find "$trinity_out_dir" -name "jellyfish.kmers*" -delete 2>/dev/null || true
 		fi
 	fi
 
