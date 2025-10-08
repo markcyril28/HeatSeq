@@ -32,7 +32,7 @@ suppressPackageStartupMessages({
 
 # Input and output directories
 BASE_DIR <- getwd()
-MATRICES_DIR <- "5_stringtie_WD/b_Method_2_COUNT_MATRICES"
+MATRICES_DIR <- file.path("5_stringtie_WD", "b_Method_2_COUNT_MATRICES")
 HEATMAP_OUT_DIR <- "6_Heatmap_Visualizations"
 
 # File naming configuration
@@ -41,31 +41,23 @@ MASTER_REFERENCE_SUFFIX <- paste0("_from_", MASTER_REFERENCE)
 
 # Gene groups
 FASTA_GROUPS <- c(
-  # GRF-GIF Control Genes
-  #"Smel_GRF-GIF_Best_Cell_Cycle_Control_genes",
-
-  # DMP Control Genes
-  #"Smel_DMP_Best_Control_genes",
-  #"SmelDMP_Best_Control_genes",
-  #"SmelDMP_cds_with_Best_Control_genes",
-  #"SmelDMP_cds_with_18s",
-  #"SmelDMP_cds_with_Cyclo",
-  #"SmelDMP_cds",
-
-  # GIF Gene Groups
+  # Control Gene Groups
+  "Best_Cell_Cycle_Associated_Control_Genes",
+  "Best_Control_Genes",
+  
+  # Individual Gene Groups
+  "SmelDMPs",
+  "SmelGIFs",
+  "SmelGRFs",
+  
+  # Combined Gene Groups with Control Genes
   "SmelGIF_with_Cell_Cycle_Control_genes",
-  "SmelGIF_with_Cyclo",
-  "SmelGIF",
-
-  # GRF Gene Groups
   "SmelGRF_with_Cell_Cycle_Control_genes",
-  "SmelGRF_with_Cyclo",
-  "SmelGRF",
+  "SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
 
-  # Combined GRF-GIF Groups
-  "SmelGRF-GIF_with_Best_Control_Gene_Cyclo"
 )
 
+# Analysis configuration
 COUNT_TYPES <- c("coverage", "fpkm", "tpm")
 GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c("SRR", "Organ")
@@ -549,10 +541,19 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
 # MAIN PROCESSING
 # ===============================================
 
-while (length(dev.list()) > 0) { dev.off() }
+# Close any open graphics devices
+if (length(dev.list()) > 0) { 
+    sapply(dev.list(), dev.off) 
+}
 
+# Initialize counters
 total_heatmaps <- 0
 successful_heatmaps <- 0
+
+# Validate FASTA_GROUPS
+if (length(FASTA_GROUPS) == 0) {
+    stop("No FASTA groups defined for processing")
+}
 
 for (group in FASTA_GROUPS) {
   # Clear and recreate output directory for this specific group

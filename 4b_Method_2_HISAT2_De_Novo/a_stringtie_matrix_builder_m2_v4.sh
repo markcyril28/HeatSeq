@@ -35,31 +35,22 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Output directory: $OUT_DIR"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Log file: $LOG_FILE"
 
 # Query configuration
-QUERY_AGAINST_MASTER_REFERENCE=TRUE
-MASTER_REFERENCE="SmelGRF-GIF_with_Best_Control_Cyclo"
-#MASTER_REFERENCE="All_SmelGenes"
+QUERY_AGAINST_MASTER_REFERENCE="TRUE"
+#MASTER_REFERENCE="SmelGRF-GIF_with_Best_Control_Cyclo"
+MASTER_REFERENCE="All_SmelGenes"
 MASTER_SUFFIX="_from_${MASTER_REFERENCE}"  # Suffix added when QUERY_AGAINST_MASTER_REFERENCE=TRUE
 
 # Gene groups to process
 Gene_Groups_Boilerplates=(
-    #"Smel_GRF-GIF_Best_Cell_Cycle_Control_genes"
-    #"Smel_DMP_Best_Control_genes"
-
-    #"SmelDMP_Best_Control_genes"
-	#"SmelDMP_cds_with_Best_Control_genes"                
-    #"SmelDMP_cds_with_18s"
-    #"SmelDMP_cds_with_Cyclo"
-    #"SmelDMP_cds"
-
+    # Available gene groups based on TSV files
+    "Best_Cell_Cycle_Associated_Control_Genes"
+    "Best_Control_Genes"
+    "SmelDMPs"
+    "SmelGIFs"
+    "SmelGRFs"
     "SmelGIF_with_Cell_Cycle_Control_genes"
-	"SmelGIF_with_Cyclo"
-    "SmelGIF"
-
     "SmelGRF_with_Cell_Cycle_Control_genes"
-	"SmelGRF_with_Cyclo"
-    "SmelGRF"
-    
-	"SmelGRF-GIF_with_Best_Control_Gene_Cyclo"
+    "SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
 )
 
 # Sample lists from different projects

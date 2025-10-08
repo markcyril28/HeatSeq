@@ -33,9 +33,9 @@ main() {
     log_message "Contents of current directory:"
     ls -la | head -10 | while read line; do log_message "  $line"; done
     
-    # Initialize conda/mamba
+    # Initialize conda/mamba for hook setup
     if command -v mamba &> /dev/null; then
-        eval "$(mamba shell hook --shell bash)"
+        eval "$(mamba shell bash hook)"
         CONDA_CMD="mamba"
     elif command -v conda &> /dev/null; then
         eval "$(conda shell.bash hook)"
@@ -45,9 +45,24 @@ main() {
         exit 1
     fi
     
+    # Setup environment
+    if [[ -f "setup_mamba_heatmap.sh" ]]; then
+        log_message "Running setup_mamba_heatmap.sh"
+        #bash setup_mamba_heatmap.sh
+    else
+        log_message "setup_mamba_heatmap.sh not found, skipping setup"
+    fi
+    
+    if [[ -f "install_heatmap_libraries.R" ]]; then
+        log_message "Installing R libraries"
+        #Rscript install_heatmap_libraries.R
+    else
+        log_message "install_heatmap_libraries.R not found, skipping R setup"
+    fi
+    
     # Activate environment
     log_message "Activating environment: $REQUIRED_ENV"
-    $CONDA_CMD activate "$REQUIRED_ENV"
+    source activate "$REQUIRED_ENV"
     
     if [[ "$CONDA_DEFAULT_ENV" != "$REQUIRED_ENV" ]]; then
         log_error "Failed to activate $REQUIRED_ENV environment"
