@@ -38,6 +38,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Log file: $LOG_FILE"
 QUERY_AGAINST_MASTER_REFERENCE=TRUE
 MASTER_REFERENCE="SmelGRF-GIF_with_Best_Control_Cyclo"
 #MASTER_REFERENCE="All_SmelGenes"
+MASTER_SUFFIX="_from_${MASTER_REFERENCE}"  # Suffix added when QUERY_AGAINST_MASTER_REFERENCE=TRUE
 
 # Gene groups to process
 Gene_Groups_Boilerplates=(
@@ -228,7 +229,7 @@ merge_group_counts() {
 
         # GENERATING THE OUTPUT FILENAMES
         if [[ "$QUERY_AGAINST_MASTER_REFERENCE" == "TRUE" ]]; then
-            local output_geneName_SRR_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_SRR_from_All_SmelGenes.tsv"
+            local output_geneName_SRR_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_SRR${MASTER_SUFFIX}.tsv"
         else
             local output_geneName_SRR_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_SRR.tsv"
         fi
@@ -256,7 +257,7 @@ merge_group_counts() {
         
         # Generate organ matrix
         if [[ "$QUERY_AGAINST_MASTER_REFERENCE" == "TRUE" ]]; then
-            local output_geneName_Organ_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_Organ_from_All_SmelGenes.tsv"
+            local output_geneName_Organ_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_Organ${MASTER_SUFFIX}.tsv"
         else
             local output_geneName_Organ_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_Organ.tsv"
         fi
