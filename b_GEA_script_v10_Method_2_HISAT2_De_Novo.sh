@@ -48,8 +48,8 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
                                        # unstranded = no strand specificity
 
 # Pipeline Control Switches
-RUN_MAMBA_INSTALLATION=TRUE
-RUN_DOWNLOAD_and_TRIM_SRR=FALSE          # Enable/disable SRR download and trimming
+RUN_MAMBA_INSTALLATION=FALSE
+RUN_DOWNLOAD_and_TRIM_SRR=TRUE          # Enable/disable SRR download and trimming
 
 # GEA Methods 
 RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE    # Enable/disable HISAT2 reference-guided pipeline
@@ -1277,7 +1277,6 @@ trinity_de_novo_alignment_pipeline() {
 		log_info "Cleaning up Trinity intermediate files..."
 		find "$trinity_out_dir" -name "chrysalis" -type d -exec rm -rf {} + 2>/dev/null || true
 		find "$trinity_out_dir" -name "jellyfish.kmers*" -delete 2>/dev/null || true
-		fi
 	fi
 
 	# STEP 2: ALIGN READS TO TRINITY ASSEMBLY AND RUN STRINGTIE FOR QUANTIFICATION
