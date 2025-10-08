@@ -35,18 +35,30 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Output directory: $OUT_DIR"
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Log file: $LOG_FILE"
 
 # Query configuration
-QUERY_AGAINST_ALL_SMELGENES=FALSE
+QUERY_AGAINST_MASTER_REFERENCE=TRUE
+MASTER_REFERENCE="SmelGRF-GIF_with_Best_Control_gene_Cyclo"
+#MASTER_REFERENCE="All_SmelGenes"
 
-# Gene groups to process (uncomment as needed)
+# Gene groups to process
 Gene_Groups_Boilerplates=(
-	"SmelDMP_CDS_Control_Best"                # Active: DMP CDS with best control genes
-    #"SmelDMP_CDS_with_18s"                    # Active: DMP CDS with 18S rRNA
-    #"SmelDMP_CDS_with_Cyclo"                  # DMP CDS with cyclophilin control
-	#"SmelGIF_with_Best_Control_Cyclo"         # GIF with best control cyclophilin
-	#"SmelGRF_with_Best_Control_Cyclo"        # GRF with best control cyclophilin
-	#"SmelGRF-GIF_with_Best_Control_Cyclo"    # Combined GRF-GIF with controls
-    #SmelGIF_with_Cell_Cycle_Control_genes  # GIF with cell cycle controls
-    #SmelGRF_with_Cell_Cycle_Control_genes  # GRF with cell cycle controls
+    #"Smel_GRF-GIF_Best_Cell_Cycle_Control_genes"
+    #"Smel_DMP_Best_Control_genes"
+
+    #"SmelDMP_Best_Control_genes"
+	#"SmelDMP_cds_with_Best_Control_genes"                
+    #"SmelDMP_cds_with_18s"
+    #"SmelDMP_cds_with_Cyclo"
+    #"SmelDMP_cds"
+
+    "SmelGIF_with_Cell_Cycle_Control_genes"
+	"SmelGIF_with_Cyclo_gene"
+    "SmelGIF"
+
+    "SmelGRF_with_Cell_Cycle_Control_genes"
+	"SmelGRF_with_Cyclo"
+    "SmelGRF"
+    
+	"SmelGRF-GIF_with_Best_Control_Gene_Cyclo"
 )
 
 # Sample lists from different projects
@@ -155,13 +167,12 @@ merge_group_counts() {
     files=()
     local files_found=0
     for srr in "${SRR_LIST_COMBINED[@]}"; do
-        if [[ "$QUERY_AGAINST_ALL_SMELGENES" == "TRUE" ]]; then
-            gene_group="All_SmelGenes"
-            file_path="$INPUTS_DIR/All_SmelGenes/$srr/${srr}_All_SmelGenes_gene_abundances_de_novo.tsv"
-        else
-            file_path="$gene_group_path/$srr/${srr}_${gene_group}_gene_abundances_de_novo.tsv"
-        fi
-        
+        if [[ "$QUERY_AGAINST_MASTER_REFERENCE" == "TRUE" ]]; then
+            #local gene_group="All_SmelGenes"
+            local gene_group=$MASTER_REFERENCE
+            local gene_group_path="$INPUTS_DIR/$gene_group"
+        fi 
+        file_path="$gene_group_path/$srr/${srr}_${gene_group}_gene_abundances_de_novo.tsv"
         if [[ -f "$file_path" ]]; then
             files+=("$file_path")
             ((files_found++))
@@ -215,8 +226,8 @@ merge_group_counts() {
         
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processed $samples_processed samples for $count_type"
 
-        # Generate output file names
-        if [[ "$QUERY_AGAINST_ALL_SMELGENES" == "TRUE" ]]; then
+        # GENERATING THE OUTPUT FILENAMES
+        if [[ "$QUERY_AGAINST_MASTER_REFERENCE" == "TRUE" ]]; then
             local output_geneName_SRR_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_SRR_from_All_SmelGenes.tsv"
         else
             local output_geneName_SRR_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_SRR.tsv"
@@ -244,7 +255,7 @@ merge_group_counts() {
         } > "$output_geneName_SRR_tsv"
         
         # Generate organ matrix
-        if [[ "$QUERY_AGAINST_ALL_SMELGENES" == "TRUE" ]]; then
+        if [[ "$QUERY_AGAINST_MASTER_REFERENCE" == "TRUE" ]]; then
             local output_geneName_Organ_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_Organ_from_All_SmelGenes.tsv"
         else
             local output_geneName_Organ_tsv="$OUT_DIR/$group_name/${group_name}_${count_type}_counts_geneName_Organ.tsv"
@@ -294,7 +305,7 @@ for Gene_Group_Boilerplate in "${Gene_Groups_Boilerplates[@]}"; do
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Processing gene group: $Gene_Group_Boilerplate"
     
     # Check for reference TSV file
-    REF_TSV="5_stringtie_WD/0_Ref_Boilerplate_TSVs/${Gene_Group_Boilerplate}_REF_BOILERPLATE_TSV.tsv"
+    REF_TSV="5_stringtie_WD/0_Ref_Boilerplate_TSVs/${Gene_Group_Boilerplate}.tsv"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] Looking for reference TSV: $REF_TSV"
     
     if [[ ! -f "$REF_TSV" ]]; then 
