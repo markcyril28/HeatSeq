@@ -35,6 +35,10 @@ BASE_DIR <- getwd()
 MATRICES_DIR <- "5_stringtie_WD/b_Method_2_COUNT_MATRICES"
 HEATMAP_OUT_DIR <- "6_Heatmap_Visualizations"
 
+# File naming configuration
+MASTER_REFERENCE <- "All_SmelGenes"
+MASTER_REFERENCE_SUFFIX <- paste0("_from_", MASTER_REFERENCE)
+
 # Gene groups
 FASTA_GROUPS <- c(
   # GRF-GIF Control Genes
@@ -560,8 +564,16 @@ for (group in FASTA_GROUPS) {
   for (count_type in COUNT_TYPES) {
     for (gene_type in GENE_TYPES) {
       for (label_type in LABEL_TYPES) {
+        # Try with master reference suffix first (when QUERY_AGAINST_MASTER_REFERENCE=TRUE in bash script)
         input_file <- file.path(MATRICES_DIR, group, 
-                               paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, ".tsv"))
+                               paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, MASTER_REFERENCE_SUFFIX, ".tsv"))
+        
+        # If that doesn't exist, try without the suffix
+        if (!file.exists(input_file)) {
+          input_file <- file.path(MATRICES_DIR, group, 
+                                 paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, ".tsv"))
+        }
+        
         if (!file.exists(input_file)) next
         
         output_dir <- file.path(HEATMAP_OUT_DIR, group)

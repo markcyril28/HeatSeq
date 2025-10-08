@@ -50,7 +50,8 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=FALSE
-RUN_GZIP_TRIMMED_FILES=TRUE
+RUN_GZIP_TRIMMED_FILES=FALSE
+RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=TRUE
 RUN_ZIP_RESULTS=FALSE
 
 # GEA Methods 
@@ -1811,22 +1812,25 @@ for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 done
 
 # ==============================================================================
-# POST-PROCESSING: GIFT WRAPPER EXECUTION
+# POST-PROCESSING: HEATMAP WRAPPER EXECUTION for HISAT2 DE NOVO
 # ==============================================================================
 
-# Execute the Gift Wrapper script for post-processing
-if [[ -f "4b_Method_2_HISAT2_De_Novo/0_Gift_Wrapper.sh" ]]; then
-	log_step "Executing Gift Wrapper post-processing script"
-	chmod +x 4b_Method_2_HISAT2_De_Novo/*.sh
-	chmod +x 4b_Method_2_HISAT2_De_Novo/0_Gift_Wrapper.sh
-	
-	if bash 4b_Method_2_HISAT2_De_Novo/0_Gift_Wrapper.sh 2>&1; then
-		log_info "Gift Wrapper completed successfully"
+if [[ $RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO == "TRUE" ]]; then
+	log_step "Heatmap Wrapper post-processing enabled"
+	# Execute the Heatmap Wrapper script for post-processing
+	if [[ -f "4b_Method_2_HISAT2_De_Novo/0_Heatmap_Wrapper.sh" ]]; then
+		log_step "Executing Heatmap Wrapper post-processing script"
+		chmod +x 4b_Method_2_HISAT2_De_Novo/*.sh
+		chmod +x 4b_Method_2_HISAT2_De_Novo/0_Heatmap_Wrapper.sh
+
+		if bash 4b_Method_2_HISAT2_De_Novo/0_Heatmap_Wrapper.sh 2>&1; then
+			log_info "Heatmap Wrapper completed successfully"
+		else
+			log_error "Heatmap Wrapper failed with exit code $?"
+		fi
 	else
-		log_error "Gift Wrapper failed with exit code $?"
+		log_warn "Heatmap Wrapper script not found - skipping"
 	fi
-else
-	log_warn "Gift Wrapper script not found - skipping"
 fi
 
 
