@@ -24,3 +24,7 @@ logs/*
 4b_Method_2_HISAT2_De_Novo/4b_Method_2_HISAT2_De_Novo_20251009_095825.tar.gz
 .gitignore
 4b_Method_2_HISAT2_De_Novo/HISAT2_DE_NOVO_ROOT_HPC_20251009_093227.tar.gz
+
+4b_Method_2_HISAT2_De_Novo/HPC/*
+4b_Method_2_HISAT2_De_Novo/8_Bar_Graph_Visualizations/*
+4b_Method_2_HISAT2_De_Novo/7_Heatmap_with_Covariability_Visualizations/*
