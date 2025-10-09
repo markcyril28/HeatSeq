@@ -11,6 +11,14 @@
 # - Enhanced color palette with proper color mapping
 # - Improved legend positioning and formatting
 # - Better error handling and debugging output
+# - Added CPM (Counts Per Million) normalization similar to DESeq2
+# - CPM normalization: (counts / library_size) * 1,000,000 with log2 transformation
+#
+# Normalization types available:
+# - Raw normalized (with Z-score scaling)
+# - Count-Type normalized (coverage: CPM-like, fpkm/tpm: log2 transformed)
+# - Z-score normalized (standardized by row)
+# - CPM normalized (Counts Per Million with log2 transformation)
 #
 # Required packages: ComplexHeatmap, circlize, RColorBrewer, dplyr, tibble, grid
 # Run test_heatmap_libraries.R first to install missing packages
@@ -276,6 +284,29 @@ preprocess_for_zscore_normalized <- function(data_matrix, count_type) {
   return(data_processed)
 }
 
+# Preprocessing for CPM (Counts Per Million) normalized data
+preprocess_for_cpm_normalized <- function(data_matrix) {
+  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
+  
+  # Calculate library sizes (total counts per sample)
+  lib_sizes <- colSums(data_matrix, na.rm = TRUE)
+  
+  # Avoid division by zero - set minimum library size to 1
+  lib_sizes[lib_sizes == 0] <- 1
+  
+  # Calculate CPM: (counts / library_size) * 1,000,000
+  data_cpm <- sweep(data_matrix, 2, lib_sizes/1e6, FUN = "/")
+  
+  # Handle any remaining NAs or infinite values
+  data_cpm[is.na(data_cpm) | is.infinite(data_cpm)] <- 0
+  
+  # Apply log2 transformation with pseudocount for visualization
+  data_processed <- log2(data_cpm + 1)
+  data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
+  
+  return(data_processed)
+}
+
 # Function to generate heatmap
 generate_heatmap <- function(data_matrix, output_path, title, count_type, label_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(FALSE)
@@ -458,6 +489,7 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
                          "raw_normalized" = "row",
                          "Count-Type_Normalized" = "none", 
                          "Z-score_Normalized" = "none",
+                         "CPM_Normalized" = "none",
                          "row")
   
   tryCatch({
@@ -583,6 +615,7 @@ for (group in FASTA_GROUPS) {
           dir.create(file.path(output_dir, "raw_normalized"), showWarnings = FALSE)
           dir.create(file.path(output_dir, "Count-Type_Normalized"), showWarnings = FALSE)
           dir.create(file.path(output_dir, "Z-score_Normalized"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "CPM_Normalized"), showWarnings = FALSE)
           
           input_basename <- tools::file_path_sans_ext(basename(input_file))
           output_file <- file.path(output_dir, paste0(input_basename, "_heatmap.png"))
@@ -628,6 +661,16 @@ for (group in FASTA_GROUPS) {
               successful_heatmaps <- successful_heatmaps + 1
             }
           }
+          
+          # CPM (Counts Per Million) normalization processing
+          cpm_normalized_data <- preprocess_for_cpm_normalized(raw_data)
+          if (!is.null(cpm_normalized_data)) {
+            cpm_normalized_output <- file.path(output_dir, "CPM_Normalized", paste0(input_basename, "_cpm_normalized_heatmap.png"))
+            total_heatmaps <- total_heatmaps + 1
+            if (generate_normalized_heatmap(cpm_normalized_data, cpm_normalized_output, title, count_type, label_type, "CPM_Normalized")) {
+              successful_heatmaps <- successful_heatmaps + 1
+            }
+          }
       }
     }
   }
@@ -657,6 +700,12 @@ if (successful_heatmaps > 0) {
 # Current structure processes:
 # - Each combination of (group, count_type, gene_type, label_type) 
 #   corresponds to exactly one TSV file
-# - Each TSV file generates multiple heatmaps under different normalization types
+# - Each TSV file generates multiple heatmaps under different normalization types:
+#   * raw_copy: Original data with scaling applied for visualization
+#   * raw_normalized: Raw data with Z-score scaling by rows
+#   * Count-Type_Normalized: Type-specific normalization (coverage->CPM-like, fpkm/tpm->log2)
+#   * Z-score_Normalized: Count-type normalized then Z-score standardized
+#   * CPM_Normalized: Counts Per Million normalization with log2 transformation
 # - Orientation: genes in rows, samples in columns (no transposition)
 # - Output files use the input filename as base name
+# - TSV matrices are saved alongside PNG heatmaps for each normalization type
