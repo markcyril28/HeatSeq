@@ -21,3 +21,6 @@ z_ARCHIVE/*
 logs/*
 4b_Method_2_HISAT2_De_Novo/Sample_SmelGIF_with_Best_Control_Cyclo_tpm_counts_geneName_Organ_zscore_normalized_heatmap.png
 4b_Method_2_HISAT2_De_Novo/logs/*
+4b_Method_2_HISAT2_De_Novo/4b_Method_2_HISAT2_De_Novo_20251009_095825.tar.gz
+.gitignore
+4b_Method_2_HISAT2_De_Novo/HISAT2_DE_NOVO_ROOT_HPC_20251009_093227.tar.gz
