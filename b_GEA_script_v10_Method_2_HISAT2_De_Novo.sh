@@ -41,6 +41,9 @@ set -euo pipefail
 THREADS=32                               # Number of threads to use for parallel operations
 JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
+# Export variables for function access
+export THREADS JOBS
+
 # RNA-seq Library Configuration
 RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), "FR" (ligation), or "unstranded"
                                        # RF = first read reverse complement, second read forward (most common)
@@ -500,7 +503,7 @@ download_kingfisher_and_trim_srrs() {
 		SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
 	fi
 
-	export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
+	export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE JOBS
 	export -f timestamp log log_info log_warn log_error run_with_time_to_log
 
 	# Define per-SRR worker function for kingfisher
@@ -530,6 +533,7 @@ download_kingfisher_and_trim_srrs() {
 			# Download with kingfisher (using fewer threads per job since we're running in parallel)
 			log_info "Downloading $SRR with kingfisher..."
 			local kingfisher_threads=$((THREADS / JOBS))
+			# Add safety check to prevent division by zero
 			[[ $kingfisher_threads -lt 1 ]] && kingfisher_threads=1
 			
 			run_with_time_to_log kingfisher get \
@@ -556,6 +560,7 @@ download_kingfisher_and_trim_srrs() {
 		# Trim reads using fewer cores per job
 		log_info "Trimming $SRR..."
 		local trim_cores=$((THREADS / JOBS))
+		# Add safety check to prevent division by zero
 		[[ $trim_cores -lt 1 ]] && trim_cores=1
 		
 		run_with_time_to_log trim_galore --cores "$trim_cores" \
@@ -596,7 +601,7 @@ download_kingfisher_and_trim_srrs() {
 
 	# Run jobs in parallel using GNU parallel
 	log_info "Starting parallel kingfisher download and trimming..."
-	printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr_kingfisher {}
+	printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${JOBS}" _process_single_srr_kingfisher {}
 	log_info "All parallel kingfisher jobs completed."
 
 	gzip_trimmed_fastq_files
