@@ -55,13 +55,25 @@ Gene_Groups_Boilerplates=(
 
 # Sample lists from different projects
 SRR_LIST_PRJNA328564=(
-    SRR3884675 # Roots
-    SRR3884690 # Stems #SRR3884685 # Radicles
-    SRR3884689 # Leaves
-    SRR3884686 # Buds 0.7 cm
-    SRR3884687 # Opened Buds
-    SRR3884597 # Flowers 
-    SRR3884631 # Fruits 6 cm #SRR3884677 # Cotyledons #SRR3884679 # Pistils
+    SRR3884685  # Radicles  [MERISTEMATIC]
+    SRR3884677  # Cotyledons  [MERISTEMATIC]
+    SRR3884675  # Roots  [MERISTEMATIC]
+    SRR3884690  # Stems  [MERISTEMATIC]
+    SRR3884689  # Leaves (vegetative growth)
+    SRR3884684  # Senescent_leaves 
+    SRR3884686  # Buds_0.7cm  [MERISTEMATIC]
+    SRR3884687  # Opened_Buds  [MERISTEMATIC]
+    SRR3884597  # Flowers 
+    SRR3884679  # Pistils 
+    SRR3884608  # Fruits_1cm 
+    SRR3884620  # Fruits_Stage_1 
+    SRR3884631  # Fruits_6cm 
+    SRR3884642  # Fruits_Skin_Stage_2 
+    SRR3884653  # Fruits_Flesh_Stage_2 
+    SRR3884664  # Fruits_Calyx_Stage_2 
+    SRR3884680  # Fruits_Skin_Stage_3 
+    SRR3884681  # Fruits_Flesh_Stage_3 
+    SRR3884678  # Fruits_peduncle 
 )
 
 SRR_LIST_SAMN28540077=(

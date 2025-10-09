@@ -38,7 +38,7 @@ set -euo pipefail
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=32                               # Number of threads to use for parallel operations
+THREADS=4                               # Number of threads to use for parallel operations
 JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
@@ -52,9 +52,10 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
-RUN_DOWNLOAD_and_TRIM_SRR=TRUE
-RUN_GZIP_TRIMMED_FILES=TRUE
-RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=FALSE
+RUN_DOWNLOAD_and_TRIM_SRR=FALSE
+RUN_GZIP_TRIMMED_FILES=FALSE
+
+RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=TRUE
 RUN_ZIP_RESULTS=FALSE
 
 # GEA Methods 
@@ -1943,13 +1944,14 @@ done
 
 if [[ $RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO == "TRUE" ]]; then
 	log_step "Heatmap Wrapper post-processing enabled"
+	cd 4b_Method_2_HISAT2_De_Novo
 	# Execute the Heatmap Wrapper script for post-processing
-	if [[ -f "4b_Method_2_HISAT2_De_Novo/0_Heatmap_Wrapper.sh" ]]; then
+	if [[ -f "0_Heatmap_Wrapper.sh" ]]; then
 		log_step "Executing Heatmap Wrapper post-processing script"
-		chmod +x 4b_Method_2_HISAT2_De_Novo/*.sh
-		chmod +x 4b_Method_2_HISAT2_De_Novo/0_Heatmap_Wrapper.sh
+		chmod +x *.sh
+		chmod +x 0_Heatmap_Wrapper.sh
 
-		if bash 4b_Method_2_HISAT2_De_Novo/0_Heatmap_Wrapper.sh 2>&1; then
+		if bash "0_Heatmap_Wrapper.sh" 2>&1; then
 			log_info "Heatmap Wrapper completed successfully"
 		else
 			log_error "Heatmap Wrapper failed with exit code $?"
