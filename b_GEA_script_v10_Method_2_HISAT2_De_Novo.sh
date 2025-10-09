@@ -1850,10 +1850,10 @@ run_all() {
 	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01: Download and trim RNA-seq data"
 		#download_and_trim_srrs "${rnaseq_list[@]}"
-		#download_and_trim_srrs_parallel "${rnaseq_list[@]}"
+		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
 		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
 		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
-		download_kingfisher_and_trim_srrs "${rnaseq_list[@]}"
+		#download_kingfisher_and_trim_srrs "${rnaseq_list[@]}"
 		
 		if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
 			log_step "STEP 01b: Quality control analysis"
