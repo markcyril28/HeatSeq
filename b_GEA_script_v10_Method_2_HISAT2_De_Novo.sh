@@ -492,7 +492,7 @@ download_and_trim_srrs() {
 }
 
 download_kingfisher_and_trim_srrs() {
-	# Download and trim RNA-seq data using kingfisher
+	# Download and trim RNA-seq data using kingfisher with GNU parallel
 	local SRR_LIST=("$@")
 
 	# Default to global project list if none provided
@@ -500,7 +500,12 @@ download_kingfisher_and_trim_srrs() {
 		SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
 	fi
 
-	for SRR in "${SRR_LIST[@]}"; do
+	export RAW_DIR_ROOT TRIM_DIR_ROOT THREADS LOG_FILE
+	export -f timestamp log log_info log_warn log_error run_with_time_to_log
+
+	# Define per-SRR worker function for kingfisher
+	_process_single_srr_kingfisher() {
+		local SRR="$1"
 		local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
 		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
 		local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
@@ -510,100 +515,89 @@ download_kingfisher_and_trim_srrs() {
 		log_info "Working on $SRR with kingfisher..."
 		mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
 
-		# --------------------------------------------------
-		# Check if trimmed files already exist
-		# --------------------------------------------------
+		# Skip if trimmed files already exist
 		if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
-			log_info "Trimmed files for $SRR already exist. Skipping download and trimming."
-			log_info "--------------------------------------------------"
-			continue
+			log_info "Trimmed files for $SRR already exist. Skipping."
+			return 0
 		fi
 
-		# --------------------------------------------------
-		# Check for existing raw FASTQ files
-		# --------------------------------------------------
-		# Check if trimmed files already exist - skip if so
-		if [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; then
-			log_info "Trimmed files for $SRR already exist. Skipping download and trimming."
-			log_info "--------------------------------------------------"
-			continue
-		fi
-		
 		# Check for existing raw FASTQ files
 		if [[ -f "$raw_files_DIR/${SRR}_1.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
 			raw1="$raw_files_DIR/${SRR}_1.fastq.gz"
 			raw2="$raw_files_DIR/${SRR}_2.fastq.gz"
 			log_info "Raw FASTQ files for $SRR already exist. Skipping download."
 		else
-			# --------------------------------------------------
-			# Download with kingfisher (tries multiple sources automatically)
-			# --------------------------------------------------
+			# Download with kingfisher (using fewer threads per job since we're running in parallel)
 			log_info "Downloading $SRR with kingfisher..."
+			local kingfisher_threads=$((THREADS / JOBS))
+			[[ $kingfisher_threads -lt 1 ]] && kingfisher_threads=1
+			
 			run_with_time_to_log kingfisher get \
 				--run-identifiers "$SRR" \
 				--output-directory "$raw_files_DIR" \
-				--download-threads "$THREADS" \
-				--extraction-threads "$THREADS" \
+				--download-threads "$kingfisher_threads" \
+				--extraction-threads "$kingfisher_threads" \
 				--gzip \
-				--check-md5sums
+				--check-md5sums || {
+				log_warn "Kingfisher download failed for $SRR"; return 1;
+			}
 			
-			# Kingfisher outputs files as SRR_1.fastq.gz and SRR_2.fastq.gz
+			# Verify kingfisher output
 			if [[ -f "$raw_files_DIR/${SRR}_1.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
 				raw1="$raw_files_DIR/${SRR}_1.fastq.gz"
 				raw2="$raw_files_DIR/${SRR}_2.fastq.gz"
 				log_info "Kingfisher download successful for $SRR"
 			else
 				log_warn "Raw FASTQ for $SRR not found after kingfisher download; skipping."
-				log_info "--------------------------------------------------"
-				continue
+				return 1
 			fi
 		fi
 
-		# --------------------------------------------------
-		# Trim reads using Trim Galore
-		# --------------------------------------------------
+		# Trim reads using fewer cores per job
 		log_info "Trimming $SRR..."
-		run_with_time_to_log trim_galore --cores "${THREADS}" \
+		local trim_cores=$((THREADS / JOBS))
+		[[ $trim_cores -lt 1 ]] && trim_cores=1
+		
+		run_with_time_to_log trim_galore --cores "$trim_cores" \
 			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
 
-		log_info "Done working on $SRR."
-		log_info "--------------------------------------------------"
-
-		# --------------------------------------------------
-		# Verify trimming success and delete raw files if successful
-		# --------------------------------------------------
+		# Verify trimming success and cleanup
 		local trimming_success=false
 		local trimmed_files_exist=false
 		local trimmed_files_not_empty=false
 
-		# Check if trimmed files exist (either uncompressed or compressed)
+		# Check if trimmed files exist and have content
 		if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
 			trimmed_files_exist=true
 			
-			# Check if files have content (not empty)
 			if { [[ -s "$trimmed1" && -s "$trimmed2" ]] || [[ -s "${trimmed1}.gz" && -s "${trimmed2}.gz" ]]; }; then
 				trimmed_files_not_empty=true
 			fi
 		fi
 
-		# Verify overall trimming success
+		# Process based on verification results
 		if [[ "$trimmed_files_exist" == true && "$trimmed_files_not_empty" == true ]]; then
 			trimming_success=true
 			log_info "Trimming successfully completed for $SRR"
-			
-			# Delete raw files only if trimming was successful
-			log_info "Deleting raw FASTQ files for $SRR after successful trimming..."
+			log_info "Cleaning up raw FASTQs for $SRR..."
 			rm -f "$raw1" "$raw2"
-			log_info "Raw files deleted for $SRR"
+			log_info "Raw files deleted"
 		else
-			log_warn "Trimming may have failed for $SRR - keeping raw files for potential reprocessing"
-			if [[ "$trimmed_files_exist" == false ]]; then
-				log_warn "Trimmed output files not found"
-			elif [[ "$trimmed_files_not_empty" == false ]]; then
-				log_warn "Trimmed output files are empty"
-			fi
+			log_warn "Trimming verification failed for $SRR - keeping raw files"
+			[[ "$trimmed_files_exist" == false ]] && log_warn "Trimmed files missing"
+			[[ "$trimmed_files_not_empty" == false ]] && log_warn "Trimmed files are empty"
 		fi
-	done
+
+		log_info "Done with $SRR."
+		log_info "--------------------------------------------------"
+	}
+
+	export -f _process_single_srr_kingfisher
+
+	# Run jobs in parallel using GNU parallel
+	log_info "Starting parallel kingfisher download and trimming..."
+	printf "%s\n" "${SRR_LIST[@]}" | parallel -j "${PARALLEL_JOBS:-$JOBS}" _process_single_srr_kingfisher {}
+	log_info "All parallel kingfisher jobs completed."
 
 	gzip_trimmed_fastq_files
 	log_info "All SRR samples processed with kingfisher."
