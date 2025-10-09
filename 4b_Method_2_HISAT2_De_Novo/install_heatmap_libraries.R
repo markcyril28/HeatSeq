@@ -1,5 +1,11 @@
 # ===============================================
-# Simplified Heatmap Libraries Installation
+# Complete R Libraries Installation for HeatSeq Project
+# ===============================================
+# 
+# This script installs all required R packages for:
+# - b_make_heatmap_of_matrices_v4.R (ComplexHeatmap visualizations)
+# - c_make_heatmap_with_CV_of_matrices_v4.R (CV heatmaps)
+# - d_make_BarGraph_of_matrices_v4.R (ggplot2 bar graphs)
 # ===============================================
 
 # Function to install packages if not available
@@ -18,25 +24,38 @@ install_if_missing <- function(package) {
       install.packages(package, dependencies = TRUE, repos = "https://cloud.r-project.org/")
     }
     
-    library(package, character.only = TRUE)
+    suppressPackageStartupMessages(library(package, character.only = TRUE))
     cat("✓ Successfully installed and loaded", package, "\n")
   } else {
     cat("✓ Package", package, "is already available\n")
   }
 }
 
-# Required packages for heatmap generation
+# Required packages for all R scripts in the project
 required_packages <- c(
+  # Bioconductor packages
   "ComplexHeatmap",  # Main heatmap package
+  
+  # CRAN packages for heatmaps
   "circlize",        # Color mapping
   "RColorBrewer",    # Color palettes
   "dplyr",           # Data manipulation
   "tibble",          # Data frames
-  "grid"             # Graphics
+  "grid",            # Graphics
+  
+  # Additional packages for bar graphs
+  "ggplot2",         # Grammar of graphics plotting
+  "scales",          # Scale functions for ggplot2
+  "gridExtra",       # Arranging multiple plots
+  
+  # Additional utility packages
+  "readr",           # Fast reading of delimited files
+  "tidyr",           # Data tidying functions
+  "stringr"          # String manipulation
 )
 
 cat("===============================================\n")
-cat("Installing Required Heatmap Libraries\n")
+cat("Installing Required Libraries for All R Scripts\n")
 cat("===============================================\n")
 
 # Install all required packages
@@ -50,14 +69,22 @@ cat("===============================================\n")
 
 # Test basic functionality
 tryCatch({
-  library(ComplexHeatmap)
-  library(circlize)
-  library(RColorBrewer)
-  library(dplyr)
-  library(tibble)
-  library(grid)
+  suppressPackageStartupMessages({
+    library(ComplexHeatmap)
+    library(circlize)
+    library(RColorBrewer)
+    library(dplyr)
+    library(tibble)
+    library(grid)
+    library(ggplot2)
+    library(scales)
+    library(gridExtra)
+    library(readr)
+    library(tidyr)
+    library(stringr)
+  })
   
-  # Quick test
+  # Quick test for heatmap functionality
   test_matrix <- matrix(rnorm(20), nrow = 4, ncol = 5)
   rownames(test_matrix) <- paste0("Gene_", 1:4)
   colnames(test_matrix) <- paste0("Sample_", 1:5)
@@ -65,8 +92,12 @@ tryCatch({
   # Test color mapping
   colorRamp2(c(-2, 0, 2), c("blue", "white", "red"))
   
+  # Quick test for ggplot2 functionality
+  test_df <- data.frame(x = 1:5, y = rnorm(5))
+  test_plot <- ggplot(test_df, aes(x = x, y = y)) + geom_point()
+  
   cat("✓ All packages loaded and tested successfully!\n")
-  cat("✓ Ready to run heatmap generation scripts.\n")
+  cat("✓ Ready to run heatmap, bar graph, and data processing scripts.\n")
   
 }, error = function(e) {
   cat("✗ Error during testing:", e$message, "\n")
