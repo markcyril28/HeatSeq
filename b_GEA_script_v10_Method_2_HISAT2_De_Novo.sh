@@ -49,9 +49,9 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
-RUN_DOWNLOAD_and_TRIM_SRR=FALSE
-RUN_GZIP_TRIMMED_FILES=FALSE
-RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=TRUE
+RUN_DOWNLOAD_and_TRIM_SRR=TRUE
+RUN_GZIP_TRIMMED_FILES=TRUE
+RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=FALSE
 RUN_ZIP_RESULTS=FALSE
 
 # GEA Methods 
@@ -96,13 +96,26 @@ ALL_FASTA_FILES=(
 
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
-	#SRR3884653 	# Fruits Flesh Stage 2 #SRR3884664 # Fruits Calyx Stage 2
-	SRR3884631 	# Fruits 6 cm #SRR3884677 # Cotyledons #SRR3884679 # Pistils
-	SRR3884597 	# Flowers
-	SRR3884686 	# Buds 0.7 cm #SRR3884687 	# Buds, Opened Buds
-	SRR3884689 	# Leaves
-	SRR3884690 	# Stems
-	SRR3884675 	# Roots #SRR3884685 # Radicles
+	# Developmental stages arranged from early to late
+	SRR3884685	# Radicles (earliest - germination)
+	SRR3884677	# Cotyledons (seed leaves)
+	SRR3884675	# Roots (root development)
+	SRR3884690	# Stems (vegetative growth)
+	SRR3884689	# Leaves (vegetative growth)
+	SRR3884684	# Senescent_leaves (leaf aging)
+	SRR3884686	# Buds_0.7cm (flower bud initiation)
+	SRR3884687	# Opened_Buds (flower development)
+	SRR3884597	# Flowers (anthesis)
+	SRR3884679	# Pistils (female reproductive parts)
+	SRR3884608	# Fruits_1cm (early fruit development)
+	SRR3884620	# Fruits_Stage_1 (early fruit stage)
+	SRR3884631	# Fruits_6cm (fruit enlargement)
+	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
+	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
+	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
+	SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
+	SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
+	SRR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
@@ -200,7 +213,7 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 # CLEANUP OPTIONS AND TESTING ESSENTIALS
 # ==============================================================================
 
-#rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
+rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
 #rm -rf "$FASTQC_ROOT"                   # Remove previous FastQC results
 #rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
 #rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
@@ -231,10 +244,6 @@ setup_logging() {
 
 	mkdir -p "$LOG_DIR"
 	#rm -f "$LOG_DIR"/*.log
-	#echo "Choose log output:"
-	#echo "1) Console and file"
-	#echo "2) File only"
-	#read -p "Enter 1 or 2 [default: 1]: " log_choice
 	log_choice="${log_choice:-1}"
 	if [[ "$log_choice" == "2" ]]; then
 		exec >"$LOG_FILE" 2>&1
@@ -482,6 +491,123 @@ download_and_trim_srrs() {
 	log_info "All SRR samples processed."
 }
 
+download_kingfisher_and_trim_srrs() {
+	# Download and trim RNA-seq data using kingfisher
+	local SRR_LIST=("$@")
+
+	# Default to global project list if none provided
+	if [[ ${#SRR_LIST[@]} -eq 0 ]]; then
+		SRR_LIST=("${SRR_LIST_PRJNA328564[@]}")
+	fi
+
+	for SRR in "${SRR_LIST[@]}"; do
+		local raw_files_DIR="$RAW_DIR_ROOT/$SRR"
+		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+		local trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+		local trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+		local raw1 raw2
+
+		log_info "Working on $SRR with kingfisher..."
+		mkdir -p "$raw_files_DIR" "$TrimGalore_DIR"
+
+		# --------------------------------------------------
+		# Check if trimmed files already exist
+		# --------------------------------------------------
+		if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+			log_info "Trimmed files for $SRR already exist. Skipping download and trimming."
+			log_info "--------------------------------------------------"
+			continue
+		fi
+
+		# --------------------------------------------------
+		# Check for existing raw FASTQ files
+		# --------------------------------------------------
+		# Check if trimmed files already exist - skip if so
+		if [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; then
+			log_info "Trimmed files for $SRR already exist. Skipping download and trimming."
+			log_info "--------------------------------------------------"
+			continue
+		fi
+		
+		# Check for existing raw FASTQ files
+		if [[ -f "$raw_files_DIR/${SRR}_1.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+			raw1="$raw_files_DIR/${SRR}_1.fastq.gz"
+			raw2="$raw_files_DIR/${SRR}_2.fastq.gz"
+			log_info "Raw FASTQ files for $SRR already exist. Skipping download."
+		else
+			# --------------------------------------------------
+			# Download with kingfisher (tries multiple sources automatically)
+			# --------------------------------------------------
+			log_info "Downloading $SRR with kingfisher..."
+			run_with_time_to_log kingfisher get \
+				--run-identifiers "$SRR" \
+				--output-directory "$raw_files_DIR" \
+				--download-threads "$THREADS" \
+				--extraction-threads "$THREADS" \
+				--gzip \
+				--check-md5sums
+			
+			# Kingfisher outputs files as SRR_1.fastq.gz and SRR_2.fastq.gz
+			if [[ -f "$raw_files_DIR/${SRR}_1.fastq.gz" && -f "$raw_files_DIR/${SRR}_2.fastq.gz" ]]; then
+				raw1="$raw_files_DIR/${SRR}_1.fastq.gz"
+				raw2="$raw_files_DIR/${SRR}_2.fastq.gz"
+				log_info "Kingfisher download successful for $SRR"
+			else
+				log_warn "Raw FASTQ for $SRR not found after kingfisher download; skipping."
+				log_info "--------------------------------------------------"
+				continue
+			fi
+		fi
+
+		# --------------------------------------------------
+		# Trim reads using Trim Galore
+		# --------------------------------------------------
+		log_info "Trimming $SRR..."
+		run_with_time_to_log trim_galore --cores "${THREADS}" \
+			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+
+		log_info "Done working on $SRR."
+		log_info "--------------------------------------------------"
+
+		# --------------------------------------------------
+		# Verify trimming success and delete raw files if successful
+		# --------------------------------------------------
+		local trimming_success=false
+		local trimmed_files_exist=false
+		local trimmed_files_not_empty=false
+
+		# Check if trimmed files exist (either uncompressed or compressed)
+		if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
+			trimmed_files_exist=true
+			
+			# Check if files have content (not empty)
+			if { [[ -s "$trimmed1" && -s "$trimmed2" ]] || [[ -s "${trimmed1}.gz" && -s "${trimmed2}.gz" ]]; }; then
+				trimmed_files_not_empty=true
+			fi
+		fi
+
+		# Verify overall trimming success
+		if [[ "$trimmed_files_exist" == true && "$trimmed_files_not_empty" == true ]]; then
+			trimming_success=true
+			log_info "Trimming successfully completed for $SRR"
+			
+			# Delete raw files only if trimming was successful
+			log_info "Deleting raw FASTQ files for $SRR after successful trimming..."
+			rm -f "$raw1" "$raw2"
+			log_info "Raw files deleted for $SRR"
+		else
+			log_warn "Trimming may have failed for $SRR - keeping raw files for potential reprocessing"
+			if [[ "$trimmed_files_exist" == false ]]; then
+				log_warn "Trimmed output files not found"
+			elif [[ "$trimmed_files_not_empty" == false ]]; then
+				log_warn "Trimmed output files are empty"
+			fi
+		fi
+	done
+
+	gzip_trimmed_fastq_files
+	log_info "All SRR samples processed with kingfisher."
+}
 
 download_and_trim_srrs_parallel() {
 	# ============================================
@@ -1725,9 +1851,10 @@ run_all() {
 	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01: Download and trim RNA-seq data"
 		#download_and_trim_srrs "${rnaseq_list[@]}"
-		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
+		#download_and_trim_srrs_parallel "${rnaseq_list[@]}"
 		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
 		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
+		download_kingfisher_and_trim_srrs "${rnaseq_list[@]}"
 		
 		if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
 			log_step "STEP 01b: Quality control analysis"
@@ -1841,7 +1968,8 @@ fi
 if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
 	# Optional: Archive StringTie results for sharing or backup
 	#tar -czvf "stringtie_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
-	tar -czvf HISAT2_DE_NOVO_ROOT_HPC_$(date +%Y%m%d_%H%M%S).tar.gz $HISAT2_DE_NOVO_ROOT
+	#tar -czvf HISAT2_DE_NOVO_ROOT_HPC_$(date +%Y%m%d_%H%M%S).tar.gz $HISAT2_DE_NOVO_ROOT
+	tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo/
 fi
 
 # ==============================================================================
