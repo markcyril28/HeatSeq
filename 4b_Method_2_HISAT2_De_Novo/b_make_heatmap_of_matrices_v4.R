@@ -2,26 +2,12 @@
 # HEATMAP GENERATION FOR METHOD2 RESULTS
 # ===============================================
 #
-# UPDATES in this version:
-# - Replaced pheatmap with ComplexHeatmap for better label control
-# - Row labels (genes) now positioned on the LEFT side
-# - Column labels (samples) now positioned at the TOP
-# - Added 45-degree rotation for column labels for better readability
-# - Implemented label truncation for long gene names
-# - Enhanced color palette with proper color mapping
-# - Improved legend positioning and formatting
-# - Better error handling and debugging output
-# - Added CPM (Counts Per Million) normalization similar to DESeq2
-# - CPM normalization: (counts / library_size) * 1,000,000 with log2 transformation
-#
-# Normalization types available:
-# - Raw normalized (with Z-score scaling)
-# - Count-Type normalized (coverage: CPM-like, fpkm/tpm: log2 transformed)
-# - Z-score normalized (standardized by row)
-# - CPM normalized (Counts Per Million with log2 transformation)
+# Generates heatmaps with ComplexHeatmap package using multiple normalization methods:
+# - Raw, Count-Type, Z-score, and CPM normalization
+# - Professional layout with genes on left, samples on top
+# - Saves both PNG heatmaps and TSV data files
 #
 # Required packages: ComplexHeatmap, circlize, RColorBrewer, dplyr, tibble, grid
-# Run test_heatmap_libraries.R first to install missing packages
 # ===============================================
 
 # Load required libraries
@@ -143,7 +129,7 @@ save_matrix_data <- function(data_matrix, output_path) {
     write.table(matrix_df, file = matrix_path, sep = "\t", 
                 row.names = FALSE, col.names = TRUE, quote = FALSE)
     
-    cat("Matrix saved to:", matrix_path, "\n")
+    # cat("Matrix saved to:", matrix_path, "\n")
     return(TRUE)
   }, error = function(e) {
     cat("Error saving matrix:", e$message, "\n")
@@ -166,7 +152,7 @@ read_count_matrix <- function(file_path) {
     rownames(data) <- data[, 1]
     data <- data[, -1, drop = FALSE]
     
-    for (i in 1:ncol(data)) {
+    for (i in seq_len(ncol(data))) {
       if (!is.numeric(data[, i])) {
         data[, i] <- as.numeric(as.character(data[, i]))
       }
@@ -194,25 +180,63 @@ read_count_matrix <- function(file_path) {
   })
 }
 
-# Function to preprocess data for heatmap
-preprocess_for_heatmap <- function(data_matrix, count_type) {
+# Function to preprocess data based on normalization type
+preprocess_data <- function(data_matrix, count_type, norm_type = "default") {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
   
-  data_processed <- log2(data_matrix + 0.1)
+  # Handle NAs and infinite values
+  data_matrix[is.na(data_matrix) | is.infinite(data_matrix)] <- 0
+  
+  # Apply normalization based on type
+  data_processed <- switch(norm_type,
+    "raw" = data_matrix,
+    "cpm" = {
+      lib_sizes <- colSums(data_matrix, na.rm = TRUE)
+      lib_sizes[lib_sizes == 0] <- 1
+      data_cpm <- sweep(data_matrix, 2, lib_sizes/1e6, FUN = "/")
+      data_cpm[is.na(data_cpm) | is.infinite(data_cpm)] <- 0
+      log2(data_cpm + 1)
+    },
+    "zscore" = {
+      # First apply count-type normalization
+      if (count_type == "coverage") {
+        lib_sizes <- colSums(data_matrix, na.rm = TRUE)
+        lib_sizes[lib_sizes == 0] <- 1
+        data_norm <- sweep(data_matrix, 2, lib_sizes/1e6, FUN = "/")
+        data_norm <- log2(data_norm + 1)
+      } else if (count_type %in% c("fpkm", "tpm")) {
+        data_norm <- log2(data_matrix + 0.1)
+      } else {
+        data_norm <- log2(data_matrix + 1)
+      }
+      # Then apply z-score normalization
+      data_norm[is.na(data_norm) | is.infinite(data_norm)] <- 0
+      if (nrow(data_norm) > 1 && ncol(data_norm) > 1) {
+        data_zscore <- t(scale(t(data_norm), center = TRUE, scale = TRUE))
+        data_zscore[is.na(data_zscore)] <- 0
+        data_zscore
+      } else {
+        data_norm
+      }
+    },
+    {  # Default case (count-type normalization)
+      if (count_type == "coverage") {
+        lib_sizes <- colSums(data_matrix, na.rm = TRUE)
+        lib_sizes[lib_sizes == 0] <- 1
+        data_normalized <- sweep(data_matrix, 2, lib_sizes/1e6, FUN = "/")
+        log2(data_normalized + 1)
+      } else if (count_type %in% c("fpkm", "tpm")) {
+        log2(data_matrix + 0.1)
+      } else {
+        log2(data_matrix + 1)
+      }
+    }
+  )
+  
   data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
   
-  row_vars <- apply(data_processed, 1, var, na.rm = TRUE)
-  row_vars[is.na(row_vars)] <- 0
-  
-  # Keep genes with zero variance by adding a small pseudocount for heatmap visualization
-  # if (any(row_vars == 0)) {
-  #   cat("Removing", sum(row_vars == 0), "genes with zero variance\n")
-  #   data_processed <- data_processed[row_vars > 0, , drop = FALSE]
-  # }
-  # MODIFIED: Now keeping all genes, including those with zero variance
-  cat("Keeping all", nrow(data_processed), "genes (including", sum(row_vars == 0), "with zero variance)\n")
-  
-  if (nrow(data_processed) > 10) {
+  # Filter high-variance genes if too many genes
+  if (nrow(data_processed) > 100 && norm_type != "raw") {
     gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
     gene_vars[is.na(gene_vars)] <- 0
     if (length(gene_vars) > 100) {
@@ -225,237 +249,9 @@ preprocess_for_heatmap <- function(data_matrix, count_type) {
   return(data_processed)
 }
 
-# Preprocessing for raw data
-preprocess_for_raw_data <- function(data_matrix) {
-  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
-  data_processed <- data_matrix
-  data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
-  
-  gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
-  gene_vars[is.na(gene_vars)] <- 0
-  
-  # Keep all genes, including those with zero variance
-  # if (any(gene_vars == 0)) {
-  #   data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
-  # }
-  # MODIFIED: Now keeping all genes for complete representation
-  
-  return(data_processed)
-}
-
-# Preprocessing for count-type normalized data
-preprocess_for_count_type_normalized <- function(data_matrix, count_type) {
-  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
-  
-  if (count_type == "coverage") {
-    lib_sizes <- colSums(data_matrix, na.rm = TRUE)
-    lib_sizes[lib_sizes == 0] <- 1
-    data_normalized <- sweep(data_matrix, 2, lib_sizes/1e6, FUN = "/")
-    data_processed <- log2(data_normalized + 1)
-  } else if (count_type %in% c("fpkm", "tpm")) {
-    data_processed <- log2(data_matrix + 0.1)
-  } else {
-    data_processed <- log2(data_matrix + 1)
-  }
-  
-  data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
-  gene_vars <- apply(data_processed, 1, var, na.rm = TRUE)
-  gene_vars[is.na(gene_vars)] <- 0
-  
-  # Keep all genes, including those with zero variance
-  # if (any(gene_vars == 0)) {
-  #   data_processed <- data_processed[gene_vars > 0, , drop = FALSE]
-  # }
-  # MODIFIED: Now keeping all genes for complete representation
-  
-  return(data_processed)
-}
-
-# Preprocessing for Z-score normalized data
-preprocess_for_zscore_normalized <- function(data_matrix, count_type) {
-  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
-  data_processed <- preprocess_for_count_type_normalized(data_matrix, count_type)
-  if (is.null(data_processed) || nrow(data_processed) == 0) return(NULL)
-  
-  if (nrow(data_processed) > 1 && ncol(data_processed) > 1) {
-    data_processed <- t(scale(t(data_processed), center = TRUE, scale = TRUE))
-    data_processed[is.na(data_processed)] <- 0
-  }
-  return(data_processed)
-}
-
-# Preprocessing for CPM (Counts Per Million) normalized data
-preprocess_for_cpm_normalized <- function(data_matrix) {
-  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
-  
-  # Calculate library sizes (total counts per sample)
-  lib_sizes <- colSums(data_matrix, na.rm = TRUE)
-  
-  # Avoid division by zero - set minimum library size to 1
-  lib_sizes[lib_sizes == 0] <- 1
-  
-  # Calculate CPM: (counts / library_size) * 1,000,000
-  data_cpm <- sweep(data_matrix, 2, lib_sizes/1e6, FUN = "/")
-  
-  # Handle any remaining NAs or infinite values
-  data_cpm[is.na(data_cpm) | is.infinite(data_cpm)] <- 0
-  
-  # Apply log2 transformation with pseudocount for visualization
-  data_processed <- log2(data_cpm + 1)
-  data_processed[is.na(data_processed) | is.infinite(data_processed)] <- 0
-  
-  return(data_processed)
-}
-
-# Function to generate heatmap
-generate_heatmap <- function(data_matrix, output_path, title, count_type, label_type) {
-  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(FALSE)
-  if (nrow(data_matrix) < 2) return(FALSE)
-  if (any(is.na(data_matrix)) || any(is.infinite(data_matrix))) {
-    data_matrix[is.na(data_matrix) | is.infinite(data_matrix)] <- 0
-  }
-  if (length(unique(as.vector(data_matrix))) == 1) return(FALSE)
-  
-  # Save matrix data as TSV
-  save_matrix_data(data_matrix, output_path)
-  
-  # Define eggplant color palette
-  eggplant_colors <- colorRamp2(
-    seq(min(data_matrix), max(data_matrix), length = 8),
-    c("#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
-      "#8E24AA","#6A1B9A","#4A148C","#2F1B69")
-  )
-  
-  tryCatch({
-    # Scale by rows (genes)
-    data_scaled <- t(scale(t(data_matrix)))
-    data_scaled[is.na(data_scaled)] <- 0
-    
-    # Truncate row names for better display
-    row_labels <- truncate_labels(rownames(data_matrix), max_length = 30)
-    rownames(data_scaled) <- row_labels
-    
-    # Create the heatmap
-    ht <- Heatmap(
-      data_scaled,
-      name = "Expression",
-      col = eggplant_colors,
-      
-      # Row (gene) settings - labels on the LEFT
-      show_row_names = TRUE,
-      row_names_side = "left",
-      row_names_gp = gpar(fontsize = 8),
-      row_names_max_width = unit(10, "cm"),
-      cluster_rows = FALSE,
-      
-      # Column (sample) settings - labels at the TOP
-      show_column_names = TRUE,
-      column_names_side = "top",
-      column_names_gp = gpar(fontsize = 10),
-      column_names_rot = 45,
-      cluster_columns = FALSE,
-      
-      # Heatmap body settings
-      rect_gp = gpar(col = "white", lwd = 0.5),
-      
-      # Legend settings - larger and positioned at top right
-      heatmap_legend_param = list(
-        title = "Z-score",
-        legend_direction = "vertical",
-        legend_height = unit(8, "cm"),
-        legend_width = unit(2.0, "cm"),
-        title_gp = gpar(fontsize = 14, fontface = "bold"),
-        labels_gp = gpar(fontsize = 12),
-        grid_height = unit(1.8, "cm"),
-        grid_width = unit(0.8, "cm"),
-        just = c("left", "top")
-      ),
-      
-      # Title
-      column_title = title,
-      column_title_gp = gpar(fontsize = 14, fontface = "bold")
-    )
-    
-    # Save the heatmap
-    png(output_path, width = 16, height = 12, units = "in", res = 300)
-    draw(ht, 
-         heatmap_legend_side = "right", 
-         annotation_legend_side = "right",
-         merge_legends = TRUE,
-         gap = unit(7, "mm"))
-    dev.off()
-    
-    return(TRUE)
-  }, error = function(e) {
-    cat("Row scaling failed, trying without scaling...\n")
-    tryCatch({
-      # Truncate row names for better display
-      row_labels <- truncate_labels(rownames(data_matrix), max_length = 30)
-      rownames(data_matrix) <- row_labels
-      
-      # Create heatmap without scaling
-      ht <- Heatmap(
-        data_matrix,
-        name = "Expression",
-        col = eggplant_colors,
-        
-        # Row (gene) settings - labels on the LEFT
-        show_row_names = TRUE,
-        row_names_side = "left",
-        row_names_gp = gpar(fontsize = 8),
-        row_names_max_width = unit(10, "cm"),
-        cluster_rows = FALSE,
-        
-        # Column (sample) settings - labels at the TOP
-        show_column_names = TRUE,
-        column_names_side = "top",
-        column_names_gp = gpar(fontsize = 10),
-        column_names_rot = 45,
-        cluster_columns = FALSE,
-        
-        # Heatmap body settings
-        rect_gp = gpar(col = "white", lwd = 0.5),
-        
-        # Legend settings - larger and positioned at top right
-        heatmap_legend_param = list(
-          title = "Raw Values",
-          legend_direction = "vertical",
-          legend_height = unit(8, "cm"),
-          legend_width = unit(2, "cm"),
-          title_gp = gpar(fontsize = 14, fontface = "bold"),
-          labels_gp = gpar(fontsize = 12),
-          grid_height = unit(1.8, "cm"),
-          grid_width = unit(0.8, "cm"),
-          just = c("left", "top")
-        ),
-        
-        # Title
-        column_title = paste(title, "(No Scaling)"),
-        column_title_gp = gpar(fontsize = 14, fontface = "bold")
-      )
-      
-      # Save the heatmap
-      png(output_path, width = 16, height = 12, units = "in", res = 300)
-      draw(ht, 
-           heatmap_legend_side = "right", 
-           annotation_legend_side = "right",
-           merge_legends = TRUE,
-           gap = unit(7, "mm"))
-      dev.off()
-      
-      return(TRUE)
-    }, error = function(e2) {
-      cat("Error generating heatmap for:", title, "\n")
-      cat("Error details:", e2$message, "\n")
-      return(FALSE)
-    })
-  })
-}
-
-# Function to generate normalized heatmap
-generate_normalized_heatmap <- function(data_matrix, output_path, title, count_type, label_type, normalization_type) {
-  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(FALSE)
-  if (nrow(data_matrix) < 2) return(FALSE)
+# Function to generate heatmap (unified for all normalization types)
+generate_heatmap <- function(data_matrix, output_path, title, count_type, label_type, normalization_type = "raw") {
+  if (is.null(data_matrix) || nrow(data_matrix) == 0 || nrow(data_matrix) < 2) return(FALSE)
   if (any(is.na(data_matrix)) || any(is.infinite(data_matrix))) {
     data_matrix[is.na(data_matrix) | is.infinite(data_matrix)] <- 0
   }
@@ -466,65 +262,49 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
   
   # Prepare column labels
   col_labels <- colnames(data_matrix)
-  if (label_type == "SRR") {
-    col_labels <- colnames(data_matrix)
-  } else if (label_type == "Organ" && exists("SAMPLE_LABELS")) {
+  if (label_type == "Organ" && exists("SAMPLE_LABELS")) {
     col_labels <- ifelse(colnames(data_matrix) %in% names(SAMPLE_LABELS),
                          SAMPLE_LABELS[colnames(data_matrix)],
                          colnames(data_matrix))
+    colnames(data_matrix) <- col_labels
   }
   
-  # Set column names for the matrix
-  colnames(data_matrix) <- col_labels
-  
-  # Define eggplant color palette
+  # Define color palette and legend title
   eggplant_colors <- colorRamp2(
     seq(min(data_matrix), max(data_matrix), length = 8),
     c("#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
       "#8E24AA","#6A1B9A","#4A148C","#2F1B69")
   )
   
-  # Determine scaling method
-  scale_method <- switch(normalization_type,
-                         "raw_normalized" = "row",
-                         "Count-Type_Normalized" = "none", 
-                         "Z-score_Normalized" = "none",
-                         "CPM_Normalized" = "none",
-                         "row")
+  legend_title <- switch(normalization_type,
+    "raw" = "Raw Counts",
+    "raw_normalized" = "Raw Counts", 
+    "Count-Type_Normalized" = "Log2 Expression",
+    "Z-score_Normalized" = "Z-score",
+    "CPM_Normalized" = "Log2(CPM + 1)",
+    "Expression"
+  )
   
   tryCatch({
-    # Apply scaling if needed
-    if (scale_method == "row") {
-      data_scaled <- t(scale(t(data_matrix)))
-      data_scaled[is.na(data_scaled)] <- 0
-      legend_title <- "Z-score"
-    } else {
-      data_scaled <- data_matrix
-      legend_title <- "Expression"
-    }
-    
-    # Truncate row names for better display (only if many genes)
-    if (nrow(data_matrix) > 50) {
-      row_labels <- truncate_labels(rownames(data_scaled), max_length = 20)
-    } else {
-      row_labels <- truncate_labels(rownames(data_scaled), max_length = 30)
-    }
-    rownames(data_scaled) <- row_labels
+    # Truncate row names for better display
+    max_length <- if (nrow(data_matrix) > 50) 20 else 30
+    row_labels <- truncate_labels(rownames(data_matrix), max_length = max_length)
+    rownames(data_matrix) <- row_labels
     
     # Create the heatmap
     ht <- Heatmap(
-      data_scaled,
+      data_matrix,
       name = legend_title,
       col = eggplant_colors,
       
-      # Row (gene) settings - labels on the LEFT
+      # Row (gene) settings
       show_row_names = ifelse(nrow(data_matrix) > 50, FALSE, TRUE),
       row_names_side = "left",
-      row_names_gp = gpar(fontsize = 7),
+      row_names_gp = gpar(fontsize = if (nrow(data_matrix) > 50) 7 else 8),
       row_names_max_width = unit(10, "cm"),
       cluster_rows = FALSE,
       
-      # Column (sample) settings - labels at the TOP
+      # Column (sample) settings
       show_column_names = TRUE,
       column_names_side = "top",
       column_names_gp = gpar(fontsize = 10),
@@ -532,9 +312,9 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
       cluster_columns = FALSE,
       
       # Heatmap body settings
-      rect_gp = gpar(col = "white", lwd = 0.3),
+      rect_gp = gpar(col = "white", lwd = if (nrow(data_matrix) > 50) 0.3 else 0.5),
       
-      # Legend settings - larger and positioned at top right
+      # Legend settings
       heatmap_legend_param = list(
         title = legend_title,
         legend_direction = "vertical",
@@ -548,12 +328,13 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
       ),
       
       # Title
-      column_title = paste(title, "-", normalization_type),
+      column_title = if (normalization_type == "raw") title else paste(title, "-", normalization_type),
       column_title_gp = gpar(fontsize = 14, fontface = "bold")
     )
     
     # Save the heatmap
-    png(output_path, width = 18, height = 14, units = "in", res = 300)
+    png(output_path, width = if (normalization_type == "raw") 16 else 18, 
+        height = if (normalization_type == "raw") 12 else 14, units = "in", res = 300)
     draw(ht, 
          heatmap_legend_side = "right", 
          annotation_legend_side = "right",
@@ -563,7 +344,7 @@ generate_normalized_heatmap <- function(data_matrix, output_path, title, count_t
     
     return(TRUE)
   }, error = function(e) {
-    cat("Error generating normalized heatmap for:", title, "\n")
+    cat("Error generating heatmap for:", title, "\n")
     cat("Error details:", e$message, "\n")
     return(FALSE)
   })
@@ -611,64 +392,35 @@ for (group in FASTA_GROUPS) {
         
         output_dir <- file.path(HEATMAP_OUT_DIR, group)
           dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-          dir.create(file.path(output_dir, "raw_copy"), showWarnings = FALSE)
+          dir.create(file.path(output_dir, "raw"), showWarnings = FALSE)
           dir.create(file.path(output_dir, "raw_normalized"), showWarnings = FALSE)
           dir.create(file.path(output_dir, "Count-Type_Normalized"), showWarnings = FALSE)
           dir.create(file.path(output_dir, "Z-score_Normalized"), showWarnings = FALSE)
           dir.create(file.path(output_dir, "CPM_Normalized"), showWarnings = FALSE)
           
+          raw_data <- read_count_matrix(input_file)
+          if (is.null(raw_data)) next
+          
           input_basename <- tools::file_path_sans_ext(basename(input_file))
-          output_file <- file.path(output_dir, paste0(input_basename, "_heatmap.png"))
           title <- gsub("_", " ", input_basename)
           
-          raw_data <- read_count_matrix(input_file)
-          processed_data <- preprocess_for_heatmap(raw_data, count_type)
+          # Generate all normalization types
+          normalization_configs <- list(
+            list(type = "raw", data = raw_data, subdir = "raw"),
+            list(type = "raw_normalized", data = preprocess_data(raw_data, count_type, "raw"), subdir = "raw_normalized"),
+            list(type = "Count-Type_Normalized", data = preprocess_data(raw_data, count_type, "default"), subdir = "Count-Type_Normalized"),
+            list(type = "Z-score_Normalized", data = preprocess_data(raw_data, count_type, "zscore"), subdir = "Z-score_Normalized"),
+            list(type = "CPM_Normalized", data = preprocess_data(raw_data, count_type, "cpm"), subdir = "CPM_Normalized")
+          )
           
-          total_heatmaps <- total_heatmaps + 1
-          if (generate_heatmap(processed_data, output_file, title, count_type, label_type)) {
-            successful_heatmaps <- successful_heatmaps + 1
-          }
-          
-          raw_copy_output <- file.path(output_dir, "raw_copy", paste0(input_basename, "_raw_copy_heatmap.png"))
-          total_heatmaps <- total_heatmaps + 1
-          if (generate_heatmap(processed_data, raw_copy_output, title, count_type, label_type)) {
-            successful_heatmaps <- successful_heatmaps + 1
-          }
-          
-          raw_data_processed <- preprocess_for_raw_data(raw_data)
-          if (!is.null(raw_data_processed)) {
-            raw_output <- file.path(output_dir, "raw_normalized", paste0(input_basename, "_raw_heatmap.png"))
-            total_heatmaps <- total_heatmaps + 1
-            if (generate_normalized_heatmap(raw_data_processed, raw_output, title, count_type, label_type, "raw_normalized")) {
-              successful_heatmaps <- successful_heatmaps + 1
-            }
-          }
-          
-          count_normalized_data <- preprocess_for_count_type_normalized(raw_data, count_type)
-          if (!is.null(count_normalized_data)) {
-            count_normalized_output <- file.path(output_dir, "Count-Type_Normalized", paste0(input_basename, "_count_normalized_heatmap.png"))
-            total_heatmaps <- total_heatmaps + 1
-            if (generate_normalized_heatmap(count_normalized_data, count_normalized_output, title, count_type, label_type, "Count-Type_Normalized")) {
-              successful_heatmaps <- successful_heatmaps + 1
-            }
-          }
-          
-          zscore_normalized_data <- preprocess_for_zscore_normalized(raw_data, count_type)
-          if (!is.null(zscore_normalized_data)) {
-            zscore_normalized_output <- file.path(output_dir, "Z-score_Normalized", paste0(input_basename, "_zscore_normalized_heatmap.png"))
-            total_heatmaps <- total_heatmaps + 1
-            if (generate_normalized_heatmap(zscore_normalized_data, zscore_normalized_output, title, count_type, label_type, "Z-score_Normalized")) {
-              successful_heatmaps <- successful_heatmaps + 1
-            }
-          }
-          
-          # CPM (Counts Per Million) normalization processing
-          cpm_normalized_data <- preprocess_for_cpm_normalized(raw_data)
-          if (!is.null(cpm_normalized_data)) {
-            cpm_normalized_output <- file.path(output_dir, "CPM_Normalized", paste0(input_basename, "_cpm_normalized_heatmap.png"))
-            total_heatmaps <- total_heatmaps + 1
-            if (generate_normalized_heatmap(cpm_normalized_data, cpm_normalized_output, title, count_type, label_type, "CPM_Normalized")) {
-              successful_heatmaps <- successful_heatmaps + 1
+          for (config in normalization_configs) {
+            if (!is.null(config$data)) {
+              output_path <- file.path(output_dir, config$subdir, 
+                                     paste0(input_basename, "_", gsub("-", "_", tolower(config$type)), "_heatmap.png"))
+              total_heatmaps <- total_heatmaps + 1
+              if (generate_heatmap(config$data, output_path, title, count_type, label_type, config$type)) {
+                successful_heatmaps <- successful_heatmaps + 1
+              }
             }
           }
       }
@@ -677,32 +429,44 @@ for (group in FASTA_GROUPS) {
 }
 
 # ===============================================
-# SUMMARY
+# SUMMARY REPORT
 # ===============================================
 
+# Ensure all graphics devices are closed
 while (length(dev.list()) > 0) { dev.off() }
 
-cat("\n", paste(rep("=", 50), collapse = ""), "\n")
-cat("HEATMAP GENERATION SUMMARY\n")
-cat(paste(rep("=", 50), collapse = ""), "\n")
-cat("Total heatmaps attempted:", total_heatmaps, "\n")
-cat("Successful heatmaps:", successful_heatmaps, "\n")
-cat("Failed heatmaps:", total_heatmaps - successful_heatmaps, "\n")
-cat("Output directory:", HEATMAP_OUT_DIR, "\n")
-cat(paste(rep("=", 50), collapse = ""), "\n")
+cat("\n", paste(rep("=", 60), collapse = ""), "\n")
+cat("HEATMAP GENERATION SUMMARY REPORT\n")
+cat(paste(rep("=", 60), collapse = ""), "\n")
+cat("Processing Summary:\n")
+cat("  • Total heatmaps attempted:", total_heatmaps, "\n")
+cat("  • Successful heatmaps generated:", successful_heatmaps, "\n")
+cat("  • Failed heatmaps:", total_heatmaps - successful_heatmaps, "\n")
+cat("  • Success rate:", round((successful_heatmaps/total_heatmaps)*100, 1), "%\n")
+cat("\nOutput Details:\n")
+cat("  • Output directory:", HEATMAP_OUT_DIR, "\n")
+cat("  • Normalization types: Raw, Raw_Normalized, Count-Type, Z-score, CPM\n")
+cat("  • File formats: PNG heatmaps + TSV data matrices\n")
+cat(paste(rep("=", 60), collapse = ""), "\n")
 
 if (successful_heatmaps > 0) {
-  cat("Heatmap generation completed successfully!\n")
+  cat("✅ Heatmap generation completed successfully!\n")
+  cat("📁 Check the output directory for visualization files.\n")
 } else {
-  cat("No heatmaps were generated. Please check input files and paths.\n")
+  cat("❌ No heatmaps were generated.\n")
+  cat("🔍 Please check input files and paths.\n")
 }
+
+cat("\nAnalysis includes gene groups:", length(FASTA_GROUPS), "groups\n")
+cat("Count types processed:", paste(COUNT_TYPES, collapse = ", "), "\n")
+cat(paste(rep("=", 60), collapse = ""), "\n")
 
 # Current structure processes:
 # - Each combination of (group, count_type, gene_type, label_type) 
 #   corresponds to exactly one TSV file
 # - Each TSV file generates multiple heatmaps under different normalization types:
-#   * raw_copy: Original data with scaling applied for visualization
-#   * raw_normalized: Raw data with Z-score scaling by rows
+#   * raw: Raw count data without any transformation or scaling
+#   * raw_normalized: Raw count data without any normalization or scaling
 #   * Count-Type_Normalized: Type-specific normalization (coverage->CPM-like, fpkm/tpm->log2)
 #   * Z-score_Normalized: Count-type normalized then Z-score standardized
 #   * CPM_Normalized: Counts Per Million normalization with log2 transformation

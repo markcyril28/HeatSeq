@@ -38,7 +38,7 @@ set -euo pipefail
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=4                               # Number of threads to use for parallel operations
+THREADS=64                               # Number of threads to use for parallel operations
 JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
@@ -52,14 +52,14 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
-RUN_DOWNLOAD_and_TRIM_SRR=FALSE
-RUN_GZIP_TRIMMED_FILES=FALSE
+RUN_DOWNLOAD_and_TRIM_SRR=TRUE
+RUN_GZIP_TRIMMED_FILES=TRUE
 
 RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=TRUE
-RUN_ZIP_RESULTS=FALSE
+RUN_ZIP_RESULTS=TRUE
 
 # GEA Methods 
-RUN_METHOD_2_HISAT2_DE_NOVO=FALSE	
+RUN_METHOD_2_HISAT2_DE_NOVO=TRUE	
 RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE
 RUN_METHOD_3_TRINITY_DE_NOVO=FALSE
 RUN_METHOD_4_SALMON_SAF=FALSE
@@ -217,11 +217,11 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 # CLEANUP OPTIONS AND TESTING ESSENTIALS
 # ==============================================================================
 
-#rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
+rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
 #rm -rf "$FASTQC_ROOT"                   # Remove previous FastQC results
-#rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
-#rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
-#rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
+rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
+rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
+rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
 
 # ==============================================================================
 # LOGGING SYSTEM, ENVIRONMENT, and PROGRAM
