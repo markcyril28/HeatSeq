@@ -36,7 +36,7 @@ MATRICES_DIR <- file.path("5_stringtie_WD", "b_Method_2_COUNT_MATRICES")
 HEATMAP_OUT_DIR <- "6_Heatmap_Visualizations"
 
 # File naming configuration
-MASTER_REFERENCE <- "All_SmelGenes"
+MASTER_REFERENCE <- "All_Smel_Genes"
 MASTER_REFERENCE_SUFFIX <- paste0("_from_", MASTER_REFERENCE)
 
 # Gene groups
