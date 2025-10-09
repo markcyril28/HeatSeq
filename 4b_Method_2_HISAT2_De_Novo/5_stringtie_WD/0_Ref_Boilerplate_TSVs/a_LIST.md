@@ -3,16 +3,6 @@
 1. All_Smel_Genes
 2. Best_Cell_Cycle_Associated_Control_Genes
 
-   - SmelCyclo01
-   - SmelCyclo12
-   - Smel_CYCD1-1
-   - Smel_CDT1A_01
-   - Smel_CDT1A_03
-   - Smel_CYCB1-2
-3. Best_Control_Genes
-
-   - Smel_18s_rRNA
-   - Smel18s06
    - Smel_APRT
    - Smel_RuBP
    - Smel_ACT58
@@ -26,6 +16,16 @@
    - Smel_TUBB1_03
    - Smel_TUBB1_06
    - Smel_EF1-alpha
+   - Smel_CYCD1-1
+   - Smel_CDT1A_01
+   - Smel_CDT1A_03
+   - Smel_CYCB1-2
+3. Best_Control_Genes
+
+   - SmelCyclo01
+   - SmelCyclo12
+   - Smel_18s_rRNA
+   - Smel18s06
 4. SmelDMPs
 
    - SmelDMP_01.730
