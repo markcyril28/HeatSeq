@@ -47,13 +47,14 @@ MASTER_REFERENCE_SUFFIX <- paste0("_from_", MASTER_REFERENCE)
 # Gene groups
 FASTA_GROUPS <- c(
   # Control Gene Groups
-  "Best_Cell_Cycle_Associated_Control_Genes",
-  "Best_Control_Genes"
+  #"Best_Cell_Cycle_Associated_Control_Genes",
+  #"Best_Control_Genes"
   
   # Individual Gene Groups
   #"SmelDMPs",
   #"SmelGIFs",
-  #"SmelGRFs"
+  #"SmelGRFs",
+  "Selected_GRF_GIF_Genes"
   
   # Combined Gene Groups with Control Genes
   #"SmelGIF_with_Cell_Cycle_Control_genes",
@@ -68,42 +69,56 @@ GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c("SRR", "Organ")
 
 # Normalization schemes
-NORMALIZATION_SCHEMES <- c("raw", "default", "zscore", "cpm")
+NORMALIZATION_SCHEMES <- c("raw", "count_type_normalized", "zscore", "cpm", "zscore_scaled_to_ten") # <-- MODIFIED
 
 # Mapping from SRR IDs to organ names for matrix headers
 SAMPLE_LABELS <- c(
-  # Roots
-  "SRR3884675" = "Roots_1",       # PRJNA328564
-  "SRR20722229" = "Roots_2",      # SAMN28540077
-  "SRR31755282" = "Roots_3",      # SAMN28540068
-  
-  # Stems
-  "SRR3884690" = "Stems_1",       # PRJNA328564
-  "SRR20722227" = "Stems_2",      # SAMN28540077
-  "SRR20722384" = "Stems_3",      # SAMN28540068
-  
-  # Leaves
-  "SRR3884689" = "Leaves_1",      # PRJNA328564
-  "SRR20722230" = "Leaves_2",     # SAMN28540077
-  "SRR20722386" = "Leaves_3",     # SAMN28540068
-  
-  # Opened Buds
-  "SRR3884687" = "Opened_Buds_1", # PRJNA328564
+    # Roots
+    "SRR3884675" = "Roots_1",      # PRJNA328564
+    #"SRR20722229" = "Roots_2",      # SAMN28540077
+    #"SRR31755282" = "Roots_3",      # SAMN28540068
 
-  # Buds
-  "SRR3884686" = "Buds_1",        # PRJNA328564
-  "SRR21010466" = "Buds_2",       # SAMN28540077
-  "SRR20722297" = "Buds_3",       # SAMN28540068
-  
-  # Flowers
-  "SRR3884597" = "Flowers_1",     # PRJNA328564
-  "SRR20722234" = "Flowers_2",    # SAMN28540077
-  "SRR23909863" = "Flowers_3",    # SAMN28540068
-  
-  # Fruits
-  "SRR3884631" = "Fruits_1",      # PRJNA328564
-  "SRR2072232" = "Fruits_2",      # SAMN28540077
-  "SRR20722387" = "Fruits_3"      # SAMN28540068
+    # Stems
+    "SRR3884690" = "Stems_1",      # PRJNA328564
+    #"SRR20722227" = "Stems_2",      # SAMN28540077
+    #"SRR20722384" = "Stems_3",      # SAMN28540068
+
+    # Leaves
+    "SRR3884689" = "Leaves_1",      # PRJNA328564
+    #"SRR20722230" = "Leaves_2",     # SAMN28540077
+    #"SRR20722386" = "Leaves_3",     # SAMN28540068
+    "SRR3884684" = "Senescent_leaves", # PRJNA328564
+
+    # Buds
+    "SRR3884686" = "Buds_1",       # PRJNA328564
+    #"SRR21010466" = "Buds_2",       # SAMN28540077
+    #"SRR20722297" = "Buds_3",       # SAMN28540068
+
+    # Opened Buds
+    "SRR3884687" = "Opened_Buds_1", # PRJNA328564
+
+    # Flowers
+    "SRR3884597" = "Flowers_1",     # PRJNA328564
+    #"SRR20722234" = "Flowers_2",    # SAMN28540077
+    #"SRR23909863" = "Flowers_3",    # SAMN28540068
+
+    # Fruits
+    "SRR3884631" = "Fruits_1",      # PRJNA328564
+    #"SRR2072232" = "Fruits_2",      # SAMN28540077
+    #"SRR20722387" = "Fruits_3",     # SAMN28540068
+    "SRR3884608" = "Fruits_1cm",     # PRJNA328564
+    "SRR3884620" = "Fruits_Stage_1", # PRJNA328564
+    "SRR3884642" = "Fruits_Skin_Stage_2", # PRJNA328564
+    "SRR3884653" = "Fruits_Flesh_Stage_2", # PRJNA328564
+    "SRR3884664" = "Fruits_Calyx_Stage_2", # PRJNA328564
+    "SRR3884680" = "Fruits_Skin_Stage_3", # PRJNA328564
+    "SRR3884681" = "Fruits_Flesh_Stage_3", # PRJNA328564
+    "SRR3884678" = "Fruits_peduncle", # PRJNA328564
+
+    # Other organs
+    "SRR3884685" = "Radicles",     # PRJNA328564
+    "SRR3884677" = "Cotyledons",   # PRJNA328564
+    "SRR3884679" = "Pistils"       # PRJNA328564
 )
 
 
@@ -111,11 +126,11 @@ SAMPLE_LABELS <- c(
 dir.create(HEATMAP_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # Clear the output directory at the start of each run
-if (dir.exists(HEATMAP_OUT_DIR)) {
-  #cat("Clearing existing output directory:", HEATMAP_OUT_DIR, "\n")
-  unlink(HEATMAP_OUT_DIR, recursive = TRUE)
-  dir.create(HEATMAP_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
-}
+#if (dir.exists(HEATMAP_OUT_DIR)) {
+#  #cat("Clearing existing output directory:", HEATMAP_OUT_DIR, "\n")
+#  unlink(HEATMAP_OUT_DIR, recursive = TRUE)
+#  dir.create(HEATMAP_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+#}
 
 # ===============================================
 # FUNCTIONS
@@ -137,7 +152,7 @@ preprocess_for_raw <- function(data_matrix) {
 }
 
 # Function to apply default (count-type specific) normalization
-preprocess_for_default <- function(data_matrix, count_type) {
+preprocess_for_count_type_normalized <- function(data_matrix, count_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
   
   if (count_type == "coverage") {
@@ -164,7 +179,7 @@ preprocess_for_zscore <- function(data_matrix, count_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
   
   # First apply count-type normalization
-  data_processed <- preprocess_for_default(data_matrix, count_type)
+  data_processed <- preprocess_for_count_type_normalized(data_matrix, count_type)
   if (is.null(data_processed) || nrow(data_processed) == 0) return(NULL)
   
   # Then apply Z-score standardization across samples for each gene
@@ -174,6 +189,45 @@ preprocess_for_zscore <- function(data_matrix, count_type) {
   }
   
   return(data_processed)
+}
+
+# We must assume the function preprocess_for_count_type_normalized() 
+# exists elsewhere in your environment for this to run.
+
+preprocess_for_zscore_scaled_to_ten <- function(data_matrix, count_type) {
+  if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
+  
+  # 1. Apply count-type normalization (as in your original script)
+  data_processed <- preprocess_for_count_type_normalized(data_matrix, count_type)
+  if (is.null(data_processed) || nrow(data_processed) == 0) return(NULL)
+  
+  # 2. Apply Z-score standardization across samples (rows)
+  if (nrow(data_processed) > 1 && ncol(data_processed) > 1) {
+    data_processed <- t(scale(t(data_processed), center = TRUE, scale = TRUE))
+    # Replace NaNs (from rows with 0 variance) with 0
+    data_processed[is.na(data_processed)] <- 0
+  }
+  
+  # 3. Scale the entire Z-scored matrix to [0, 10] 
+  
+  # Get the global minimum and maximum of the Z-scored matrix
+  min_val <- min(data_processed)
+  max_val <- max(data_processed)
+  val_range <- max_val - min_val
+  
+  if (val_range > 0) {
+    # Apply standard min-max scaling formula:
+    # new_val = ((old_val - min) / (max - min)) * new_range + new_min
+    # Here, new_range is 10 and new_min is 0.
+    data_scaled <- ((data_processed - min_val) / val_range) * 10
+  } else {
+    # Handle edge case where all values are identical (e.g., all 0)
+    # We can just set all values to 0 (the bottom of our [0, 10] scale)
+    data_scaled <- data_processed # Preserve matrix structure
+    data_scaled[,] <- 0          # Set all elements to 0
+  }
+  
+  return(data_scaled)
 }
 
 # Function to apply CPM normalization
@@ -216,15 +270,16 @@ calculate_cv <- function(data_matrix) {
 apply_normalization <- function(data_matrix, normalization_scheme, count_type) {
   switch(normalization_scheme,
     "raw" = preprocess_for_raw(data_matrix),
-    "default" = preprocess_for_default(data_matrix, count_type),
+    "count_type_normalized" = preprocess_for_count_type_normalized(data_matrix, count_type),
     "zscore" = preprocess_for_zscore(data_matrix, count_type),
     "cpm" = preprocess_for_cpm(data_matrix),
+    "zscore_scaled_to_ten" = preprocess_for_zscore_scaled_to_ten(data_matrix, count_type), # <-- MODIFIED
     stop("Unknown normalization scheme: ", normalization_scheme)
   )
 }
 
 # Function to generate heatmap with CV annotation
-generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type, label_type, normalization_scheme = "default") {
+generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type, label_type, normalization_scheme = "count_type_normalized") {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(FALSE)
   if (nrow(data_matrix) < 2) return(FALSE)
   if (any(is.na(data_matrix)) || any(is.infinite(data_matrix))) {
@@ -394,11 +449,11 @@ save_matrix_data <- function(data_matrix, output_path) {
 read_count_matrix <- function(file_path) {
   tryCatch({
     data <- read.table(file_path, header = TRUE, sep = "\t", 
-                      stringsAsFactors = FALSE, 
-                      na.strings = c("", " ", "NA", "null"))
+                       stringsAsFactors = FALSE, 
+                       na.strings = c("", " ", "NA", "null"))
     
     if (any(duplicated(data[, 1]))) {
-      # cat("  ⚠️  Found duplicate row names - making them unique...\n")
+      # cat("   ⚠️   Found duplicate row names - making them unique...\n")
       data[, 1] <- make.unique(as.character(data[, 1]), sep = "_")
     }
     
@@ -468,12 +523,12 @@ for (group in FASTA_GROUPS) {
         for (label_type in LABEL_TYPES) {
           # Try with master reference suffix first (when QUERY_AGAINST_MASTER_REFERENCE=TRUE in bash script)
           input_file <- file.path(MATRICES_DIR, group, 
-                                 paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, MASTER_REFERENCE_SUFFIX, ".tsv"))
+                                  paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, MASTER_REFERENCE_SUFFIX, ".tsv"))
           
           # If that doesn't exist, try without the suffix
           if (!file.exists(input_file)) {
             input_file <- file.path(MATRICES_DIR, group, 
-                                   paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, ".tsv"))
+                                      paste0(group, "_", count_type, "_counts_", gene_type, "_", label_type, ".tsv"))
           }
           
           if (!file.exists(input_file)) next
@@ -537,7 +592,7 @@ while (length(dev.list()) > 0) { dev.off() }
 # cat(paste(rep("=", 50), collapse = ""), "\n")
 
  if (successful_heatmaps > 0) {
-   # cat("Heatmap generation completed successfully!\n")
+    # cat("Heatmap generation completed successfully!\n")
  } else {
    cat("No heatmaps were generated. Please check input files and paths.\n")
  }
