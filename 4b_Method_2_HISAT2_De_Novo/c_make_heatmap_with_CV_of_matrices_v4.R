@@ -388,7 +388,7 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
     )
     
     # Save the heatmap
-    png(output_path, width = 16, height = 10, units = "in", res = 300)
+    png(output_path, width = 16, height = 4.5, units = "in", res = 300)
     draw(ht, heatmap_legend_side = "bottom", gap = unit(0.5, "cm"))
     dev.off()
     
