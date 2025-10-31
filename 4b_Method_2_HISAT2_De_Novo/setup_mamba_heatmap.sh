@@ -6,8 +6,11 @@
 
 set -euo pipefail
 
+# Define paths relative to the script's location
+SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
 ENV_NAME="Heatmap_ENV"
-YAML_FILE="$(dirname "${BASH_SOURCE[0]}")/Heatmap_ENV_R.yml"
+YAML_FILE="$SCRIPT_DIR/Heatmap_ENV_R.yml"
+R_SCRIPT_FILE="$SCRIPT_DIR/install_heatmap_libraries.R" # <-- Added this
 
 echo "Setting up Heatmap_ENV environment..."
 
@@ -23,67 +26,38 @@ fi
 
 echo "Using: $CONDA_CMD"
 
+#$CONDA_CMD install r-base r-essentials -y
+
+: << 'OFF'
 # Remove existing environment if it exists
-if $CONDA_CMD env list | grep -q "^$ENV_NAME "; then
-    echo "Removing existing $ENV_NAME environment..."
-    $CONDA_CMD env remove -n "$ENV_NAME" -y
-fi
+#if $CONDA_CMD env list | grep -q "^$ENV_NAME "; then
+#    echo "Removing existing $ENV_NAME environment..."
+#    $CONDA_CMD env remove -n "$ENV_NAME" -y
+#fi
+OFF
+
+conda install -c conda-forge xorg-libxt xorg-libx11 xorg-libxrender xorg-libxext xorg-libsm xorg-libice -y
+
+conda install -c conda-forge xorg-libxau xorg-libxdmcp xorg-libxpm -y
 
 # Create new environment from YAML
-echo "Creating $ENV_NAME environment from YAML..."
-$CONDA_CMD env create -f "$YAML_FILE"
+#echo "Creating $ENV_NAME environment from YAML..."
+#$CONDA_CMD env create -f "$YAML_FILE"
 
-# Activate environment and install additional R packages
+# Instead of creating a new environment, update the active one (or 'base' if none)
+echo "Updating existing environment '$ENV_NAME' from YAML (no new env will be created)..."
+#$CONDA_CMD env update -n "$ENV_NAME" -f "$YAML_FILE"
+
+# Install additional R packages using 'conda run'
 echo "Installing additional R packages..."
-eval "$($CONDA_CMD shell.bash hook)"
-$CONDA_CMD activate "$ENV_NAME"
+#$CONDA_CMD run -n "$ENV_NAME" Rscript "$R_SCRIPT_FILE"
 
-# Install required R packages that might not be available via conda
-Rscript -e "
-# Install packages that need special handling
-packages_to_install <- c()
+#Rscript --no-save "$R_SCRIPT_FILE"
 
-# Check and install ComplexHeatmap if not available
-if (!require('ComplexHeatmap', quietly = TRUE)) {
-    if (!requireNamespace('BiocManager', quietly = TRUE)) {
-        install.packages('BiocManager', repos = 'https://cloud.r-project.org/')
-    }
-    BiocManager::install('ComplexHeatmap', ask = FALSE, update = FALSE)
-    packages_to_install <- c(packages_to_install, 'ComplexHeatmap')
-}
-
-# Check and install circlize if not available
-if (!require('circlize', quietly = TRUE)) {
-    install.packages('circlize', repos = 'https://cloud.r-project.org/')
-    packages_to_install <- c(packages_to_install, 'circlize')
-}
-
-# Check and install grid (usually comes with base R)
-if (!require('grid', quietly = TRUE)) {
-    install.packages('grid', repos = 'https://cloud.r-project.org/')
-    packages_to_install <- c(packages_to_install, 'grid')
-}
-
-if (length(packages_to_install) > 0) {
-    cat('Successfully installed:', paste(packages_to_install, collapse = ', '), '\n')
-} else {
-    cat('All required packages are already available\n')
-}
-
-# Test that everything works
-cat('Testing package loading...\n')
-library(ComplexHeatmap)
-library(circlize)
-library(RColorBrewer)
-library(dplyr)
-library(tibble)
-library(grid)
-cat('All packages loaded successfully!\n')
-"
 
 echo ""
 echo "==============================================="
 echo "Setup complete!"
 echo "To use the environment, run:"
-echo "  conda activate $ENV_NAME"
+echo "  $CONDA_CMD activate $ENV_NAME"
 echo "==============================================="
