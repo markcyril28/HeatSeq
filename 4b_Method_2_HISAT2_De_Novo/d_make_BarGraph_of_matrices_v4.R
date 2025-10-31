@@ -11,7 +11,7 @@
 # - Color-coded by expression level using custom color scale
 # - Professional layout matching reference design
 # - Saves both PNG bar graphs and TSV data files
-# - Multiple normali# - Each gene generates TWO bar graphs:
+# - Multiple normalization scheme - Each gene generates TWO bar graphs:
 #   * sorted_by_organ: Expression values in original developmental stage order (x-axis)
 #   * sorted_by_expression: Expression values sorted by intensity (lowest to highest from left to right)
 #   * Color-coded bars by expression level using custom color scale
@@ -46,16 +46,17 @@ BARGRAPH_OUT_DIR <- "8_Bar_Graph_Visualizations"
 MASTER_REFERENCE <- "All_Smel_Genes"
 MASTER_REFERENCE_SUFFIX <- paste0("_from_", MASTER_REFERENCE)
 
-# Gene groups
+# Gene groups (Boilerplates)
 FASTA_GROUPS <- c(
   # Control Gene Groups
-  "Best_Cell_Cycle_Associated_Control_Genes",
-  "Best_Control_Genes"
+  #"Best_Cell_Cycle_Associated_Control_Genes",
+  #"Best_Control_Genes",
   
   # Individual Gene Groups
   #"SmelDMPs",
   #"SmelGIFs",
-  #"SmelGRFs"
+  #"SmelGRFs",
+  "Selected_GRF_GIF_Genes"
   
   # Combined Gene Groups with Control Genes
   #"SmelGIF_with_Cell_Cycle_Control_genes",
@@ -69,42 +70,56 @@ GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c("SRR", "Organ")
 
 # Normalization schemes configuration
-NORMALIZATION_SCHEMES <- c("raw", "raw_normalized", "default", "zscore", "cpm")
+NORMALIZATION_SCHEMES <- c("raw", "raw_normalized", "count_type_normalized", "zscore", "cpm")
 
 # Mapping from SRR IDs to organ names for matrix headers
 SAMPLE_LABELS <- c(
-  # Roots
-  "SRR3884675" = "Roots_1",       # PRJNA328564
-  "SRR20722229" = "Roots_2",      # SAMN28540077
-  "SRR31755282" = "Roots_3",      # SAMN28540068
-  
-  # Stems
-  "SRR3884690" = "Stems_1",       # PRJNA328564
-  "SRR20722227" = "Stems_2",      # SAMN28540077
-  "SRR20722384" = "Stems_3",      # SAMN28540068
-  
-  # Leaves
-  "SRR3884689" = "Leaves_1",      # PRJNA328564
-  "SRR20722230" = "Leaves_2",     # SAMN28540077
-  "SRR20722386" = "Leaves_3",     # SAMN28540068
-  
-  # Opened Buds
-  "SRR3884687" = "Opened_Buds_1", # PRJNA328564
+    # Roots
+    "SRR3884675" = "Roots_1",      # PRJNA328564
+    #"SRR20722229" = "Roots_2",     # SAMN28540077
+    #"SRR31755282" = "Roots_3",     # SAMN28540068
 
-  # Buds
-  "SRR3884686" = "Buds_1",        # PRJNA328564
-  "SRR21010466" = "Buds_2",       # SAMN28540077
-  "SRR20722297" = "Buds_3",       # SAMN28540068
-  
-  # Flowers
-  "SRR3884597" = "Flowers_1",     # PRJNA328564
-  "SRR20722234" = "Flowers_2",    # SAMN28540077
-  "SRR23909863" = "Flowers_3",    # SAMN28540068
-  
-  # Fruits
-  "SRR3884631" = "Fruits_1",      # PRJNA328564
-  "SRR2072232" = "Fruits_2",      # SAMN28540077
-  "SRR20722387" = "Fruits_3"      # SAMN28540068
+    # Stems
+    "SRR3884690" = "Stems_1",      # PRJNA328564
+    #"SRR20722227" = "Stems_2",     # SAMN28540077
+    #"SRR20722384" = "Stems_3",     # SAMN28540068
+
+    # Leaves
+    "SRR3884689" = "Leaves_1",     # PRJNA328564
+    #"SRR20722230" = "Leaves_2",    # SAMN28540077
+    #"SRR20722386" = "Leaves_3",    # SAMN28540068
+    "SRR3884684" = "Senescent_leaves", # PRJNA328564
+
+    # Buds
+    "SRR3884686" = "Buds_1",       # PRJNA328564
+    #"SRR21010466" = "Buds_2",      # SAMN28540077
+    #"SRR20722297" = "Buds_3",      # SAMN28540068
+
+    # Opened Buds
+    "SRR3884687" = "Opened_Buds_1", # PRJNA328564
+
+    # Flowers
+    "SRR3884597" = "Flowers_1",    # PRJNA328564
+    #"SRR20722234" = "Flowers_2",   # SAMN28540077
+    #"SRR23909863" = "Flowers_3",   # SAMN28540068
+
+    # Fruits
+    "SRR3884631" = "Fruits_1",     # PRJNA328564
+    #"SRR2072232" = "Fruits_2",     # SAMN28540077
+    #"SRR20722387" = "Fruits_3",    # SAMN28540068
+    "SRR3884608" = "Fruits_1cm",   # PRJNA328564
+    "SRR3884620" = "Fruits_Stage_1", # PRJNA328564
+    "SRR3884642" = "Fruits_Skin_Stage_2", # PRJNA328564
+    "SRR3884653" = "Fruits_Flesh_Stage_2", # PRJNA328564
+    "SRR3884664" = "Fruits_Calyx_Stage_2", # PRJNA328564
+    "SRR3884680" = "Fruits_Skin_Stage_3", # PRJNA328564
+    "SRR3884681" = "Fruits_Flesh_Stage_3", # PRJNA328564
+    "SRR3884678" = "Fruits_peduncle", # PRJNA328564
+
+    # Other organs
+    "SRR3884685" = "Radicles",     # PRJNA328564
+    "SRR3884677" = "Cotyledons",   # PRJNA328564
+    "SRR3884679" = "Pistils"       # PRJNA328564
 )
 
 
@@ -120,17 +135,15 @@ dir.create(BARGRAPH_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 # cat("PREPARING OUTPUT DIRECTORY\n")
 # cat("===============================================\n")
 
-if (dir.exists(BARGRAPH_OUT_DIR)) {
-  # cat("Cleaning up existing output directory:", BARGRAPH_OUT_DIR, "\n")
-  unlink(BARGRAPH_OUT_DIR, recursive = TRUE, force = TRUE)
-  # cat("✓ Previous output directory removed\n")
-}
+#if (dir.exists(BARGRAPH_OUT_DIR)) {
+#  # cat("Cleaning up existing output directory:", BARGRAPH_OUT_DIR, "\n")
+#  unlink(BARGRAPH_OUT_DIR, recursive = TRUE, force = TRUE)
+#  # cat("✓ Previous output directory removed\n")
+#}
 
 dir.create(BARGRAPH_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 # cat("✓ Fresh output directory created:", BARGRAPH_OUT_DIR, "\n")
 # cat("\n")
-
-
 
 # ===============================================
 # FUNCTIONS
@@ -157,8 +170,8 @@ preprocess_for_raw_normalized <- function(data_matrix) {
   return(preprocess_for_raw(data_matrix))
 }
 
-# Function to apply default (count-type specific) normalization
-preprocess_for_default <- function(data_matrix, count_type) {
+# Function to apply (count-type specific) normalization
+preprocess_for_count_type_normalized <- function(data_matrix, count_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
   
   if (count_type == "coverage") {
@@ -185,7 +198,7 @@ preprocess_for_zscore <- function(data_matrix, count_type) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(NULL)
   
   # First apply count-type normalization
-  data_processed <- preprocess_for_default(data_matrix, count_type)
+  data_processed <- preprocess_for_count_type_normalized(data_matrix, count_type)
   if (is.null(data_processed) || nrow(data_processed) == 0) return(NULL)
   
   # Then apply Z-score standardization across samples for each gene
@@ -238,7 +251,7 @@ apply_normalization <- function(data_matrix, normalization_scheme, count_type) {
   switch(normalization_scheme,
     "raw" = preprocess_for_raw(data_matrix),
     "raw_normalized" = preprocess_for_raw_normalized(data_matrix),
-    "default" = preprocess_for_default(data_matrix, count_type),
+    "count_type_normalized" = preprocess_for_count_type_normalized(data_matrix, count_type),
     "zscore" = preprocess_for_zscore(data_matrix, count_type),
     "cpm" = preprocess_for_cpm(data_matrix),
     stop("Unknown normalization scheme: ", normalization_scheme)
@@ -250,7 +263,7 @@ apply_normalization <- function(data_matrix, normalization_scheme, count_type) {
 # ===============================================
 
 # Function to create individual gene bar plots
-generate_gene_bargraphs <- function(data_matrix, output_dir, title_prefix, count_type, label_type, normalization_scheme = "default", sort_by_expression = FALSE) {
+generate_gene_bargraphs <- function(data_matrix, output_dir, title_prefix, count_type, label_type, normalization_scheme = "count_type_normalized", sort_by_expression = FALSE) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0) return(FALSE)
   if (ncol(data_matrix) == 0) return(FALSE)
   
@@ -263,9 +276,7 @@ generate_gene_bargraphs <- function(data_matrix, output_dir, title_prefix, count
                          SAMPLE_LABELS[colnames(data_matrix)],
                          colnames(data_matrix))
   }
-  
-
-  
+    
   successful_plots <- 0
   
   # Create individual bar plots for each gene
@@ -297,7 +308,7 @@ generate_gene_bargraphs <- function(data_matrix, output_dir, title_prefix, count
     y_label <- switch(normalization_scheme,
       "raw" = "Raw counts",
       "raw_normalized" = "Raw counts", 
-      "default" = ifelse(count_type == "coverage", "Log2(CPM + 1)", 
+      "count_type_normalized" = ifelse(count_type == "coverage", "Log2(CPM + 1)", 
                         ifelse(count_type %in% c("fpkm", "tpm"), "Log2(Expression + 0.1)", "Log2(Expression + 1)")),
       "zscore" = "Z-score",
       "cpm" = "Log2(CPM + 1)",
@@ -612,12 +623,12 @@ while (length(dev.list()) > 0) { dev.off() }
 
 # UPDATED STRUCTURE WITH FASTA GROUPS AS PRIMARY ORGANIZATION:
 # =============================================================
-# - Each combination of (group, normalization_scheme, count_type, gene_type, label_type) 
+# - Each combination of (group, normalization_scheme, count_type_normalized, gene_type, label_type) 
 #   corresponds to exactly one TSV file input and generates individual bar graphs for each gene
 # - Five normalization schemes are applied:
 #   * "raw": Original count data without transformation
 #   * "raw_normalized": Identical to raw (for comparison)
-#   * "default": Count-type specific normalization (Coverage: CPM+log2, FPKM/TPM: direct log2)
+#   * "count_type_normalized": Count-type specific normalization (Coverage: CPM+log2, FPKM/TPM: direct log2)
 #   * "zscore": Count-type normalization followed by Z-score standardization
 #   * "cpm": Counts Per Million normalization + log2 transformation
 # - Each gene generates bar graphs showing:
