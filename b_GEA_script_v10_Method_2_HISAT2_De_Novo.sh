@@ -38,8 +38,8 @@ set -euo pipefail
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=64                               # Number of threads to use for parallel operations
-JOBS=4                                  # Number of parallel jobs for GNU Parallel 
+THREADS=4                               # Number of threads to use for parallel operations
+JOBS=2                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
 export THREADS JOBS
@@ -53,10 +53,7 @@ RNA_STRAND_PROTOCOL="RF"                # RNA-seq strand protocol: "RF" (dUTP), 
 # Pipeline Control Switches
 RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE
-RUN_GZIP_TRIMMED_FILES=TRUE
-
-RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=TRUE
-RUN_ZIP_RESULTS=TRUE
+RUN_GZIP_TRIMMED_FILES=FALSE
 
 # GEA Methods 
 RUN_METHOD_2_HISAT2_DE_NOVO=TRUE	
@@ -64,6 +61,9 @@ RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE
 RUN_METHOD_3_TRINITY_DE_NOVO=FALSE
 RUN_METHOD_4_SALMON_SAF=FALSE
 RUN_METHOD_5_BOWTIE2_RSEM=FALSE
+
+RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=FALSE
+RUN_ZIP_RESULTS=FALSE
 
 # Quality Control and Analysis Options
 RUN_QUALITY_CONTROL=FALSE
@@ -80,9 +80,9 @@ RUN_METHOD_COMPARISON=FALSE
 # FASTA Files for Analysis
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	"0_INPUT_FASTAs/All_Smel_Genes.fasta"
+	#"0_INPUT_FASTAs/All_Smel_Genes.fasta"
 	#"0_INPUT_FASTAs/Eggplant_V4.1_transcripts.function.fa"
-	#"0_INPUT_FASTAs/TEST.fasta"
+	"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Best_Control_Cyclo.fasta"
@@ -101,25 +101,25 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	# Developmental stages arranged from early to late
-	SRR3884685	# Radicles (earliest - germination)
-	SRR3884677	# Cotyledons (seed leaves)
-	SRR3884675	# Roots (root development)
-	SRR3884690	# Stems (vegetative growth)
-	SRR3884689	# Leaves (vegetative growth)
-	SRR3884684	# Senescent_leaves (leaf aging)
-	SRR3884686	# Buds_0.7cm (flower bud initiation)
-	SRR3884687	# Opened_Buds (flower development)
-	SRR3884597	# Flowers (anthesis)
-	SRR3884679	# Pistils (female reproductive parts)
-	SRR3884608	# Fruits_1cm (early fruit development)
-	SRR3884620	# Fruits_Stage_1 (early fruit stage)
-	SRR3884631	# Fruits_6cm (fruit enlargement)
-	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
-	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
-	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
-	SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
-	SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
-	SRR3884678	# Fruits_peduncle (fruit attachment)
+	#SRR3884685	# Radicles (earliest - germination)
+	#SRR3884677	# Cotyledons (seed leaves)
+	#SRR3884675	# Roots (root development)
+	#SRR3884690	# Stems (vegetative growth)
+	#SRR3884689	# Leaves (vegetative growth)
+	#SRR3884684	# Senescent_leaves (leaf aging)
+	SRR3884686	# Buds_0.7cm (flower bud initiation)/
+	SRR3884687	# Opened_Buds (flower development)/
+	SRR3884597	# Flowers (anthesis)/
+	#SRR3884679	# Pistils (female reproductive parts)
+	#SRR3884608	# Fruits_1cm (early fruit development)
+	#SRR3884620	# Fruits_Stage_1 (early fruit stage)
+	#SRR3884631	# Fruits_6cm (fruit enlargement)
+	#SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
+	#SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
+	#SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
+	#SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
+	#SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
+	#SRR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
@@ -146,6 +146,7 @@ SRR_LIST_SAMN28540068=(
 # 	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa PRJNA865018
 #	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
 
+
 OTHER_SRR_LIST=(
 	# Possible Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP390977&o=acc_s%3Aa
 	SRR34564302	# Fruits (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR34564302&display=metadata)
@@ -166,8 +167,8 @@ OTHER_SRR_LIST=(
 
 SRR_COMBINED_LIST=(
 	"${SRR_LIST_PRJNA328564[@]}"
-	"${SRR_LIST_SAMN28540077[@]}"
-	"${SRR_LIST_SAMN28540068[@]}"
+	#"${SRR_LIST_SAMN28540077[@]}"
+	#"${SRR_LIST_SAMN28540068[@]}"
 )
 
 # ==============================================================================
@@ -217,11 +218,11 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 # CLEANUP OPTIONS AND TESTING ESSENTIALS
 # ==============================================================================
 
-rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
+#rm -rf "$RAW_DIR_ROOT"                   # Remove previous raw SRR files
 #rm -rf "$FASTQC_ROOT"                   # Remove previous FastQC results
-rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
-rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
-rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
+#rm -rf "$HISAT2_DE_NOVO_ROOT"           # Remove previous HISAT2 results
+#rm -rf "$HISAT2_DE_NOVO_INDEX_DIR"      # Remove previous HISAT2 index
+#rm -rf "$STRINGTIE_HISAT2_DE_NOVO_ROOT" # Remove previous StringTie results
 
 # ==============================================================================
 # LOGGING SYSTEM, ENVIRONMENT, and PROGRAM
