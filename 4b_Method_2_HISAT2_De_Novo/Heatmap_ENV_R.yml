@@ -12,5 +12,6 @@ dependencies:
   - r-biocmanager
   - bioconductor-complexheatmap
   - pip
+  - circlize
   - pip:
     - circlize
