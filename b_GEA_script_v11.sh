@@ -124,10 +124,20 @@ SRR_LIST_SAMN28540068=(
 	SRR31755282 # Roots (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP552204&o=acc_s%3Aa)
 )
 
+SRR_LIST_PRJNA865018=(
 # A Good Dataset for SmelDMP GEA: 
 # 	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa PRJNA865018
 #	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
-
+	SRR21010454	# buds_3
+	SRR21010456	# buds_2
+	SRR21010466	# buds_1
+	SRR21010458	# flowers_3
+	SRR21010460	# flowers_2
+	SRR21010462	# flowers_1
+	SRR21010450	# fruits_2
+	SRR21010452	# fruits_1
+	SRR21010464	# fruits_3ss
+)
 
 OTHER_SRR_LIST=(
 	# Possible Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP390977&o=acc_s%3Aa
