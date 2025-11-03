@@ -1,0 +1,17 @@
+name: Heatmap_ENV
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - r-base=4.3
+  - r-essentials
+  - r-rcolorbrewer
+  - r-dplyr
+  - r-tibble
+  - r-biocmanager
+  - bioconductor-complexheatmap
+  - pip
+  - circlize
+  - pip:
+    - circlize
