@@ -17,6 +17,21 @@
 # ===============================================
 set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
+# Gene groups to process
+Gene_Groups_Boilerplates=(
+    # Available gene groups based on TSV files
+    #"Best_Cell_Cycle_Associated_Control_Genes"
+    #"Best_Control_Genes"
+    #"SmelDMPs"
+    "SmelDMPs_with_18s_rRNA"
+    #"SmelGIFs"
+    #"SmelGRFs"
+    "Selected_GRF_GIF_Genes"
+    #"SmelGIF_with_Cell_Cycle_Control_genes"
+    #"SmelGRF_with_Cell_Cycle_Control_genes"
+    #"SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
+)
+
 # Directories
 BASE_DIR="$PWD"
 INPUTS_DIR="5_stringtie_WD/a_Method_2_RAW_RESULTs"
@@ -40,19 +55,6 @@ QUERY_AGAINST_MASTER_REFERENCE="TRUE"
 MASTER_REFERENCE="All_Smel_Genes"
 MASTER_SUFFIX="_from_${MASTER_REFERENCE}"  # Suffix added when QUERY_AGAINST_MASTER_REFERENCE=TRUE
 
-# Gene groups to process
-Gene_Groups_Boilerplates=(
-    # Available gene groups based on TSV files
-    #"Best_Cell_Cycle_Associated_Control_Genes"
-    #"Best_Control_Genes"
-    #"SmelDMPs"
-    #"SmelGIFs"
-    #"SmelGRFs"
-    "Selected_GRF_GIF_Genes"
-    #"SmelGIF_with_Cell_Cycle_Control_genes"
-    #"SmelGRF_with_Cell_Cycle_Control_genes"
-    #"SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
-)
 
 # Sample lists from different projects
 SRR_LIST_PRJNA328564=(
@@ -66,14 +68,14 @@ SRR_LIST_PRJNA328564=(
     SRR3884687  # Opened_Buds  
     SRR3884597  # Flowers 
     SRR3884679  # Pistils 
-    SRR3884608  # Fruits_1cm 
-    SRR3884620  # Fruits_Stage_1 
+    #SRR3884608  # Fruits_1cm 
+    #SRR3884620  # Fruits_Stage_1 
     SRR3884631  # Fruits_6cm 
-    SRR3884642  # Fruits_Skin_Stage_2 
-    SRR3884653  # Fruits_Flesh_Stage_2 
-    SRR3884664  # Fruits_Calyx_Stage_2 
-    SRR3884680  # Fruits_Skin_Stage_3 
-    SRR3884681  # Fruits_Flesh_Stage_3 
+    #SRR3884642  # Fruits_Skin_Stage_2 
+    #SRR3884653  # Fruits_Flesh_Stage_2 
+    #SRR3884664  # Fruits_Calyx_Stage_2 
+    #SRR3884680  # Fruits_Skin_Stage_3 
+    #SRR3884681  # Fruits_Flesh_Stage_3 
     SRR3884678  # Fruits_peduncle 
 )
 
@@ -156,36 +158,36 @@ SRR_LIST_COMBINED_OFF=(
 # Mapping from SRR IDs to organ names for matrix headers
 declare -A SRR_TO_ORGAN=(
     # Roots
-    ["SRR3884675"]="Roots_1"      # PRJNA328564
+    ["SRR3884675"]="Roots"      # PRJNA328564
     ["SRR20722229"]="Roots_2"     # SAMN28540077
     ["SRR31755282"]="Roots_3"     # SAMN28540068
 
     # Stems
-    ["SRR3884690"]="Stems_1"      # PRJNA328564
+    ["SRR3884690"]="Stems"      # PRJNA328564
     ["SRR20722227"]="Stems_2"     # SAMN28540077
     ["SRR20722384"]="Stems_3"     # SAMN28540068
 
     # Leaves
-    ["SRR3884689"]="Leaves_1"     # PRJNA328564
+    ["SRR3884689"]="Leaves"     # PRJNA328564
     ["SRR20722230"]="Leaves_2"    # SAMN28540077
     ["SRR20722386"]="Leaves_3"    # SAMN28540068
     ["SRR3884684"]="Senescent_leaves" # PRJNA328564
 
     # Buds
-    ["SRR3884686"]="Buds_1"       # PRJNA328564
+    ["SRR3884686"]="Buds"       # PRJNA328564
     ["SRR21010466"]="Buds_2"      # SAMN28540077
     ["SRR20722297"]="Buds_3"      # SAMN28540068
 
     # Opened Buds
-    ["SRR3884687"]="Opened_Buds_1" # PRJNA328564
+    ["SRR3884687"]="Opened_Buds" # PRJNA328564
 
     # Flowers
-    ["SRR3884597"]="Flowers_1"    # PRJNA328564
+    ["SRR3884597"]="Flowers"    # PRJNA328564
     ["SRR20722234"]="Flowers_2"   # SAMN28540077
     ["SRR23909863"]="Flowers_3"   # SAMN28540068
 
     # Fruits
-    ["SRR3884631"]="Fruits_1"	  # PRJNA328564
+    ["SRR3884631"]="Fruits"	  # PRJNA328564
     ["SRR2072232"]="Fruits_2"     # SAMN28540077
     ["SRR20722387"]="Fruits_3"    # SAMN28540068
     ["SRR3884608"]="Fruits_1cm"   # PRJNA328564

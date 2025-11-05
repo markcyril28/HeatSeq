@@ -12,8 +12,8 @@
 
 #bash a_stringtie_matrix_builder_m2_v4.sh
 
-#Rscript --no-save b_make_heatmap_of_matrices_v4.R
+Rscript --no-save b_make_heatmap_of_matrices_v4.R
 
-Rscript --no-save c_make_heatmap_with_CV_of_matrices_v4.R
+#Rscript --no-save c_make_heatmap_with_CV_of_matrices_v4.R
 
-Rscript --no-save d_make_BarGraph_of_matrices_v4.R
+#Rscript --no-save d_make_BarGraph_of_matrices_v4.R
