@@ -43,11 +43,11 @@ MASTER_SUFFIX="_from_${MASTER_REFERENCE}"  # Suffix added when QUERY_AGAINST_MAS
 # Gene groups to process
 Gene_Groups_Boilerplates=(
     # Available gene groups based on TSV files
-    "Best_Cell_Cycle_Associated_Control_Genes"
-    "Best_Control_Genes"
-    "SmelDMPs"
-    "SmelGIFs"
-    "SmelGRFs"
+    #"Best_Cell_Cycle_Associated_Control_Genes"
+    #"Best_Control_Genes"
+    #"SmelDMPs"
+    #"SmelGIFs"
+    #"SmelGRFs"
     "Selected_GRF_GIF_Genes"
     #"SmelGIF_with_Cell_Cycle_Control_genes"
     #"SmelGRF_with_Cell_Cycle_Control_genes"

@@ -39,7 +39,6 @@ RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=FALSE
 RUN_GZIP_TRIMMED_FILES=FALSE
 RUN_QUALITY_CONTROL=TRUE
-RUN_METHOD_COMPARISON=FALSE
 
 # GEA Methods 
 RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE
@@ -83,25 +82,25 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	# Developmental stages arranged from early to late
-	#SRR3884685	# Radicles (earliest - germination)
-	#SRR3884677	# Cotyledons (seed leaves)
-	#SRR3884675	# Roots (root development)
-	#SRR3884690	# Stems (vegetative growth)
-	#SRR3884689	# Leaves (vegetative growth)
-	#SRR3884684	# Senescent_leaves (leaf aging)
+	SRR3884685	# Radicles (earliest - germination)
+	SRR3884677	# Cotyledons (seed leaves)
+	SRR3884675	# Roots (root development)
+	SRR3884690	# Stems (vegetative growth)
+	SRR3884689	# Leaves (vegetative growth)
+	SRR3884684	# Senescent_leaves (leaf aging)
 	SRR3884686	# Buds_0.7cm (flower bud initiation)/
 	SRR3884687	# Opened_Buds (flower development)/
 	SRR3884597	# Flowers (anthesis)/
-	#SRR3884679	# Pistils (female reproductive parts)
-	#SRR3884608	# Fruits_1cm (early fruit development)
-	#SRR3884620	# Fruits_Stage_1 (early fruit stage)
-	#SRR3884631	# Fruits_6cm (fruit enlargement)
-	#SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
-	#SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
-	#SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
-	#SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
-	#SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
-	#SRR3884678	# Fruits_peduncle (fruit attachment)
+	SRR3884679	# Pistils (female reproductive parts)
+	SRR3884608	# Fruits_1cm (early fruit development)
+	SRR3884620	# Fruits_Stage_1 (early fruit stage)
+	SRR3884631	# Fruits_6cm (fruit enlargement)
+	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
+	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
+	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
+	SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
+	SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
+	SRR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
@@ -166,37 +165,6 @@ SRR_COMBINED_LIST=(
 # ==============================================================================
 # DIRECTORY STRUCTURE AND OUTPUT PATHS
 # ==============================================================================
-
-# Raw and Processed Data Directories
-RAW_DIR_ROOT="1_RAW_SRR"                # Raw SRR download directory
-TRIM_DIR_ROOT="2_TRIMMED_SRR"           # Trimmed reads directory
-FASTQC_ROOT="3_FastQC"                  # FastQC quality control reports
-
-# Method 1: HISAT2 Reference Guided 
-HISAT2_REF_GUIDED_ROOT="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD"
-HISAT2_REF_GUIDED_INDEX_DIR="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD/index"
-STRINGTIE_HISAT2_REF_GUIDED_ROOT="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD/a_Method_1_RAW_RESULTs"
-
-# Method 2: HISAT2 De Novo Assembly (main method in this script)
-HISAT2_DE_NOVO_ROOT="4_OUTPUTS/4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD"
-HISAT2_DE_NOVO_INDEX_DIR="4_OUTPUTS/4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD/index"
-STRINGTIE_HISAT2_DE_NOVO_ROOT="4_OUTPUTS/4b_Method_2_HISAT2_De_Novo/5_stringtie_WD/a_Method_2_RAW_RESULTs"
-
-# Method 3: Trinity De Novo Assembly
-TRINITY_DE_NOVO_ROOT="4_OUTPUTS/4c_Method_3_Trinity_De_Novo/4_Trinity_WD"
-STRINGTIE_TRINITY_DE_NOVO_ROOT="4_OUTPUTS/4c_Method_3_Trinity_De_Novo/5_stringtie_WD/a_Method_3_RAW_RESULTs"
-
-# Method 4: Salmon SAF Quantification
-SALMON_SAF_ROOT="4_OUTPUTS/4d_Method_4_Salmon_Saf_Quantification"
-SALMON_INDEX_ROOT="$SALMON_SAF_ROOT/index"
-SALMON_QUANT_ROOT="$SALMON_SAF_ROOT/quant"
-SALMON_SAF_MATRIX_ROOT="$SALMON_SAF_ROOT/matrices"
-
-# Method 5: Bowtie2 + RSEM Quantification
-BOWTIE2_RSEM_ROOT="4_OUTPUTS/4e_Method_5_Bowtie2_Quantification"
-RSEM_INDEX_ROOT="$BOWTIE2_RSEM_ROOT/index"
-RSEM_QUANT_ROOT="$BOWTIE2_RSEM_ROOT/quant"
-RSEM_MATRIX_ROOT="$BOWTIE2_RSEM_ROOT/matrices"
 
 # Create required directories
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \

@@ -121,43 +121,6 @@ run_with_time_to_log() {
 	/usr/bin/time -v "$@" >> "$LOG_FILE" 2>&1
 }
 
-run_quality_control() {
-	# Run quality control analysis on trimmed reads
-	local SRR="$1"
-	local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
-	
-	if [[ ! -d "$TrimGalore_DIR" ]]; then
-		log_warn "Trimmed directory not found for $SRR. Skipping QC."
-		return 1
-	fi
-	
-	log_info "Running quality control for $SRR..."
-	
-	# Create QC output directory
-	mkdir -p "$FASTQC_ROOT/$SRR"
-	
-	# FastQC on trimmed reads (skip if HTML report already exists)
-	if command -v fastqc >/dev/null 2>&1; then
-		outdir="$FASTQC_ROOT/${SRR}_trimmed"
-		mkdir -p "$outdir"
-		# If any FastQC HTML is present, assume QC was done and skip
-		if compgen -G "$outdir/*_fastqc.html" >/dev/null; then
-			log_info "FastQC HTML already exists for $SRR in $outdir. Skipping FastQC."
-		else
-			fastqc -t "${THREADS:-1}" -o "$outdir" \
-				"$TrimGalore_DIR"/${SRR}*val*.fq* 2>/dev/null || \
-				log_warn "FastQC failed for $SRR"
-		fi
-	else
-		log_warn "FastQC not available. Skipping read quality assessment."
-	fi
-	
-	# MultiQC summary (if available)
-	if command -v multiqc >/dev/null 2>&1; then
-		multiqc "$FASTQC_ROOT" -o "$FASTQC_ROOT/summary" --force 2>/dev/null || \
-			log_warn "MultiQC failed. Individual FastQC reports still available."
-	fi
-}
 
 show_pipeline_configuration() {
 	# Display which pipelines are enabled for this run
@@ -233,6 +196,46 @@ gzip_trimmed_fastq_files() {
 	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -print0 | \
 		parallel -0 -j "$JOBS" gzip {}
 	log_info "Parallel compression of trimmed FASTQ files completed."
+}
+
+run_quality_control() {
+	# Run quality control analysis on trimmed reads
+	local SRR="$1"
+	local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+	
+	if [[ ! -d "$TrimGalore_DIR" ]]; then
+		log_warn "Trimmed directory not found for $SRR. Skipping QC."
+		return 1
+	fi
+	
+	log_info "Running quality control for $SRR..."
+	
+	# Create QC output directory
+	mkdir -p "$FASTQC_ROOT/$SRR"
+	
+	# FastQC on trimmed reads (skip if HTML report already exists)
+	if command -v fastqc >/dev/null 2>&1; then
+		outdir="$FASTQC_ROOT/${SRR}_trimmed"
+		mkdir -p "$outdir"
+		# If any FastQC HTML is present, assume QC was done and skip
+		if compgen -G "$outdir/*_fastqc.html" >/dev/null; then
+			log_info "FastQC HTML already exists for $SRR in $outdir. Skipping FastQC."
+		else
+			run_with_time_to_log \
+				fastqc -t "${THREADS:-1}" -o "$outdir" \
+					"$TrimGalore_DIR"/${SRR}*val*.fq* 2>/dev/null || \
+					log_warn "FastQC failed for $SRR"
+		fi
+	else
+		log_warn "FastQC not available. Skipping read quality assessment."
+	fi
+	
+	# MultiQC summary (if available)
+	if command -v multiqc >/dev/null 2>&1; then
+		run_with_time_to_log \
+			multiqc "$FASTQC_ROOT" -o "$FASTQC_ROOT/summary" --force 2>/dev/null || \
+				log_warn "MultiQC failed. Individual FastQC reports still available."
+	fi
 }
 
 download_and_trim_srrs() {

@@ -9,8 +9,8 @@
 # Date: October 2025
 # 
 # Pipeline Methods:
-# - Method 1: HISAT2 Reference Guided (not in this script)
-# - Method 2: HISAT2 De Novo Assembly (this script)
+# - Method 1: HISAT2 Reference Guided 
+# - Method 2: HISAT2 De Novo Assembly
 # - Method 3: Trinity De Novo Assembly
 # - Method 4: Salmon SAF Quantification
 # - Method 5: Bowtie2 + RSEM Quantification
@@ -19,7 +19,6 @@
 # 1. Configuration and Runtime Switches (All 5 Methods + QC Options)
 # 2. Pipeline Configuration Examples  
 # 3. Input Files and Data Sources
-# 4. RNA-seq Data Sources (SRR Lists)
 # 5. Directory Structure and Output Paths  
 # 6. Cleanup Options and Testing
 # 7. Logging System and Utility Functions
@@ -32,7 +31,7 @@
 # ==============================================================================
 
 set -euo pipefail
-
+source "modules/utils.sh"
 
 # ==============================================================================
 # DIRECTORY STRUCTURE AND OUTPUT PATHS
@@ -80,6 +79,47 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 # ------------------------------------------------------------------------------
 # MAIN PIPELINES FOR ALIGNMENT, ASSEMBLY, AND QUANTIFICATION
 # ------------------------------------------------------------------------------
+
+run_quality_control() {
+	# Run quality control analysis on trimmed reads
+	local SRR="$1"
+	local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
+	
+	if [[ ! -d "$TrimGalore_DIR" ]]; then
+		log_warn "Trimmed directory not found for $SRR. Skipping QC."
+		return 1
+	fi
+	
+	log_info "Running quality control for $SRR..."
+	
+	# Create QC output directory
+	mkdir -p "$FASTQC_ROOT/$SRR"
+	
+	# FastQC on trimmed reads (skip if HTML report already exists)
+	if command -v fastqc >/dev/null 2>&1; then
+		outdir="$FASTQC_ROOT/${SRR}_trimmed"
+		mkdir -p "$outdir"
+		# If any FastQC HTML is present, assume QC was done and skip
+		if compgen -G "$outdir/*_fastqc.html" >/dev/null; then
+			log_info "FastQC HTML already exists for $SRR in $outdir. Skipping FastQC."
+		else
+			run_with_time_to_log \
+				fastqc -t "${THREADS:-1}" -o "$outdir" \
+					"$TrimGalore_DIR"/${SRR}*val*.fq* 2>/dev/null || \
+					log_warn "FastQC failed for $SRR"
+		fi
+	else
+		log_warn "FastQC not available. Skipping read quality assessment."
+	fi
+	
+	# MultiQC summary (if available)
+	if command -v multiqc >/dev/null 2>&1; then
+		run_with_time_to_log \
+			multiqc "$FASTQC_ROOT" -o "$FASTQC_ROOT/summary" --force 2>/dev/null || \
+				log_warn "MultiQC failed. Individual FastQC reports still available."
+	fi
+}
+
 
 hisat2_ref_guided_pipeline() {
 	# HISAT2 Reference Guided Pipeline using reference GTF and genome
@@ -143,12 +183,13 @@ hisat2_ref_guided_pipeline() {
 		run_with_time_to_log hisat2_extract_exons.py "$gtf" > "$exons"
 		
 		# Build index with splice sites and exons
-		run_with_time_to_log hisat2-build \
-			-p "${THREADS}" \
-			--ss "$splice_sites" \
-			--exon "$exons" \
-			"$fasta" \
-			"$index_prefix"
+		run_with_time_to_log \
+			hisat2-build \
+				-p "${THREADS}" \
+				--ss "$splice_sites" \
+				--exon "$exons" \
+				"$fasta" \
+				"$index_prefix"
 	fi
 
 	# ALIGNMENT, SORTING, AND STRINGTIE ASSEMBLY for each SRR
@@ -263,11 +304,12 @@ hisat2_ref_guided_pipeline() {
 		log_info "Merged GTF already exists for $fasta_tag (ref-guided). Skipping merge."
 	else
 		log_info "Merging GTF files for $fasta_tag (ref-guided)..."
-		run_with_time_to_log stringtie --merge \
-			-p "$THREADS" \
-			-G "$gtf" \
-			-o "$merged_gtf" \
-			"$gtf_list"
+		run_with_time_to_log \
+			stringtie --merge \
+				-p "$THREADS" \
+				-G "$gtf" \
+				-o "$merged_gtf" \
+				"$gtf_list"
 	fi
 	
 	# Re-estimate abundances with merged GTF for better quantification
@@ -288,13 +330,14 @@ hisat2_ref_guided_pipeline() {
 		
 		if [[ -f "$bam" ]]; then
 			log_info "Re-estimating abundances for $SRR with merged GTF (ref-guided)..."
-			run_with_time_to_log stringtie \
-				-p "$THREADS" \
-				-e -B \
-				-G "$merged_gtf" \
-				-A "$final_abundances" \
-				-o "$final_gtf" \
-				"$bam"
+			run_with_time_to_log \
+				stringtie \
+					-p "$THREADS" \
+					-e -B \
+					-G "$merged_gtf" \
+					-A "$final_abundances" \
+					-o "$final_gtf" \
+					"$bam"
 		fi
 	done
 	
@@ -303,8 +346,8 @@ hisat2_ref_guided_pipeline() {
 	log_info "Final quantifications in: $STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/*/final/"
 }
 
+# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 hisat2_de_novo_pipeline() {
-	# Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -730,9 +773,9 @@ trinity_de_novo_alignment_pipeline() {
 	log_info "Sample table: $sample_table"
 }
 
+# Quantify expression using decoy-aware Salmon (Selective Alignment)
+# Fast and accurate 
 salmon_saf_pipeline() {
-    # Quantify expression using decoy-aware Salmon (Selective Alignment)
-	# Fast and accurate 
     local fasta="" genome="" rnaseq_list=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -840,9 +883,9 @@ salmon_saf_pipeline() {
     log_info "Outputs: $matrix_dir/"
 }
 
+# Quantify expression using Bowtie2 + RSEM
+# Reviewer Preferred Method
 bowtie2_rsem_pipeline() {
-    # Quantify expression using Bowtie2 + RSEM
-	# Reviewer Preferred Method
     local fasta="" rnaseq_list=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
