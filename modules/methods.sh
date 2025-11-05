@@ -225,7 +225,7 @@ hisat2_ref_guided_pipeline() {
 		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
 			log_info "BAM for $SRR and $fasta_tag (ref-guided) already exists. Skipping alignment."
 		else
-			log_info "Aligning $fasta_tag with $SRR using HISAT 2 Reference-Guided Approach..."
+			log_info "Aligning $fasta_tag with $SRR using HISAT2 Reference-Guided Approach..."
 			# Check if paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end alignment
