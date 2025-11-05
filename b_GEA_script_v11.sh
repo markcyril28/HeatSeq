@@ -28,12 +28,6 @@ JOBS=4                                  # Number of parallel jobs for GNU Parall
 # Export variables for function access
 export THREADS JOBS
 
-# RNA-seq Library Configuration
-RNA_STRAND_PROTOCOL="RF"               # RNA-seq strand protocol: "RF" (dUTP), "FR" (ligation), or "unstranded"
-                                       # RF = first read reverse complement, second read forward (most common)
-                                       # FR = first read forward, second read reverse complement  
-                                       # unstranded = no strand specificity
-
 # Pipeline Control Switches, Quality Control and Analysis Options
 RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=TRUE
@@ -41,11 +35,11 @@ RUN_GZIP_TRIMMED_FILES=TRUE
 RUN_QUALITY_CONTROL=FALSE
 
 # GEA Methods 
-RUN_METHOD_1_HISAT2_REF_GUIDED=TRUE
+RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE
 RUN_METHOD_2_HISAT2_DE_NOVO=FALSE
 RUN_METHOD_3_TRINITY_DE_NOVO=TRUE
-RUN_METHOD_4_SALMON_SAF=FALSE
-RUN_METHOD_5_BOWTIE2_RSEM=FALSE
+RUN_METHOD_4_SALMON_SAF=TRUE
+RUN_METHOD_5_BOWTIE2_RSEM=TRUE
 
 RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=FALSE
 RUN_ZIP_RESULTS=FALSE
@@ -162,6 +156,7 @@ SRR_COMBINED_LIST=(
 	"${SRR_LIST_PRJNA328564[@]}"
 	#"${SRR_LIST_SAMN28540077[@]}"
 	#"${SRR_LIST_SAMN28540068[@]}"
+	#"${SRR_LIST_PRJNA865018[@]}"
 )
 
 # ==============================================================================
@@ -291,6 +286,11 @@ run_all() {
 		bowtie2_rsem_pipeline \
 			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
 	fi
+
+	# Generate cross-method validation summary
+	local fasta_base="$(basename "$fasta")"
+	local fasta_tag="${fasta_base%.*}"
+	compare_methods_summary "$fasta_tag"
 
 	end_time=$(date +%s)
 	log_step "Final timing"
