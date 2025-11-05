@@ -319,8 +319,9 @@ hisat2_ref_guided_pipeline() {
 		local final_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/final"
 		local final_gtf="$final_dir/${SRR}_${fasta_tag}_ref_guided_final.gtf"
 		local final_abundances="$final_dir/${SRR}_${fasta_tag}_ref_guided_final_abundances.tsv"
+		local ballgown_dir="$final_dir/ballgown"
 		
-		mkdir -p "$final_dir"
+		mkdir -p "$final_dir" "$ballgown_dir"
 		
 		# Skip if BAM was deleted and final quantification already exists
 		if [[ ! -f "$bam" && -f "$final_gtf" ]]; then
@@ -341,9 +342,110 @@ hisat2_ref_guided_pipeline() {
 		fi
 	done
 	
+	# PREPARE COUNT MATRICES FOR DESEQ2 USING prepDE.py
+	log_info "Preparing count matrices for DESeq2 using prepDE.py..."
+	local deseq2_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/deseq2_input"
+	local sample_list="$deseq2_dir/sample_list.txt"
+	local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
+	local transcript_count_matrix="$deseq2_dir/transcript_count_matrix.csv"
+	
+	mkdir -p "$deseq2_dir"
+	
+	# Create sample list file for prepDE.py
+	> "$sample_list"
+	for SRR in "${rnaseq_list[@]}"; do
+		local final_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/final"
+		local final_gtf="$final_dir/${SRR}_${fasta_tag}_ref_guided_final.gtf"
+		
+		if [[ -f "$final_gtf" ]]; then
+			echo "$SRR $final_gtf" >> "$sample_list"
+		else
+			log_warn "Final GTF not found for $SRR. Skipping from count matrix preparation."
+		fi
+	done
+	
+	# Check if count matrices already exist
+	if [[ -f "$gene_count_matrix" && -f "$transcript_count_matrix" ]]; then
+		log_info "Count matrices already exist for $fasta_tag (ref-guided). Skipping prepDE.py."
+	else
+		# Run prepDE.py to generate count matrices
+		if command -v prepDE.py >/dev/null 2>&1; then
+			log_info "Running prepDE.py to generate count matrices..."
+			run_with_time_to_log \
+				prepDE.py \
+					-i "$sample_list" \
+					-g "$gene_count_matrix" \
+					-t "$transcript_count_matrix" \
+					-l 150
+		elif command -v python >/dev/null 2>&1 && python -c "import prepDE" 2>/dev/null; then
+			log_info "Running prepDE.py via python to generate count matrices..."
+			run_with_time_to_log \
+				python -m prepDE \
+					-i "$sample_list" \
+					-g "$gene_count_matrix" \
+					-t "$transcript_count_matrix" \
+					-l 150
+		else
+			log_warn "prepDE.py not found. Creating basic count matrices from abundance files..."
+			
+			# Alternative: Create basic count matrix from StringTie abundance files
+			local temp_gene_matrix="$deseq2_dir/temp_gene_counts.txt"
+			local temp_transcript_matrix="$deseq2_dir/temp_transcript_counts.txt"
+			
+			# Extract gene counts from abundance files
+			local first_file=""
+			for SRR in "${rnaseq_list[@]}"; do
+				local final_abundances="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/final/${SRR}_${fasta_tag}_ref_guided_final_abundances.tsv"
+				if [[ -f "$final_abundances" ]]; then
+					if [[ -z "$first_file" ]]; then
+						# Create header and gene IDs from first file
+						awk 'NR>1 {print $1}' "$final_abundances" > "$temp_gene_matrix"
+						first_file="$SRR"
+					fi
+					# Extract counts (assuming TPM * length / 1000 approximates counts)
+					awk -v srr="$SRR" 'NR>1 {print int($7)}' "$final_abundances" > "$deseq2_dir/${SRR}_counts.tmp"
+				fi
+			done
+			
+			# Combine all count files
+			if [[ -n "$first_file" ]]; then
+				paste "$temp_gene_matrix" "$deseq2_dir"/*_counts.tmp > "$gene_count_matrix.tmp"
+				
+				# Add header
+				echo -n "Gene_ID" > "$gene_count_matrix"
+				for SRR in "${rnaseq_list[@]}"; do
+					echo -n ",$SRR" >> "$gene_count_matrix"
+				done
+				echo "" >> "$gene_count_matrix"
+				
+				# Add data
+				cat "$gene_count_matrix.tmp" >> "$gene_count_matrix"
+				
+				# Cleanup
+				rm -f "$temp_gene_matrix" "$gene_count_matrix.tmp" "$deseq2_dir"/*_counts.tmp
+			fi
+		fi
+	fi
+	
+	# Create sample metadata file for DESeq2
+	local sample_metadata="$deseq2_dir/sample_metadata.csv"
+	if [[ ! -f "$sample_metadata" ]]; then
+		log_info "Creating sample metadata file for DESeq2..."
+		echo "sample,condition,batch" > "$sample_metadata"
+		for SRR in "${rnaseq_list[@]}"; do
+			# Default condition assignment - customize based on your experimental design
+			local condition="treatment"  # You may want to customize this logic
+			echo "$SRR,$condition,1" >> "$sample_metadata"
+		done
+	fi
+	
 	log_info "HISAT2 reference-guided pipeline completed for $fasta_tag."
 	log_info "Merged GTF: $merged_gtf"
 	log_info "Final quantifications in: $STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/*/final/"
+	log_info "DESeq2 input files:"
+	log_info "  - Gene count matrix: $gene_count_matrix"
+	log_info "  - Transcript count matrix: $transcript_count_matrix" 
+	log_info "  - Sample metadata: $sample_metadata"
 }
 
 # Combined pipeline: Build HISAT2 index, align reads, assemble, merge, and quantify transcripts

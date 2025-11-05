@@ -22,8 +22,8 @@ source "modules/methods.sh"
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=4                               # Number of threads to use for parallel operations
-JOBS=2                                  # Number of parallel jobs for GNU Parallel 
+THREADS=32                               # Number of threads to use for parallel operations
+JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
 export THREADS JOBS
@@ -38,10 +38,10 @@ RNA_STRAND_PROTOCOL="RF"               # RNA-seq strand protocol: "RF" (dUTP), "
 RUN_MAMBA_INSTALLATION=FALSE
 RUN_DOWNLOAD_and_TRIM_SRR=FALSE
 RUN_GZIP_TRIMMED_FILES=FALSE
-RUN_QUALITY_CONTROL=TRUE
+RUN_QUALITY_CONTROL=FALSE
 
 # GEA Methods 
-RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE
+RUN_METHOD_1_HISAT2_REF_GUIDED=TRUE
 RUN_METHOD_2_HISAT2_DE_NOVO=FALSE
 RUN_METHOD_3_TRINITY_DE_NOVO=FALSE
 RUN_METHOD_4_SALMON_SAF=FALSE
@@ -57,11 +57,13 @@ RUN_ZIP_RESULTS=FALSE
 # Legacy GTF and FASTA references (commented out)
 #All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
 #Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4.1_transcripts_function.fa"
+ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/All_Smel_Genes_Full_Name_reformatted.gtf"
+gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 
 # FASTA Files for Analysis
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	#"0_INPUT_FASTAs/All_Smel_Genes.fasta"
+	"0_INPUT_FASTAs/All_Smel_Genes.fasta"
 	#"0_INPUT_FASTAs/Eggplant_V4.1_transcripts.function.fa"
 	#"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
@@ -82,25 +84,25 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	# Developmental stages arranged from early to late
-	SRR3884685	# Radicles (earliest - germination)
-	SRR3884677	# Cotyledons (seed leaves)
-	SRR3884675	# Roots (root development)
-	SRR3884690	# Stems (vegetative growth)
-	SRR3884689	# Leaves (vegetative growth)
-	SRR3884684	# Senescent_leaves (leaf aging)
+	#SRR3884685	# Radicles (earliest - germination)
+	#SRR3884677	# Cotyledons (seed leaves)
+	#SRR3884675	# Roots (root development)
+	#SRR3884690	# Stems (vegetative growth)
+	#SRR3884689	# Leaves (vegetative growth)
+	#SRR3884684	# Senescent_leaves (leaf aging)
 	SRR3884686	# Buds_0.7cm (flower bud initiation)/
 	SRR3884687	# Opened_Buds (flower development)/
 	SRR3884597	# Flowers (anthesis)/
-	SRR3884679	# Pistils (female reproductive parts)
-	SRR3884608	# Fruits_1cm (early fruit development)
-	SRR3884620	# Fruits_Stage_1 (early fruit stage)
-	SRR3884631	# Fruits_6cm (fruit enlargement)
-	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
-	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
-	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
-	SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
-	SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
-	SRR3884678	# Fruits_peduncle (fruit attachment)
+	#SRR3884679	# Pistils (female reproductive parts)
+	#SRR3884608	# Fruits_1cm (early fruit development)
+	#SRR3884620	# Fruits_Stage_1 (early fruit stage)
+	#SRR3884631	# Fruits_6cm (fruit enlargement)
+	#SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
+	#SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
+	#SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
+	#SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
+	#SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
+	#RR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
