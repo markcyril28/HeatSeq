@@ -256,21 +256,14 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
   }
   
   # Define color palette and legend title
-  if (normalization_type == "Z-score_Scaled_to_Ten") {
-    # For Z-score scaled to ten: range is [0, 10]
-    eggplant_colors <- colorRamp2(
-      seq(0, 10, length = 8),
-      c("#dab3ddff","#d9afe0ff","#c57fd1ff","#ac44beff",
-        "#8E24AA","#6A1B9A","#4A148C","#2F1B69")
-    )
-  } else {
-    # For other schemes: standard range
-    eggplant_colors <- colorRamp2(
-      seq(min(data_matrix), max(data_matrix), length = 8),
-      c("#FFFFFF","#F3E5F5","#CE93D8","#AB47BC",
-        "#8E24AA","#6A1B9A","#4A148C","#2F1B69")
-    )
-  }
+  eggplant_colors <- colorRamp2(
+    seq(min(data_matrix), max(data_matrix), length = 8),
+    c("#dab3ddff","#d9afe0ff","#c57fd1ff","#ac44beff",
+      "#8E24AA","#6A1B9A","#4A148C","#2F1B69")
+  )
+  # Calculate 5-6 evenly spaced breaks
+  data_range <- range(data_matrix, na.rm = TRUE)
+  legend_breaks <- pretty(data_range, n = 5)
   
   legend_title <- switch(normalization_type,
     "raw" = paste0("Raw ", toupper(count_type)),
@@ -316,14 +309,14 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
       # Row (gene) settings
       show_row_names = ifelse(nrow(data_matrix) > 50, FALSE, TRUE),
       row_names_side = "left",
-      row_names_gp = gpar(fontsize = if (nrow(data_matrix) > 50) 7 else 8),
+      row_names_gp = gpar(fontsize = if (nrow(data_matrix) > 50) 7 else 14),
       row_names_max_width = unit(10, "cm"),
       cluster_rows = FALSE,
       
-      # Column (sample) settings
+      # Column (sample or organ) settings
       show_column_names = TRUE,
       column_names_side = "top",
-      column_names_gp = gpar(fontsize = 10),
+      column_names_gp = gpar(fontsize = 14),
       column_names_rot = 45,
       cluster_columns = FALSE,
       
@@ -336,16 +329,18 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
         legend_direction = legend_direction,
         legend_height = legend_height,
         legend_width = legend_width,
-        title_gp = gpar(fontsize = 10, fontface = "bold"),
+        title_gp = gpar(fontsize = 12, fontface = "bold"),
+        title_position = "topcenter",
         labels_gp = gpar(fontsize = 12),
         grid_height = grid_height,
         grid_width = grid_width,
+        at = legend_breaks,
         just = c("left", "top")
       ),
       
       # Title
       column_title = if (normalization_type == "raw") title else paste(title, "-", normalization_type),
-      column_title_gp = gpar(fontsize = 10, fontface = "bold")
+      column_title_gp = gpar(fontsize = 14, fontface = "bold")
     )
     
     # Save the heatmap
@@ -490,15 +485,18 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
         seq(-zscore_limit, zscore_limit, length = 10),
         c("#FFFFFF", "#FFEB3B", "#CDDC39", "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
       )
+      legend_breaks_cv <- pretty(c(-zscore_limit, zscore_limit), n = 5)
     } else {
       # Fallback for invalid data
       heatmap_colors <- colorRamp2(c(0, 1), c("#FFFFFF", "#4A148C"))
+      legend_breaks_cv <- c(0, 1)
     }
   } else if (normalization_scheme == "zscore_scaled_to_ten") {
     heatmap_colors <- colorRamp2(
       seq(0, 10, length = 10),
       c("#FFFFFF", "#FFEB3B", "#CDDC39", "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
     )
+    legend_breaks_cv <- seq(0, 10, by = 2)  # 0, 2, 4, 6, 8, 10
   } else {
     data_range <- range(data_scaled, na.rm = TRUE, finite = TRUE)
     if (length(data_range) == 2 && data_range[1] != data_range[2]) {
@@ -506,8 +504,10 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
         seq(data_range[1], data_range[2], length = 10),
         c("#FFFFFF", "#FFEB3B", "#CDDC39", "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
       )
+      legend_breaks_cv <- pretty(data_range, n = 5)
     } else {
       heatmap_colors <- colorRamp2(c(0, 1), c("#FFFFFF", "#4A148C"))
+      legend_breaks_cv <- c(0, 1)
     }
   }
   
@@ -574,7 +574,8 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
         title_gp = gpar(fontsize = 12, fontface = "bold"),
         labels_gp = gpar(fontsize = 10),
         grid_height = grid_height,
-        grid_width = grid_width
+        grid_width = grid_width,
+        at = legend_breaks_cv
       ),
       column_title = paste(title, "- CV Heatmap (", normalization_scheme, ifelse(sort_by_expression, " - Sorted by Expression", " - Sorted by Organ"), ")"),
       column_title_gp = gpar(fontsize = 14, fontface = "bold"),
