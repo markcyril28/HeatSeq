@@ -50,10 +50,41 @@ read_count_matrix <- function(file_path) {
 }
 
 # Function to save matrix data as TSV
-save_matrix_data <- function(data_matrix, output_path) {
+save_matrix_data <- function(data_matrix, output_path, metadata = NULL) {
   tryCatch({
     # Create matrix path by changing extension
-    matrix_path <- paste0(tools::file_path_sans_ext(output_path), ".tsv")
+    base_path <- tools::file_path_sans_ext(output_path)
+    
+    # If metadata is provided, append it to the filename
+    if (!is.null(metadata)) {
+      # Build metadata suffix
+      meta_parts <- c()
+      if (!is.null(metadata$count_type)) {
+        meta_parts <- c(meta_parts, toupper(metadata$count_type))
+      }
+      if (!is.null(metadata$gene_type)) {
+        meta_parts <- c(meta_parts, metadata$gene_type)
+      }
+      if (!is.null(metadata$label_type)) {
+        meta_parts <- c(meta_parts, paste0(metadata$label_type, "_labels"))
+      }
+      if (!is.null(metadata$normalization)) {
+        meta_parts <- c(meta_parts, metadata$normalization)
+      }
+      if (!is.null(metadata$sorting)) {
+        sort_text <- ifelse(metadata$sorting, "sorted_by_expression", "sorted_by_organ")
+        meta_parts <- c(meta_parts, sort_text)
+      }
+      
+      if (length(meta_parts) > 0) {
+        metadata_suffix <- paste0("_", paste(meta_parts, collapse = "_"))
+        matrix_path <- paste0(base_path, metadata_suffix, ".tsv")
+      } else {
+        matrix_path <- paste0(base_path, ".tsv")
+      }
+    } else {
+      matrix_path <- paste0(base_path, ".tsv")
+    }
 
     # Convert matrix to data frame with row names as first column
     matrix_df <- data.frame(
@@ -236,17 +267,14 @@ apply_normalization <- function(data_matrix, normalization_scheme, count_type) {
 # ===============================================
 
 # Function to generate heatmap (unified for all normalization types)
-generate_heatmap_violet <- function(data_matrix, output_path, title, count_type, label_type, normalization_type = "raw") {
+generate_heatmap_violet <- function(data_matrix, output_path, title, count_type, label_type, normalization_type = "raw", transpose = FALSE, sort_by_expression = FALSE) {
   if (is.null(data_matrix) || nrow(data_matrix) == 0 || nrow(data_matrix) < 2) return(FALSE)
   if (any(is.na(data_matrix)) || any(is.infinite(data_matrix))) {
     data_matrix[is.na(data_matrix) | is.infinite(data_matrix)] <- 0
   }
   if (length(unique(as.vector(data_matrix))) == 1) return(FALSE)
   
-  # Save matrix data as TSV
-  save_matrix_data(data_matrix, output_path)
-  
-  # Prepare column labels
+  # Prepare column labels BEFORE any transformations
   col_labels <- colnames(data_matrix)
   if (label_type == "Organ" && exists("SAMPLE_LABELS")) {
     col_labels <- ifelse(colnames(data_matrix) %in% names(SAMPLE_LABELS),
@@ -254,6 +282,46 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
                          colnames(data_matrix))
     colnames(data_matrix) <- col_labels
   }
+  
+  # Store original gene names
+  gene_labels <- rownames(data_matrix)
+  
+  # Sort by expression if requested (BEFORE transpose)
+  if (sort_by_expression) {
+    if (transpose) {
+      # For transposed version: sort genes (which will become columns) by mean expression
+      row_means <- rowMeans(data_matrix, na.rm = TRUE)
+      row_order <- order(row_means)
+      data_matrix <- data_matrix[row_order, , drop = FALSE]
+      gene_labels <- gene_labels[row_order]
+    } else {
+      # For original version: sort organs (columns) by mean expression
+      col_means <- colMeans(data_matrix, na.rm = TRUE)
+      col_order <- order(col_means)
+      data_matrix <- data_matrix[, col_order, drop = FALSE]
+      col_labels <- col_labels[col_order]
+      colnames(data_matrix) <- col_labels
+    }
+  }
+  
+  # Apply transpose if requested
+  if (transpose) {
+    data_matrix <- t(data_matrix)
+    # After transpose: rows are now organs, columns are now genes
+    row_labels_display <- col_labels  # Organs become row labels
+    col_labels_display <- gene_labels  # Genes become column labels
+  } else {
+    # Original: rows are genes, columns are organs
+    row_labels_display <- gene_labels
+    col_labels_display <- col_labels
+  }
+  
+  # Update matrix row and column names
+  rownames(data_matrix) <- row_labels_display
+  colnames(data_matrix) <- col_labels_display
+  
+  # Save matrix data as TSV
+  save_matrix_data(data_matrix, output_path)
   
   # Define color palette and legend title
   eggplant_colors <- colorRamp2(
@@ -294,11 +362,51 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
     
     # Ensure rownames exist and are valid
     if (is.null(rownames(data_matrix)) || length(rownames(data_matrix)) == 0) {
-      rownames(data_matrix) <- paste0("Gene_", seq_len(nrow(data_matrix)))
+      rownames(data_matrix) <- paste0("Row_", seq_len(nrow(data_matrix)))
     }
     
     row_labels <- truncate_labels(rownames(data_matrix), max_length = max_length)
     rownames(data_matrix) <- row_labels
+    
+    # Determine orientation-specific settings
+    if (transpose) {
+      # Transposed: rows=organs, cols=genes
+      show_row_names <- TRUE
+      show_col_names <- ifelse(ncol(data_matrix) > 50, FALSE, TRUE)
+      row_fontsize <- 14
+      col_fontsize <- if (ncol(data_matrix) > 50) 7 else 14
+      row_side <- "left"
+      col_side <- "top"
+      col_rot <- 45
+      row_label <- "Organs"
+      col_label <- "Genes"
+    } else {
+      # Original: rows=genes, cols=organs
+      show_row_names <- ifelse(nrow(data_matrix) > 50, FALSE, TRUE)
+      show_col_names <- TRUE
+      row_fontsize <- if (nrow(data_matrix) > 50) 7 else 14
+      col_fontsize <- 14
+      row_side <- "left"
+      col_side <- "top"
+      col_rot <- 45
+      row_label <- "Genes"
+      col_label <- "Organs"
+    }
+    
+    # Build title with orientation and sorting info
+    # Clean up title by removing geneName/geneID and SRR/Organ label suffixes
+    clean_title <- title
+    clean_title <- gsub("_geneName.*", "", clean_title)
+    clean_title <- gsub("_geneID.*", "", clean_title)
+    clean_title <- gsub("_SRR.*", "", clean_title)
+    clean_title <- gsub("_Organ.*", "", clean_title)
+    clean_title <- gsub("_", " ", clean_title)
+    
+    sorting_text <- ifelse(sort_by_expression, "Sorted_by_Expression", "Sorted_by_Organ")
+    full_title <- paste(clean_title, "-", normalization_type, "-", sorting_text)
+    if (normalization_type == "raw") {
+      full_title <- paste(clean_title, "-", sorting_text)
+    }
     
     # Create the heatmap
     ht <- Heatmap(
@@ -306,22 +414,26 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
       name = legend_title,
       col = eggplant_colors,
       
-      # Row (gene) settings
-      show_row_names = ifelse(nrow(data_matrix) > 50, FALSE, TRUE),
-      row_names_side = "left",
-      row_names_gp = gpar(fontsize = if (nrow(data_matrix) > 50) 7 else 14),
+      # Row settings
+      show_row_names = show_row_names,
+      row_names_side = row_side,
+      row_names_gp = gpar(fontsize = row_fontsize),
       row_names_max_width = unit(10, "cm"),
+      row_title = row_label,
+      row_title_gp = gpar(fontsize = 14, fontface = "bold"),
+      row_title_side = "left",
       cluster_rows = FALSE,
       
-      # Column (sample or organ) settings
-      show_column_names = TRUE,
-      column_names_side = "top",
-      column_names_gp = gpar(fontsize = 14),
-      column_names_rot = 45,
+      # Column settings
+      show_column_names = show_col_names,
+      column_names_side = col_side,
+      column_names_gp = gpar(fontsize = col_fontsize),
+      column_names_rot = col_rot,
+      column_title_side = "top",
       cluster_columns = FALSE,
       
       # Heatmap body settings
-      rect_gp = gpar(col = "white", lwd = if (nrow(data_matrix) > 50) 0.3 else 0.5),
+      rect_gp = gpar(col = "white", lwd = if (max(nrow(data_matrix), ncol(data_matrix)) > 50) 0.3 else 0.5),
       
       # Legend settings (dynamic based on LEGEND_POSITION)
       heatmap_legend_param = list(
@@ -339,7 +451,7 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
       ),
       
       # Title
-      column_title = if (normalization_type == "raw") title else paste(title, "-", normalization_type),
+      column_title = paste0(full_title, "\n", col_label),
       column_title_gp = gpar(fontsize = 14, fontface = "bold")
     )
     
@@ -349,21 +461,21 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
     n_cols <- ncol(data_matrix)
     
     # Base cell size in inches (adjust as needed for readability)
-    base_cell_size <- 0.3
+    base_cell_size <- 1
     
     # Calculate base dimensions from cell count
     base_width <- n_cols * base_cell_size
     base_height <- n_rows * base_cell_size
     
     # Equal padding on all sides
-    padding <- 1
+    padding <- 0.75
     
     # Calculate final dimensions with minimum and maximum constraints
     final_width <- max(8, min(20, base_width + 2 * padding))
     final_height <- max(6, min(16, base_height + 2 * padding))
     
-    png(output_path, width = 14, height = 10.5, units = "in", res = 500)
-    #png(output_path, width = final_width, height = final_height, units = "in", res = 300)
+    #png(output_path, width = 14, height = 10.5, units = "in", res = 1000)
+    png(output_path, width = final_width, height = final_height, units = "in", res = 1080)
     draw(ht, 
          heatmap_legend_side = LEGEND_POSITION, 
          annotation_legend_side = LEGEND_POSITION,
@@ -392,10 +504,7 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
   }
   if (length(unique(as.vector(data_matrix))) == 1) return(FALSE)
   
-  # Save matrix data as TSV
-  save_matrix_data(data_matrix, output_path)
-  
-  # Prepare column labels (developmental stages/organs)
+  # Prepare column labels (developmental stages/organs) BEFORE any transformations
   col_labels <- colnames(data_matrix)
   if (label_type == "SRR") {
     col_labels <- colnames(data_matrix)
@@ -413,11 +522,13 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
     colnames(raw_data_matrix) <- col_labels
   }
   
-  # Sort columns by mean expression if requested (for sorted_by_expression version)
+  # Store original gene names
+  gene_labels <- rownames(data_matrix)
+  
+  # Sort by expression if requested
   if (sort_by_expression) {
-    # Calculate mean expression for each sample (column)
+    # Sort organs (columns) by mean expression
     col_means <- colMeans(data_matrix, na.rm = TRUE)
-    # Sort columns by mean expression (lowest to highest)
     col_order <- order(col_means)
     data_matrix <- data_matrix[, col_order, drop = FALSE]
     col_labels <- col_labels[col_order]
@@ -440,6 +551,7 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
   }
   
   # Calculate CV on raw, untransformed data
+  # CV across organs (columns) for each gene (row)
   cv_values <- apply(raw_data_matrix, 1, function(x) {
     mean_val <- mean(x, na.rm = TRUE)
     sd_val <- sd(x, na.rm = TRUE)
@@ -448,91 +560,100 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
     }
     return(sd_val / mean_val)
   })
+  cv_labels <- gene_labels  # Genes
   
-  # For CV heatmap visualization, apply z-score scaling for consistent visualization
-  # CRITICAL: Avoid double normalization - only apply z-score if data is NOT already z-scored
-  if (normalization_scheme %in% c("zscore", "zscore_scaled_to_ten")) {
-    # Already z-scored or scaled, use as-is (DO NOT apply z-score transformation again)
-    data_scaled <- data_matrix
+  # For CV heatmap visualization, use data as-is based on normalization scheme
+  # The data_matrix has already been normalized according to the user's choice
+  # We simply visualize it directly to preserve the biological meaning
+  data_scaled <- data_matrix
+  data_scaled[is.na(data_scaled)] <- 0
+  
+  # Rows are genes, columns are organs
+  row_labels_display <- gene_labels
+  col_labels_display <- col_labels
+  
+  # Update matrix row and column names
+  rownames(data_scaled) <- row_labels_display
+  colnames(data_scaled) <- col_labels_display
+  
+  # Extract gene name type (geneName or geneID) from original title
+  gene_type <- if (grepl("geneName", title, ignore.case = TRUE)) {
+    "geneName"
+  } else if (grepl("geneID", title, ignore.case = TRUE)) {
+    "geneID"
   } else {
-    # For other schemes (raw, count_type_normalized, cpm), apply z-score for visualization
-    data_scaled <- t(scale(t(data_matrix)))
-    data_scaled[is.na(data_scaled)] <- 0
+    "genes"
   }
+  
+  # Save matrix data as TSV with metadata
+  save_matrix_data(data_scaled, output_path, metadata = list(
+    count_type = count_type,
+    gene_type = gene_type,
+    label_type = label_type,
+    normalization = normalization_scheme,
+    sorting = sort_by_expression
+  ))
   
   # Create CV annotation data frame
   cv_df <- data.frame(
-    Gene = rownames(data_matrix),
+    Label = cv_labels,
     CV = round(cv_values, 3),
     stringsAsFactors = FALSE
   )
   
-  # Truncate gene names for display
+  # Truncate row names for display
+  max_length <- if (nrow(data_scaled) > 50) 15 else 20
+  
   # Ensure rownames exist and are valid
-  if (is.null(rownames(data_matrix)) || length(rownames(data_matrix)) == 0) {
-    rownames(data_matrix) <- paste0("Gene_", seq_len(nrow(data_matrix)))
+  if (is.null(rownames(data_scaled)) || length(rownames(data_scaled)) == 0) {
+    rownames(data_scaled) <- paste0("Row_", seq_len(nrow(data_scaled)))
   }
   
-  row_labels <- truncate_labels(rownames(data_matrix), max_length = 15)
+  row_labels <- truncate_labels(rownames(data_scaled), max_length = max_length)
   rownames(data_scaled) <- row_labels
   
-  # Define color palette based on normalization scheme
-  if (normalization_scheme == "zscore") {
-    max_abs_zscore <- max(abs(data_scaled), na.rm = TRUE)
-    if (is.finite(max_abs_zscore) && max_abs_zscore > 0) {
-      zscore_limit <- max(2, ceiling(max_abs_zscore))
-      heatmap_colors <- colorRamp2(
-        seq(-zscore_limit, zscore_limit, length = 10),
-        c("#FFFFFF", "#FFEB3B", "#CDDC39", "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
-      )
-      legend_breaks_cv <- pretty(c(-zscore_limit, zscore_limit), n = 5)
-    } else {
-      # Fallback for invalid data
-      heatmap_colors <- colorRamp2(c(0, 1), c("#FFFFFF", "#4A148C"))
-      legend_breaks_cv <- c(0, 1)
-    }
-  } else if (normalization_scheme == "zscore_scaled_to_ten") {
-    heatmap_colors <- colorRamp2(
-      seq(0, 10, length = 10),
-      c("#FFFFFF", "#FFEB3B", "#CDDC39", "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
-    )
-    legend_breaks_cv <- seq(0, 10, by = 2)  # 0, 2, 4, 6, 8, 10
-  } else {
-    data_range <- range(data_scaled, na.rm = TRUE, finite = TRUE)
-    if (length(data_range) == 2 && data_range[1] != data_range[2]) {
-      heatmap_colors <- colorRamp2(
-        seq(data_range[1], data_range[2], length = 10),
-        c("#FFFFFF", "#FFEB3B", "#CDDC39", "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
-      )
-      legend_breaks_cv <- pretty(data_range, n = 5)
-    } else {
-      heatmap_colors <- colorRamp2(c(0, 1), c("#FFFFFF", "#4A148C"))
-      legend_breaks_cv <- c(0, 1)
-    }
-  }
+  # Define color palette for CV heatmap
+  # Use consistent sequential palette for all normalization schemes
+  heatmap_colors <- colorRamp2(
+    seq(min(data_scaled), max(data_scaled), length = 8),
+    c("#d9e9c8ff","#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
+  )
+  
+  # Calculate 5-6 evenly spaced breaks
+  data_range <- range(data_scaled, na.rm = TRUE)
+  legend_breaks_cv <- pretty(data_range, n = 5)
   
   tryCatch({
-    # Create CV annotation
+    # Create CV annotation with title
     cv_annotation <- rowAnnotation(
       CV = anno_text(
         sprintf("%.3f", cv_values),
-        gp = gpar(fontsize = 8, col = "black"),
+        gp = gpar(fontsize = 10, col = "black"),
         just = "left",
         width = unit(1.8, "cm")
       ),
-      annotation_name_gp = gpar(fontsize = 10, fontface = "bold"),
+      annotation_name_gp = gpar(fontsize = 11, fontface = "bold"),
+      annotation_name_side = "top",
+      annotation_name_rot = 0,
       gap = unit(0.2, "cm"),
-      simple_anno_size = unit(1.8, "cm")
+      simple_anno_size = unit(1.8, "cm"),
+      annotation_label = "Coefficient of Variation",
+      show_annotation_name = TRUE
     )
     
     # Set legend title based on normalization scheme
+    # Match the legend titles from basic heatmap for consistency
     legend_title <- switch(normalization_scheme,
-      "raw" = "Raw Counts (Z-scored for viz)",
-      "count_type_normalized" = "Log2 Expression (Z-scored for viz)",
+      "raw" = paste0("Raw ", toupper(count_type)),
+      "raw_normalized" = paste0(toupper(count_type), " (CPM)"),
+      "count_type_normalized" = ifelse(count_type == "coverage", "Log2(CPM+1)", 
+                                       ifelse(count_type %in% c("fpkm", "tpm"), 
+                                              paste0("Log2(", toupper(count_type), "+1)"), 
+                                              "Log2 Expression")),
       "zscore" = "Z-score",
-      "zscore_scaled_to_ten" = "ZScore Scaled to [0-10]",
-      "cpm" = "Log2(CPM+1) (Z-scored for viz)",
-      "Expression"
+      "zscore_scaled_to_ten" = "Z-Score Scaled to [0-10]",
+      "cpm" = "Log2(CPM+1)",
+      "Expression"  # Fallback
     )
     
     # Configure legend parameters based on position
@@ -550,20 +671,53 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
       grid_width <- unit(0.8, "cm")
     }
     
+    # Orientation settings: rows=genes, cols=organs
+    show_row_names <- TRUE
+    show_col_names <- TRUE
+    row_fontsize <- 9
+    col_fontsize <- 10
+    col_rot <- 45
+    row_label <- "Genes"
+    col_label <- "Organs"
+    
+    # Build comprehensive title with all metadata
+    # Clean base title (remove all suffix patterns)
+    clean_title <- title
+    clean_title <- gsub("_geneName.*", "", clean_title)
+    clean_title <- gsub("_geneID.*", "", clean_title)
+    clean_title <- gsub("_SRR.*", "", clean_title)
+    clean_title <- gsub("_Organ.*", "", clean_title)
+    clean_title <- gsub("_", " ", clean_title)
+    
+    # Build comprehensive title components
+    # Note: normalization_scheme describes how the data was transformed before visualization
+    # The heatmap displays the data according to this chosen normalization
+    count_type_text <- toupper(count_type)
+    normalization_text <- normalization_scheme
+    sorting_text <- ifelse(sort_by_expression, "sorted by expression", "sorted by organ")
+    
+    full_title <- paste0(clean_title, " (", count_type_text, " | ", 
+                         gene_type, " | ", label_type, " labels | ",
+                         normalization_text, " | ", sorting_text, ")")
+    
     # Create the main heatmap
     ht <- Heatmap(
       data_scaled,
       name = legend_title,
       col = heatmap_colors,
-      show_row_names = TRUE,
+      show_row_names = show_row_names,
       row_names_side = "left",
-      row_names_gp = gpar(fontsize = 9),
+      row_names_gp = gpar(fontsize = row_fontsize),
       row_names_max_width = unit(6, "cm"),
+      row_title = row_label,
+      row_title_gp = gpar(fontsize = 14, fontface = "bold"),
+      row_title_side = "left",
       cluster_rows = FALSE,
-      show_column_names = TRUE,
+      show_column_names = show_col_names,
       column_names_side = "bottom",
-      column_names_gp = gpar(fontsize = 10),
-      column_names_rot = 45,
+      column_names_gp = gpar(fontsize = col_fontsize),
+      column_names_rot = col_rot,
+      column_title_side = "top",
       cluster_columns = FALSE,
       rect_gp = gpar(col = "white", lwd = 0.3),
       heatmap_legend_param = list(
@@ -577,35 +731,54 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
         grid_width = grid_width,
         at = legend_breaks_cv
       ),
-      column_title = paste(title, "- CV Heatmap (", normalization_scheme, ifelse(sort_by_expression, " - Sorted by Expression", " - Sorted by Organ"), ")"),
+      column_title = full_title,
       column_title_gp = gpar(fontsize = 14, fontface = "bold"),
       right_annotation = cv_annotation
     )
     
-    # Calculate dynamic dimensions based on matrix size
+    # Save the heatmap
+    # Calculate dynamic dimensions based on matrix size for square cells
     n_rows <- nrow(data_scaled)
     n_cols <- ncol(data_scaled)
     
-    # Define dimension parameters
-    base_cell_size <- 0.5
-    min_width <- 8
-    min_height <- 6
-    max_width <- 24
-    max_height <- 20
-    label_width <- 4
-    label_height <- 3
-    legend_space <- if (exists("LEGEND_POSITION") && LEGEND_POSITION == "bottom") 2 else 3
+    # Base cell size in inches (adjust as needed for readability)
+    base_cell_size <- 1
     
-    # Calculate final dimensions with constraints
-    final_width <- max(min_width, min(max_width, n_cols * base_cell_size + label_width + legend_space))
-    final_height <- max(min_height, min(max_height, n_rows * base_cell_size + label_height + legend_space))
+    # Calculate base dimensions from cell count
+    base_width <- n_cols * base_cell_size
+    base_height <- n_rows * base_cell_size
     
-    png(output_path, width = final_width, height = final_height, units = "in", res = 300)
-    draw(ht, heatmap_legend_side = ifelse(exists("LEGEND_POSITION"), LEGEND_POSITION, "right"), gap = unit(0.5, "cm"))
+    # Padding configuration
+    padding <- 0.75
+    padding_bottom <- 1.5  # Increased bottom padding for column labels
+    
+    # Calculate final dimensions with minimum and maximum constraints
+    final_width <- max(8, min(20, base_width + 2 * padding))
+    final_height <- max(6, min(16, base_height + padding + padding_bottom))
+    
+    #png(output_path, width = 14, height = 10.5, units = "in", res = 1000)
+    png(output_path, width = final_width, height = final_height, units = "in", res = 1080)
+    draw(ht, 
+         heatmap_legend_side = "top", 
+         annotation_legend_side = "top",
+         merge_legends = TRUE,
+         padding = unit(c(padding_bottom, padding, padding, padding), "inches"))
+    
+    # Add column label at the bottom
+    grid.text(col_label, x = 0.5, y = 0.17, just = "center",
+              gp = gpar(fontsize = 14, fontface = "bold"))
+    
     dev.off()
     
-    # Save CV data as separate file
-    cv_output_path <- gsub("\\.png$", "_CV_data.tsv", output_path)
+    # Save CV data as separate file with metadata in filename
+    base_path <- tools::file_path_sans_ext(output_path)
+    sort_text <- ifelse(sort_by_expression, "sorted_by_expression", "sorted_by_organ")
+    cv_output_path <- paste0(base_path, "_CV_data_", 
+                             toupper(count_type), "_",
+                             gene_type, "_",
+                             label_type, "_labels_",
+                             normalization_scheme, "_",
+                             sort_text, ".tsv")
     write.table(cv_df, file = cv_output_path, sep = "\t", 
                 row.names = FALSE, col.names = TRUE, quote = FALSE)
     
@@ -674,11 +847,11 @@ generate_gene_bargraphs <- function(data_matrix, output_dir, title_prefix, count
     )
     
     # Define custom color scheme with violet as highest expression
-    custom_colors <- c("#FFFFFF", "#FFEB3B", "#CDDC39", "#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
+    custom_colors <- c("#d9e9c8ff","#8BC34A", "#4CAF50", "#009688", "#00BCD4", "#3F51B5", "#673AB7", "#4A148C")
     
     # Create the bar plot
     p <- ggplot(plot_data, aes(x = .data$Stage, y = .data$Expression, fill = .data$Expression)) +
-      geom_bar(stat = "identity", color = "black", size = 0.3) +
+      geom_bar(stat = "identity", color = "black", linewidth = 0.3) +
       labs(title = gene_name, x = "", y = y_label) +
       theme_minimal() +
       theme(
@@ -688,7 +861,7 @@ generate_gene_bargraphs <- function(data_matrix, output_dir, title_prefix, count
         axis.title.y = element_text(size = 12, margin = margin(r = 10)),
         panel.grid.major.x = element_blank(),
         panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
         panel.background = element_rect(fill = "white", color = NA),
         plot.background = element_rect(fill = "white", color = NA),
         legend.background = element_rect(fill = "white", color = NA),

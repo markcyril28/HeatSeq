@@ -56,10 +56,13 @@ FASTA_GROUPS <- c(
   
   # Individual Gene Groups
   #"SmelDMPs",
-  "SmelDMPs_with_18s_rRNA",
+  #"SmelDMPs_with_18s_rRNA",
+  #"SmelDMPs_with_18s_rRNA_PSBMB"
   #"SmelGIFs",
   #"SmelGRFs",
-  "Selected_GRF_GIF_Genes"
+  #"Selected_GRF_GIF_Genes"
+  "Selected_GRF_GIF_Genes_vAll_GIFs",
+  "Selected_GRF_GIF_Genes_vTwo_GIFs"
 
   # Combined Gene Groups with Control Genes
   #"SmelGIF_with_Cell_Cycle_Control_genes",
@@ -127,7 +130,6 @@ SAMPLE_LABELS <- c(
     "SRR3884677" = "Cotyledons",   # PRJNA328564
     "SRR3884679" = "Pistils"       # PRJNA328564
 )
-
 
 # Create base output directory if it doesn't exist
 dir.create(HEATMAP_OUT_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -202,6 +204,7 @@ for (group in FASTA_GROUPS) {
   if (dir.exists(group_output_dir)) {
     unlink(group_output_dir, recursive = TRUE)
   }
+  dir.create(group_output_dir, recursive = TRUE, showWarnings = FALSE)
   
   for (count_type in COUNT_TYPES) {
     for (gene_type in GENE_TYPES) {
@@ -220,10 +223,6 @@ for (group in FASTA_GROUPS) {
         
           output_dir <- file.path(HEATMAP_OUT_DIR, group)
           dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-          dir.create(file.path(output_dir, "raw"), showWarnings = FALSE)
-          dir.create(file.path(output_dir, "Count-Type_Normalized"), showWarnings = FALSE)
-          dir.create(file.path(output_dir, "Z-score_Normalized"), showWarnings = FALSE)
-          dir.create(file.path(output_dir, "Z-score_Scaled_to_Ten"), showWarnings = FALSE)
           
           raw_data <- read_count_matrix(input_file)
           if (is.null(raw_data)) next
@@ -241,11 +240,26 @@ for (group in FASTA_GROUPS) {
           
           for (config in normalization_configs) {
             if (!is.null(config$data)) {
-              output_path <- file.path(output_dir, config$subdir, 
-                                     paste0(input_basename, "_", gsub("-", "_", tolower(config$type)), "_heatmap.png"))
-              total_heatmaps <- total_heatmaps + 1
-              if ((generate_heatmap_violet(config$data, output_path, title, count_type, label_type, config$type))) {
-                successful_heatmaps <- successful_heatmaps + 1
+              # Define all 4 version configurations with subdirectories
+              version_configs <- list(
+                list(transpose = FALSE, sort_by_expression = FALSE, subdir = "Original_RowGene_ColumnOrgan_Sorted_by_Organ"),
+                list(transpose = FALSE, sort_by_expression = TRUE, subdir = "Original_RowGene_ColumnOrgan_Sorted_by_Expression"),
+                list(transpose = TRUE, sort_by_expression = FALSE, subdir = "Transposed_RowOrgan_ColumnGene_Sorted_by_Organ"),
+                list(transpose = TRUE, sort_by_expression = TRUE, subdir = "Transposed_RowOrgan_ColumnGene_Sorted_by_Expression")
+              )
+              
+              for (version in version_configs) {
+                # Create version-specific directory under normalization scheme
+                version_dir <- file.path(output_dir, config$subdir, version$subdir)
+                dir.create(version_dir, recursive = TRUE, showWarnings = FALSE)
+                
+                output_path <- file.path(version_dir, paste0(input_basename, "_", gsub("-", "_", tolower(config$type)), "_heatmap.png"))
+                total_heatmaps <- total_heatmaps + 1
+                if (generate_heatmap_violet(config$data, output_path, title, count_type, label_type, 
+                                           config$type, transpose = version$transpose, 
+                                           sort_by_expression = version$sort_by_expression)) {
+                  successful_heatmaps <- successful_heatmaps + 1
+                }
               }
             }
           }

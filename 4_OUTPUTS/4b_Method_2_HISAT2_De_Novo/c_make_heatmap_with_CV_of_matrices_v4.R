@@ -67,10 +67,13 @@ FASTA_GROUPS <- c(
   
   # Individual Gene Groups
   #"SmelDMPs",
-  "SmelDMPs_with_18s_rRNA",
+  #"SmelDMPs_with_18s_rRNA",
+  #"SmelDMPs_with_18s_rRNA_PSBMB",
   #"SmelGIFs",
   #"SmelGRFs",
-  "Selected_GRF_GIF_Genes"
+  #"Selected_GRF_GIF_Genes"
+  "Selected_GRF_GIF_Genes_vAll_GIFs",
+  "Selected_GRF_GIF_Genes_vTwo_GIFs"
   
   # Combined Gene Groups with Control Genes
   #"SmelGIF_with_Cell_Cycle_Control_genes",
@@ -188,6 +191,13 @@ if (length(FASTA_GROUPS) == 0) {
 for (group in FASTA_GROUPS) {
   # cat("\nProcessing FASTA group:", group, "\n")
   
+  # Clear and recreate output directory for this specific group
+  group_output_dir <- file.path(HEATMAP_OUT_DIR, group)
+  if (dir.exists(group_output_dir)) {
+    unlink(group_output_dir, recursive = TRUE)
+  }
+  dir.create(group_output_dir, recursive = TRUE, showWarnings = FALSE)
+  
   for (normalization_scheme in NORMALIZATION_SCHEMES) {
       # cat("  Processing normalization scheme:", normalization_scheme, "\n")
     
@@ -195,11 +205,16 @@ for (group in FASTA_GROUPS) {
       norm_output_dir <- file.path(HEATMAP_OUT_DIR, group, normalization_scheme)
       dir.create(norm_output_dir, recursive = TRUE, showWarnings = FALSE)
     
-      # Create subdirectories for different sorting methods
-      sorted_by_organ_dir <- file.path(norm_output_dir, "sorted_by_organ")
-      sorted_by_expression_dir <- file.path(norm_output_dir, "sorted_by_expression")
-      dir.create(sorted_by_organ_dir, recursive = TRUE, showWarnings = FALSE)
-      dir.create(sorted_by_expression_dir, recursive = TRUE, showWarnings = FALSE)
+      # Create subdirectories for different orientation and sorting methods
+      original_organ_dir <- file.path(norm_output_dir, "Original_RowGene_ColumnOrgan_Sorted_by_Organ")
+      original_expr_dir <- file.path(norm_output_dir, "Original_RowGene_ColumnOrgan_Sorted_by_Expression")
+      transposed_organ_dir <- file.path(norm_output_dir, "Transposed_RowOrgan_ColumnGene_Sorted_by_Organ")
+      transposed_expr_dir <- file.path(norm_output_dir, "Transposed_RowOrgan_ColumnGene_Sorted_by_Expression")
+      
+      dir.create(original_organ_dir, recursive = TRUE, showWarnings = FALSE)
+      dir.create(original_expr_dir, recursive = TRUE, showWarnings = FALSE)
+      dir.create(transposed_organ_dir, recursive = TRUE, showWarnings = FALSE)
+      dir.create(transposed_expr_dir, recursive = TRUE, showWarnings = FALSE)
     
       for (count_type in COUNT_TYPES) {
         # Skip 'cpm' normalization for FPKM and TPM count types
@@ -238,41 +253,33 @@ for (group in FASTA_GROUPS) {
             processed_data <- apply_normalization(raw_data, normalization_scheme, count_type)
           
             if (!is.null(processed_data)) {
-              # Generate CV heatmap sorted by organ (developmental stage order) with SRR labels
-              # CRITICAL: Pass raw_data for accurate CV calculation
-              cv_output_organ_srr <- file.path(sorted_by_organ_dir, paste0(input_basename, "_", normalization_scheme, "_SRR_cv_heatmap.png"))
-              total_heatmaps <- total_heatmaps + 1
-            
-              if (generate_heatmap_with_cv(processed_data, cv_output_organ_srr, title, count_type, "SRR", normalization_scheme, sort_by_expression = FALSE, raw_data_matrix = raw_data)) {
-                successful_heatmaps <- successful_heatmaps + 1
-                # cat("    ✓ Successfully generated SRR version (sorted by organ):", basename(cv_output_organ_srr), "\n")
-              }
-            
-              # Generate CV heatmap sorted by organ (developmental stage order) with Organ labels
-              cv_output_organ_organ <- file.path(sorted_by_organ_dir, paste0(input_basename, "_", normalization_scheme, "_Organ_cv_heatmap.png"))
-              total_heatmaps <- total_heatmaps + 1
-            
-              if (generate_heatmap_with_cv(processed_data, cv_output_organ_organ, title, count_type, "Organ", normalization_scheme, sort_by_expression = FALSE, raw_data_matrix = raw_data)) {
-                successful_heatmaps <- successful_heatmaps + 1
-                # cat("    ✓ Successfully generated Organ version (sorted by organ):", basename(cv_output_organ_organ), "\n")
-              }
-            
-              # Generate CV heatmap sorted by expression with SRR labels
-              cv_output_expr_srr <- file.path(sorted_by_expression_dir, paste0(input_basename, "_", normalization_scheme, "_SRR_cv_heatmap.png"))
-              total_heatmaps <- total_heatmaps + 1
-            
-              if (generate_heatmap_with_cv(processed_data, cv_output_expr_srr, title, count_type, "SRR", normalization_scheme, sort_by_expression = TRUE, raw_data_matrix = raw_data)) {
-                successful_heatmaps <- successful_heatmaps + 1
-                # cat("    ✓ Successfully generated SRR version (sorted by expression):", basename(cv_output_expr_srr), "\n")
-              }
-            
-              # Generate CV heatmap sorted by expression with Organ labels
-              cv_output_expr_organ <- file.path(sorted_by_expression_dir, paste0(input_basename, "_", normalization_scheme, "_Organ_cv_heatmap.png"))
-              total_heatmaps <- total_heatmaps + 1
-            
-              if (generate_heatmap_with_cv(processed_data, cv_output_expr_organ, title, count_type, "Organ", normalization_scheme, sort_by_expression = TRUE, raw_data_matrix = raw_data)) {
-                successful_heatmaps <- successful_heatmaps + 1
-                # cat("    ✓ Successfully generated Organ version (sorted by expression):", basename(cv_output_expr_organ), "\n")
+              # Define version configurations (original orientation only)
+              version_configs <- list(
+                list(dir = original_organ_dir, sort_by_expression = FALSE),
+                list(dir = original_expr_dir, sort_by_expression = TRUE)
+              )
+              
+              # Generate versions for both SRR and Organ label types
+              for (version in version_configs) {
+                # SRR version
+                cv_output_srr <- file.path(version$dir, paste0(input_basename, "_", normalization_scheme, "_SRR_cv_heatmap.png"))
+                total_heatmaps <- total_heatmaps + 1
+                
+                if (generate_heatmap_with_cv(processed_data, cv_output_srr, title, count_type, "SRR", 
+                                            normalization_scheme, sort_by_expression = version$sort_by_expression, 
+                                            raw_data_matrix = raw_data)) {
+                  successful_heatmaps <- successful_heatmaps + 1
+                }
+                
+                # Organ version
+                cv_output_organ <- file.path(version$dir, paste0(input_basename, "_", normalization_scheme, "_Organ_cv_heatmap.png"))
+                total_heatmaps <- total_heatmaps + 1
+                
+                if (generate_heatmap_with_cv(processed_data, cv_output_organ, title, count_type, "Organ", 
+                                            normalization_scheme, sort_by_expression = version$sort_by_expression, 
+                                            raw_data_matrix = raw_data)) {
+                  successful_heatmaps <- successful_heatmaps + 1
+                }
               }
             } else {
               # cat("    ✗ Failed to process data with normalization:", normalization_scheme, "\n")
