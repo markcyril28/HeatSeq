@@ -1,32 +1,13 @@
 #!/usr/bin/env Rscript
 
 # ===============================================
-# RSEM QUANTIFICATION TO DESEQ2 NORMALIZED COUNTS - METHOD 5
+# RSEM QUANTIFICATION TO MATRICES - METHOD 5
 # ===============================================
-# Processes RSEM quantification output using DESeq2 for proper statistical normalization
-#
-# IMPORTANT STATISTICAL CONSIDERATIONS:
-# - RSEM provides "expected_count" which are fractional counts from EM algorithm
-# - DESeq2 requires INTEGER counts, so we round expected_count values
-# - DESeq2's size factor normalization accounts for:
-#   * Library size differences (sequencing depth)
-#   * RNA composition bias (not all genes contribute equally)
-# - Variance stabilization (VST/rlog) transforms data for visualization
-# - This approach is statistically sound for differential expression analysis
-#
-# Why use DESeq2 with RSEM:
-# 1. RSEM handles multi-mapping reads via EM algorithm (probabilistic assignment)
-# 2. DESeq2 handles library normalization and statistical modeling
-# 3. Together they provide robust gene expression quantification
-#
-# Output:
-# - Raw count matrices (rounded expected counts)
-# - DESeq2 normalized count matrices (size factor normalized)
-# - VST transformed matrices (variance stabilized for visualization)
-# - All matrices saved for both individual gene groups and full genome
+# Processes RSEM quantification output directly
+# RSEM provides properly normalized TPM and FPKM values
+# NO DESeq2 needed - RSEM normalization is already correct
 
 suppressPackageStartupMessages({
-  library(DESeq2)
   library(dplyr)
   library(tibble)
 })
@@ -101,21 +82,21 @@ output_dir <- file.path(MATRICES_OUTPUT_DIR, MASTER_REFERENCE)
 dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 cat("\n", paste(rep("=", 70), collapse = ""), "\n")
-cat("RSEM QUANTIFICATION TO DESEQ2 NORMALIZED COUNTS - METHOD 5\n")
+cat("RSEM QUANTIFICATION TO COUNT MATRICES - METHOD 5\n")
 cat(paste(rep("=", 70), collapse = ""), "\n\n")
 
-cat("Processing Strategy:\n")
-cat("  1. Read RSEM expected_count (fractional counts from EM algorithm)\n")
-cat("  2. Round to integers for DESeq2 compatibility\n")
-cat("  3. Apply DESeq2 size factor normalization (accounts for library size & composition)\n")
-cat("  4. Apply variance stabilizing transformation (VST) for visualization\n")
-cat("  5. Generate matrices for heatmap generation\n\n")
+cat("RSEM provides properly normalized values:\n")
+cat("  • TPM (Transcripts Per Million) - Normalized, cross-sample comparable\n")
+cat("  • FPKM (Fragments Per Kilobase Million) - Normalized for length & depth\n")
+cat("  • expected_count - Raw probabilistic counts\n\n")
+
+cat("NO DESeq2 needed - RSEM normalization is statistically sound\n\n")
 
 # ===============================================
-# STEP 1: LOCATE AND READ RSEM OUTPUT FILES
+# STEP 1: LOCATE RSEM OUTPUT FILES
 # ===============================================
 
-cat("Step 1: Locating and reading RSEM output files...\n")
+cat("Step 1: Locating RSEM output files...\n")
 
 rsem_quant_dir <- file.path(QUANT_DIR, MASTER_REFERENCE)
 
@@ -139,6 +120,12 @@ if (sum(files_exist) < length(files)) {
 cat("Found", length(files), "RSEM quantification files\n")
 cat("Samples:", paste(SAMPLE_IDS, collapse = ", "), "\n\n")
 
+# ===============================================
+# STEP 2: READ RSEM RESULTS
+# ===============================================
+
+cat("Step 2: Reading RSEM quantification results...\n")
+
 # Function to read single RSEM results file
 read_rsem_results <- function(file_path) {
   data <- read.table(file_path, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
@@ -158,17 +145,25 @@ gene_ids <- rsem_data_list[[1]]$gene_id
 cat("\nTotal genes:", length(gene_ids), "\n\n")
 
 # ===============================================
-# STEP 2: BUILD RAW COUNT MATRIX (EXPECTED COUNTS)
+# STEP 3: BUILD COUNT MATRICES
 # ===============================================
 
-cat("Step 2: Building raw count matrix from expected_count...\n")
+cat("Step 3: Building count matrices...\n")
 
-# Initialize matrix for expected counts (will be rounded to integers)
+# Initialize matrices
 expected_count_matrix <- matrix(NA, nrow = length(gene_ids), ncol = length(SAMPLE_IDS))
-rownames(expected_count_matrix) <- gene_ids
-colnames(expected_count_matrix) <- SAMPLE_IDS
+tpm_matrix <- matrix(NA, nrow = length(gene_ids), ncol = length(SAMPLE_IDS))
+fpkm_matrix <- matrix(NA, nrow = length(gene_ids), ncol = length(SAMPLE_IDS))
 
-# Fill matrix
+rownames(expected_count_matrix) <- gene_ids
+rownames(tpm_matrix) <- gene_ids
+rownames(fpkm_matrix) <- gene_ids
+
+colnames(expected_count_matrix) <- SAMPLE_IDS
+colnames(tpm_matrix) <- SAMPLE_IDS
+colnames(fpkm_matrix) <- SAMPLE_IDS
+
+# Fill matrices
 for (i in seq_along(SAMPLE_IDS)) {
   sample_id <- SAMPLE_IDS[i]
   data <- rsem_data_list[[sample_id]]
@@ -176,112 +171,15 @@ for (i in seq_along(SAMPLE_IDS)) {
   # Match gene IDs
   match_idx <- match(gene_ids, data$gene_id)
 
-  # Extract expected counts (fractional from RSEM EM algorithm)
   expected_count_matrix[, i] <- data$expected_count[match_idx]
+  tpm_matrix[, i] <- data$TPM[match_idx]
+  fpkm_matrix[, i] <- data$FPKM[match_idx]
 }
 
-# Round to integers for DESeq2 (required for proper statistical modeling)
-raw_count_matrix <- round(expected_count_matrix)
-raw_count_matrix[is.na(raw_count_matrix)] <- 0
-
-cat("  Raw count matrix dimensions:", nrow(raw_count_matrix), "x", ncol(raw_count_matrix), "\n")
-cat("  Total counts per sample:\n")
-for (sample_id in SAMPLE_IDS) {
-  cat("    ", sample_id, ":", format(sum(raw_count_matrix[, sample_id]), big.mark = ","), "\n")
-}
-cat("\n")
-
-# ===============================================
-# STEP 3: CREATE DESEQ2 DATASET AND NORMALIZE
-# ===============================================
-
-cat("Step 3: Creating DESeq2 dataset and applying normalization...\n")
-
-# Create sample metadata (colData)
-sample_metadata <- data.frame(
-  sample = SAMPLE_IDS,
-  condition = SAMPLE_LABELS[SAMPLE_IDS],
-  row.names = SAMPLE_IDS,
-  stringsAsFactors = FALSE
-)
-
-cat("  Sample metadata:\n")
-print(sample_metadata)
-cat("\n")
-
-# Create DESeq2 dataset
-# Note: We use a simple design (~1) because we're not doing differential expression
-# We just want proper normalization for visualization
-dds <- DESeqDataSetFromMatrix(
-  countData = raw_count_matrix,
-  colData = sample_metadata,
-  design = ~ 1  # No design formula needed for normalization only
-)
-
-cat("  DESeq2 dataset created\n")
-cat("  Dimensions:", nrow(dds), "genes x", ncol(dds), "samples\n\n")
-
-# Estimate size factors (library normalization)
-cat("  Calculating size factors...\n")
-dds <- estimateSizeFactors(dds)
-
-size_factors <- sizeFactors(dds)
-cat("  Size factors:\n")
-for (sample_id in SAMPLE_IDS) {
-  cat("    ", sample_id, ":", round(size_factors[sample_id], 3), "\n")
-}
-cat("\n")
-
-# Get normalized counts (size factor normalized)
-normalized_counts <- counts(dds, normalized = TRUE)
-cat("  Generated size factor normalized counts\n")
-cat("  Dimensions:", nrow(normalized_counts), "x", ncol(normalized_counts), "\n\n")
-
-# ===============================================
-# STEP 4: VARIANCE STABILIZING TRANSFORMATION
-# ===============================================
-
-cat("Step 4: Applying variance stabilizing transformation (VST)...\n")
-
-# Filter out genes with very low counts (improves VST quality)
-# Keep genes with at least 10 counts total across all samples
-keep <- rowSums(counts(dds)) >= 10
-dds_filtered <- dds[keep, ]
-
-cat("  Filtered from", nrow(dds), "to", nrow(dds_filtered), "genes (minimum 10 total counts)\n")
-
-# Apply VST
-cat("  Computing variance stabilizing transformation...\n")
-vst_data <- vst(dds_filtered, blind = TRUE)  # blind=TRUE for QC/visualization
-vst_matrix <- assay(vst_data)
-
-cat("  VST transformation complete\n")
-cat("  VST matrix dimensions:", nrow(vst_matrix), "x", ncol(vst_matrix), "\n")
-cat("  VST value range: [", round(min(vst_matrix), 2), ",", round(max(vst_matrix), 2), "]\n\n")
-
-# For genes that were filtered out, create a full VST matrix with zeros
-vst_matrix_full <- matrix(0, nrow = length(gene_ids), ncol = length(SAMPLE_IDS))
-rownames(vst_matrix_full) <- gene_ids
-colnames(vst_matrix_full) <- SAMPLE_IDS
-vst_matrix_full[rownames(vst_matrix), ] <- vst_matrix
-
-# ===============================================
-# STEP 5: PREPARE ALL COUNT TYPE MATRICES
-# ===============================================
-
-cat("Step 5: Preparing all count type matrices...\n")
-
-# Create list of all matrices to save
-matrices_list <- list(
-  raw_counts = raw_count_matrix,
-  deseq2_normalized = normalized_counts,
-  vst_transformed = vst_matrix_full
-)
-
-cat("  Prepared 3 count type matrices:\n")
-cat("    • raw_counts: Rounded expected counts from RSEM\n")
-cat("    • deseq2_normalized: Size factor normalized counts\n")
-cat("    • vst_transformed: Variance stabilized transformation\n\n")
+cat("Built 3 count matrices:\n")
+cat("  • expected_count:", nrow(expected_count_matrix), "x", ncol(expected_count_matrix), "\n")
+cat("  • TPM:", nrow(tpm_matrix), "x", ncol(tpm_matrix), "\n")
+cat("  • FPKM:", nrow(fpkm_matrix), "x", ncol(fpkm_matrix), "\n\n")
 
 # ===============================================
 # HELPER FUNCTION: SAVE MATRIX
@@ -304,12 +202,17 @@ save_matrix_file <- function(matrix_data, output_path, label_type = "SRR") {
 }
 
 # ===============================================
-# STEP 6: SAVE FULL GENOME MATRICES
+# STEP 4: SAVE FULL GENOME MATRICES
 # ===============================================
 
-cat("Step 6: Saving full genome count matrices...\n")
+cat("Step 4: Saving full genome count matrices...\n")
 
-count_types <- c("raw_counts", "deseq2_normalized", "vst_transformed")
+count_types <- c("expected_count", "TPM", "FPKM")
+matrices_list <- list(
+  expected_count = expected_count_matrix,
+  TPM = tpm_matrix,
+  FPKM = fpkm_matrix
+)
 
 for (count_type in count_types) {
   matrix_data <- matrices_list[[count_type]]
@@ -330,10 +233,10 @@ for (count_type in count_types) {
 cat("\n")
 
 # ===============================================
-# STEP 7: PROCESS GENE GROUPS
+# STEP 5: PROCESS GENE GROUPS
 # ===============================================
 
-cat("Step 7: Processing gene groups...\n")
+cat("Step 5: Processing gene groups...\n")
 
 # Find all gene group files
 gene_group_files <- list.files(GENE_GROUPS_DIR, pattern = "\\.tsv$", full.names = TRUE)
@@ -392,16 +295,16 @@ if (length(gene_group_files) == 0) {
 }
 
 # ===============================================
-# STEP 8: GENERATE SUMMARY STATISTICS
+# STEP 6: GENERATE SUMMARY STATISTICS
 # ===============================================
 
-cat("\nStep 8: Generating summary statistics...\n")
+cat("\nStep 6: Generating summary statistics...\n")
 
-summary_file <- file.path(output_dir, "deseq2_normalization_summary.txt")
+summary_file <- file.path(output_dir, "rsem_quantification_summary.txt")
 
 sink(summary_file)
-cat("RSEM to DESeq2 Normalization Summary - Method 5\n")
-cat("=================================================\n\n")
+cat("RSEM Quantification Summary - Method 5\n")
+cat("========================================\n\n")
 
 cat("Reference:", MASTER_REFERENCE, "\n")
 cat("Total Genes:", length(gene_ids), "\n")
@@ -413,49 +316,18 @@ for (sample_id in SAMPLE_IDS) {
 }
 cat("\n")
 
-cat("Processing Pipeline:\n")
-cat("  1. RSEM expected_count → rounded to integers\n")
-cat("  2. DESeq2 size factor normalization\n")
-cat("  3. Variance stabilizing transformation (VST)\n\n")
-
-cat("Size Factors (library normalization):\n")
-for (sample_id in SAMPLE_IDS) {
-  cat("  ", sample_id, ":", round(size_factors[sample_id], 3), "\n")
-}
-cat("\n")
-
 cat("Count Types Generated:\n")
-cat("  • raw_counts - Rounded expected counts from RSEM\n")
-cat("  • deseq2_normalized - Size factor normalized counts\n")
-cat("  • vst_transformed - Variance stabilized (for heatmaps)\n\n")
+cat("  • expected_count - Raw probabilistic counts from RSEM EM algorithm\n")
+cat("  • TPM - Transcripts Per Million (normalized, cross-sample comparable)\n")
+cat("  • FPKM - Fragments Per Kilobase Million (normalized for length & depth)\n\n")
 
-cat("Raw Counts Summary:\n")
+cat("TPM Summary Statistics:\n")
 for (sample_id in SAMPLE_IDS) {
-  counts_vec <- raw_count_matrix[, sample_id]
+  tpm_values <- tpm_matrix[, sample_id]
   cat("  ", sample_id, ":\n")
-  cat("    Total counts:", format(sum(counts_vec), big.mark = ","), "\n")
-  cat("    Genes with counts > 0:", sum(counts_vec > 0), "\n")
-  cat("    Mean count:", round(mean(counts_vec), 2), "\n")
-  cat("    Median count:", round(median(counts_vec), 2), "\n")
-}
-cat("\n")
-
-cat("DESeq2 Normalized Counts Summary:\n")
-for (sample_id in SAMPLE_IDS) {
-  norm_counts <- normalized_counts[, sample_id]
-  cat("  ", sample_id, ":\n")
-  cat("    Mean normalized count:", round(mean(norm_counts), 2), "\n")
-  cat("    Median normalized count:", round(median(norm_counts), 2), "\n")
-}
-cat("\n")
-
-cat("VST Transformed Values Summary:\n")
-for (sample_id in SAMPLE_IDS) {
-  vst_values <- vst_matrix_full[, sample_id]
-  cat("  ", sample_id, ":\n")
-  cat("    Mean VST:", round(mean(vst_values), 2), "\n")
-  cat("    Median VST:", round(median(vst_values), 2), "\n")
-  cat("    Range: [", round(min(vst_values), 2), ",", round(max(vst_values), 2), "]\n")
+  cat("    Mean TPM:", round(mean(tpm_values, na.rm = TRUE), 2), "\n")
+  cat("    Median TPM:", round(median(tpm_values, na.rm = TRUE), 2), "\n")
+  cat("    Genes with TPM > 1:", sum(tpm_values > 1, na.rm = TRUE), "\n")
 }
 cat("\n")
 
@@ -467,13 +339,6 @@ for (gene_group_file in gene_group_files) {
   genes_in_data <- intersect(gene_list, gene_ids)
   cat("  ", gene_group_name, ":", length(genes_in_data), "/", length(gene_list), "genes found\n")
 }
-cat("\n")
-
-cat("Statistical Notes:\n")
-cat("  • Size factors account for library size AND RNA composition bias\n")
-cat("  • VST stabilizes variance across expression range (better for visualization)\n")
-cat("  • Genes with <10 total counts were excluded from VST (set to 0)\n")
-cat("  • This normalization is appropriate for gene expression analysis\n\n")
 
 sink()
 
@@ -484,27 +349,27 @@ cat("Saved summary:", summary_file, "\n\n")
 # ===============================================
 
 cat(paste(rep("=", 70), collapse = ""), "\n")
-cat("DESEQ2 NORMALIZATION COMPLETE - METHOD 5\n")
+cat("RSEM MATRIX GENERATION COMPLETE\n")
 cat(paste(rep("=", 70), collapse = ""), "\n\n")
 
 cat("Summary:\n")
 cat("  • Processed", length(SAMPLE_IDS), "samples\n")
-cat("  • Analyzed", length(gene_ids), "genes\n")
-cat("  • Generated 3 count types: raw_counts, deseq2_normalized, vst_transformed\n")
+cat("  • Extracted", length(gene_ids), "genes\n")
+cat("  • Generated 3 count types: expected_count, TPM, FPKM\n")
 cat("  • Processed", length(gene_group_files), "gene groups\n")
 cat("  • Output directory:", output_dir, "\n\n")
 
 cat("Normalization Approach:\n")
-cat("  ✅ RSEM provides probabilistic expected counts\n")
-cat("  ✅ DESeq2 normalizes for library size and composition\n")
-cat("  ✅ VST stabilizes variance for visualization\n")
-cat("  ✅ Statistically sound for gene expression analysis\n\n")
+cat("  ✅ RSEM provides pre-normalized TPM and FPKM values\n")
+cat("  ✅ TPM is normalized across samples (sum to 1 million)\n")
+cat("  ✅ FPKM is normalized for gene length and sequencing depth\n")
+cat("  ✅ NO DESeq2 needed - RSEM normalization is correct\n\n")
 
-cat("Matrices ready for heatmap generation\n")
-cat("Recommended: Use 'vst_transformed' matrices for heatmaps\n\n")
+cat("Matrices ready for heatmap generation\n\n")
 
-cat("Technical Notes:\n")
-cat("  • RSEM handles multi-mapping reads via EM algorithm\n")
-cat("  • DESeq2 size factors are more robust than simple CPM\n")
-cat("  • VST transformation is ideal for clustering and heatmaps\n")
-cat("  • This pipeline combines strengths of both tools\n\n")
+cat("Technical Note:\n")
+cat("RSEM uses Expectation-Maximization algorithm to handle:\n")
+cat("  • Multi-mapping reads\n")
+cat("  • Isoform ambiguity\n")
+cat("  • Probabilistic assignment\n")
+cat("The TPM and FPKM values are already properly normalized.\n\n")
