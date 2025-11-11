@@ -30,7 +30,7 @@ source "modules/methods.sh"
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=32                               # Number of threads to use for parallel operations
+THREADS=64                               # Number of threads to use for parallel operations
 JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
@@ -45,13 +45,13 @@ PIPELINE_STAGES=(
 	#"QUALITY_CONTROL"
 	
 	## GEA Methods
-	#"METHOD_1_HISAT2_REF_GUIDED"
-	#"METHOD_2_HISAT2_DE_NOVO"
-	"METHOD_3_TRINITY_DE_NOVO"
-	#"METHOD_4_SALMON_SAF"
-	#"METHOD_5_BOWTIE2_RSEM"
-	
-	#HEATMAP_WRAPPER"
+	"METHOD_1_HISAT2_REF_GUIDED"
+	"METHOD_2_HISAT2_DE_NOVO"
+	"METHOD_4_SALMON_SAF"
+	"METHOD_5_BOWTIE2_RSEM"
+	#"METHOD_3_TRINITY_DE_NOVO"
+
+	"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
 )
 
@@ -90,25 +90,25 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	# Developmental stages arranged from early to late
-	#SRR3884685	# Radicles (earliest - germination)
-	#SRR3884677	# Cotyledons (seed leaves)
-	#SRR3884675	# Roots (root development)
-	#SRR3884690	# Stems (vegetative growth)
-	#SRR3884689	# Leaves (vegetative growth)
-	#SRR3884684	# Senescent_leaves (leaf aging)
+	SRR3884685	# Radicles (earliest - germination)
+	SRR3884677	# Cotyledons (seed leaves)
+	SRR3884675	# Roots (root development)
+	SRR3884690	# Stems (vegetative growth)
+	SRR3884689	# Leaves (vegetative growth)
+	SRR3884684	# Senescent_leaves (leaf aging)
 	SRR3884686	# Buds_0.7cm (flower bud initiation) [MAIN INTEREST]
 	SRR3884687	# Opened_Buds (flower development) 	 [MAIN INTEREST]
 	SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
-	#SRR3884679	# Pistils (female reproductive parts)
-	#SRR3884608	# Fruits_1cm (early fruit development)
-	#SRR3884620	# Fruits_Stage_1 (early fruit stage)
-	#SRR3884631	# Fruits_6cm (fruit enlargement)
-	#SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
-	#SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
-	#SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
-	#SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
-	#SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
-	#SRR3884678	# Fruits_peduncle (fruit attachment)
+	SRR3884679	# Pistils (female reproductive parts)
+	SRR3884608	# Fruits_1cm (early fruit development)
+	SRR3884620	# Fruits_Stage_1 (early fruit stage)
+	SRR3884631	# Fruits_6cm (fruit enlargement)
+	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
+	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
+	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
+	SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
+	SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
+	SRR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
@@ -143,7 +143,7 @@ SRR_LIST_PRJNA865018=(
 	SRR21010462	# flowers_1
 	SRR21010450	# fruits_2
 	SRR21010452	# fruits_1
-	SRR21010464	# fruits_3ss
+	SRR21010464	# fruits_3
 )
 
 OTHER_SRR_LIST=(
