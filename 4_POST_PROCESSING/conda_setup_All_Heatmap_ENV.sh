@@ -58,7 +58,6 @@ PACKAGES=(
     "r-rcolorbrewer"
     "r-circlize"
     "r-getopt"
-    "r-grid"
 )
 
 # --- Main Execution ---
