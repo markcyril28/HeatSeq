@@ -1,4 +1,97 @@
 #!/bin/bash
+# ==============================================================================
+# HEATMAP WRAPPER FOR TRINITY + SALMON TXIMPORT RESULTS
+# ==============================================================================
+# Description: Generate visualizations from Trinity + Salmon + tximport results
+# Author: Mark Cyril R. Mercado
+# Version: v2 (Updated for Salmon/tximport workflow)
+# Date: November 2025
+# ==============================================================================
+
+set -euo pipefail
+
+# Navigate to Method 3 directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Configuration
+BASE_DIR="$(pwd)"
+FASTA_TAG="All_Smel_Genes"  # Update based on your FASTA file
+GENE_GROUPS_DIR="$BASE_DIR/a_gene_groups_input_list"
+MATRIX_DIR="$BASE_DIR/6_matrices_from_stringtie"
+VISUALIZATION_SCRIPT="$BASE_DIR/b_modules_for_Method_3/e_visualize_tximport_results.R"
+
+echo "========================================================================"
+echo "TRINITY + SALMON VISUALIZATION WRAPPER"
+echo "========================================================================"
+echo "Base directory: $BASE_DIR"
+echo "FASTA tag: $FASTA_TAG"
+echo "Gene groups: $GENE_GROUPS_DIR"
+echo ""
+
+# Check if tximport was run
+if [[ ! -f "$MATRIX_DIR/deseq2_dataset_trinity.rds" ]]; then
+    echo "ERROR: DESeq2 dataset not found!"
+    echo "Please run tximport first:"
+    echo "  Rscript $MATRIX_DIR/run_tximport_trinity_salmon.R"
+    exit 1
+fi
+
+# Check if visualization script exists
+if [[ ! -f "$VISUALIZATION_SCRIPT" ]]; then
+    echo "ERROR: Visualization script not found: $VISUALIZATION_SCRIPT"
+    echo "Please ensure e_visualize_tximport_results.R exists"
+    exit 1
+fi
+
+# Check for gene group files
+if [[ ! -d "$GENE_GROUPS_DIR" ]]; then
+    echo "ERROR: Gene groups directory not found: $GENE_GROUPS_DIR"
+    exit 1
+fi
+
+GENE_GROUP_FILES=("$GENE_GROUPS_DIR"/*.txt)
+if [[ ${#GENE_GROUP_FILES[@]} -eq 0 ]] || [[ ! -f "${GENE_GROUP_FILES[0]}" ]]; then
+    echo "ERROR: No gene group files (*.txt) found in: $GENE_GROUPS_DIR"
+    exit 1
+fi
+
+echo "Found ${#GENE_GROUP_FILES[@]} gene group file(s)"
+echo ""
+
+# Process each gene group
+for gene_group_file in "${GENE_GROUP_FILES[@]}"; do
+    [[ ! -f "$gene_group_file" ]] && continue
+    
+    group_name=$(basename "$gene_group_file" .txt)
+    echo "------------------------------------------------------------------------"
+    echo "Processing gene group: $group_name"
+    echo "------------------------------------------------------------------------"
+    
+    # Run visualization script
+    if Rscript --vanilla "$VISUALIZATION_SCRIPT" \
+        -d "$BASE_DIR" \
+        -f "$FASTA_TAG" \
+        -g "$gene_group_file" \
+        -t "all"; then
+        echo "✓ Successfully generated visualizations for $group_name"
+    else
+        echo "✗ Failed to generate visualizations for $group_name"
+    fi
+    echo ""
+done
+
+echo "========================================================================"
+echo "VISUALIZATION COMPLETED"
+echo "========================================================================"
+echo "Check outputs in:"
+echo "  - Basic heatmaps: $BASE_DIR/7_Heatmap_Outputs/I_Basic_Heatmap"
+echo "  - CV heatmaps: $BASE_DIR/7_Heatmap_Outputs/II_Heatmap_with_CV"
+echo "  - Bar graphs: $BASE_DIR/7_Heatmap_Outputs/III_Bar_Graphs"
+echo "========================================================================"
+
+exit 0
+#!/bin/bash
 
 #===============================================================================
 # METHOD 3 (TRINITY DE NOVO) - HEATMAP WRAPPER SCRIPT
