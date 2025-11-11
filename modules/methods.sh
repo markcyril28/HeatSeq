@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# GENE EXPRESSION ANALYSIS (GEA) PIPELINE - METHOD 2: HISAT2 DE NOVO
+# GENE EXPRESSION ANALYSIS (GEA) PIPELINE: TISSUE
 # ==============================================================================
 # Description: RNA-seq analysis pipeline using HISAT2 de novo assembly approach
 # Author: Mark Cyril R. Mercado
@@ -53,7 +53,7 @@ fi
 # ==============================================================================
 # DIRECTORY STRUCTURE AND OUTPUT PATHS
 # ==============================================================================
-# Standardized folder structure across all methods in 4_OUTPUTS/
+# Standardized folder structure across all methods in 4_POST_PROCESSING/
 # Pattern: 4_{alignment_tool}_WD, 5_{quant_tool}_WD, 6_matrices, 7_Heatmap_Outputs
 # Common: a_gene_groups_input_list, b_modules_for_{method}, logs
 
@@ -63,23 +63,23 @@ TRIM_DIR_ROOT="2_TRIMMED_SRR"
 FASTQC_ROOT="3_FastQC"
 
 # Method 1: HISAT2 Reference Guided
-HISAT2_REF_GUIDED_ROOT="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD"
+HISAT2_REF_GUIDED_ROOT="4_POST_PROCESSING/4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD"
 HISAT2_REF_GUIDED_INDEX_DIR="$HISAT2_REF_GUIDED_ROOT/index"
-STRINGTIE_HISAT2_REF_GUIDED_ROOT="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD"
+STRINGTIE_HISAT2_REF_GUIDED_ROOT="4_POST_PROCESSING/4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD"
 
 # Method 3: Trinity De Novo Assembly
-TRINITY_DE_NOVO_ROOT="4_OUTPUTS/4c_Method_3_Trinity_De_Novo/4_Trinity_WD"
-STRINGTIE_TRINITY_DE_NOVO_ROOT="4_OUTPUTS/4c_Method_3_Trinity_De_Novo/5_stringtie_WD"
+TRINITY_DE_NOVO_ROOT="4_POST_PROCESSING/4c_Method_3_Trinity_De_Novo/4_Trinity_WD"
+STRINGTIE_TRINITY_DE_NOVO_ROOT="4_POST_PROCESSING/4c_Method_3_Trinity_De_Novo/5_stringtie_WD"
 
 # Method 4: Salmon SAF Quantification
-SALMON_SAF_ROOT="4_OUTPUTS/4d_Method_4_Salmon_Saf_Quantification"
+SALMON_SAF_ROOT="4_POST_PROCESSING/4d_Method_4_Salmon_Saf_Quantification"
 SALMON_INDEX_ROOT="$SALMON_SAF_ROOT/4_Salmon_WD/index"
 SALMON_QUANT_ROOT="$SALMON_SAF_ROOT/5_Salmon_Quant_WD"
 SALMON_SAF_MATRIX_ROOT="$SALMON_SAF_ROOT/6_matrices_from_Salmon"
 SALMON_MATRIX_ROOT="${SALMON_MATRIX_ROOT:-$SALMON_SAF_MATRIX_ROOT}"
 
 # Method 5: Bowtie2 + RSEM Quantification
-BOWTIE2_RSEM_ROOT="4_OUTPUTS/4e_Method_5_Bowtie2_Quantification"
+BOWTIE2_RSEM_ROOT="4_POST_PROCESSING/4e_Method_5_Bowtie2_Quantification"
 RSEM_INDEX_ROOT="$BOWTIE2_RSEM_ROOT/4_Bowtie2_WD/index"
 RSEM_QUANT_ROOT="$BOWTIE2_RSEM_ROOT/5_RSEM_Quant_WD"
 RSEM_MATRIX_ROOT="$BOWTIE2_RSEM_ROOT/6_matrices_from_RSEM"
@@ -131,14 +131,8 @@ load_sample_metadata() {
 	local -n metadata_array=$2  # Use nameref to return associative array
 	
 	if [[ ! -f "$metadata_file" ]]; then
-		log_warn "Sample metadata file not found: $metadata_file"
-		log_warn "Expected format (tab-separated):"
-		log_warn "  SRR_ID<tab>condition<tab>batch"
-		log_warn "  SRR3884597	control	1"
-		log_warn "  SRR3884653	treatment	1"
-		log_warn ""
-		log_warn "Continuing with default metadata (all samples as 'treatment')."
-		log_warn "IMPORTANT: This prevents differential expression analysis!"
+		log_warn "Metadata file not found: $metadata_file - Using default (all samples as 'treatment')"
+		log_warn "⚠️  Differential expression analysis disabled without proper metadata"
 		return 1
 	fi
 	
@@ -159,12 +153,11 @@ load_sample_metadata() {
 	# Validate that we have at least 2 different conditions
 	local unique_conditions=$(printf '%s\n' "${metadata_array[@]}" | grep -v "_batch" | sort -u | wc -l)
 	if [[ $unique_conditions -lt 2 ]]; then
-		log_error "Need at least 2 different experimental conditions for DE analysis"
-		log_error "Found only: $(printf '%s\n' "${metadata_array[@]}" | grep -v "_batch" | sort -u | tr '\n' ', ')"
+		log_error "Need ≥2 experimental conditions for DE analysis (found: $unique_conditions)"
 		return 1
 	fi
 	
-	log_info "Loaded metadata for $(( ${#metadata_array[@]} / 2 )) samples with $unique_conditions conditions"
+	log_info "Loaded metadata: $(( ${#metadata_array[@]} / 2 )) samples, $unique_conditions conditions"
 	return 0
 }
 
@@ -205,24 +198,11 @@ create_sample_metadata() {
 	done
 	
 	if [[ "$has_external_metadata" == "false" ]]; then
-		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-		log_warn "⚠️  CRITICAL: Sample conditions need manual specification!"
-		log_warn "⚠️  Each sample assigned generic placeholder condition."
-		log_warn ""
-		log_warn "📝 FOR TISSUE-SPECIFIC EXPRESSION PROFILING:"
-		log_warn "   Edit: $metadata_file"
-		log_warn "   Replace 'condition' values with tissue/organ names:"
-		log_warn "   Examples: root, leaf, flower, stem, seed, fruit"
-		log_warn ""
-		log_warn "📝 ALTERNATIVE: Create external metadata file: $metadata_source"
-		log_warn "   Format (tab-separated):"
-		log_warn "   SRR3884597	root	1"
-		log_warn "   SRR3884653	leaf	1"
-		log_warn "   SRR3884677	flower	1"
-		log_warn ""
-		log_warn "⚠️  Differential expression requires ≥2 biological replicates per condition"
-		log_warn "⚠️  Statistical power increases with ≥3 replicates per tissue/organ"
-		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+		log_warn "⚠️  Sample conditions need manual specification for DE analysis"
+		log_warn "📝 Edit: $metadata_file or create: $metadata_source"
+		log_warn "   Format (tab-separated): SRR_ID<tab>tissue/organ<tab>batch"
+		log_warn "   Example: SRR3884597<tab>root<tab>1"
+		log_warn "⚠️  DE requires ≥2 replicates/condition, ≥3 recommended"
 		
 		# Generate example metadata template
 		local metadata_dir=$(dirname "$metadata_file")
@@ -230,10 +210,7 @@ create_sample_metadata() {
 		if [[ ! -f "$template_file" ]]; then
 			{
 				echo "# SAMPLE METADATA TEMPLATE FOR TISSUE-SPECIFIC EXPRESSION PROFILING"
-				echo "# Instructions:"
-				echo "#   1. Copy this template to 'sample_conditions.txt' in your modules/ directory"
-				echo "#   2. Edit the condition and batch columns for each sample"
-				echo "#   3. Re-run the pipeline to use these conditions"
+				echo "# Copy to 'sample_conditions.txt' in modules/ directory and edit condition/batch columns"
 				echo "#"
 				echo "# Format: SRR_ID<TAB>condition<TAB>batch"
 				echo "# condition: Tissue/organ name (e.g., root, leaf, flower, stem)"
@@ -243,7 +220,7 @@ create_sample_metadata() {
 					echo "$SRR	tissue_name_here	1"
 				done
 			} > "$template_file"
-			log_info "Generated template file: $template_file"
+			log_info "Generated template: $template_file"
 		fi
 	fi
 }
@@ -256,7 +233,7 @@ validate_count_matrix() {
 	
 	[[ ! -f "$matrix" ]] && { log_error "Matrix not found: $matrix"; return 1; }
 	
-	log_step "Validating $matrix_type count matrix: $matrix"
+	log_step "Validating $matrix_type matrix: $(basename $matrix)"
 	
 	# Check number of samples
 	local header=$(head -n1 "$matrix")
@@ -267,6 +244,7 @@ validate_count_matrix() {
 		num_samples=$(echo "$header" | tr '\t' '\n' | tail -n +2 | wc -l)
 	fi
 	
+	# Check sufficient samples
 	if [[ $num_samples -lt $min_samples ]]; then
 		log_error "Insufficient samples: $num_samples (need ≥$min_samples)"
 		return 1
@@ -297,15 +275,9 @@ validate_count_matrix() {
 	
 	local zero_pct=$((total_rows > 0 ? zero_count * 100 / total_rows : 0))
 	
-	log_info "[VALIDATION] Matrix validation passed for $matrix"
-	log_info "  - Samples: $num_samples"
-	log_info "  - ${matrix_type^}s: $unique_ids"
-	log_info "  - Zero-count ${matrix_type}s: $zero_count ($zero_pct%)"
+	log_info "[VALIDATION] Passed - Samples: $num_samples, ${matrix_type^}s: $unique_ids, Zero: $zero_count ($zero_pct%)"
 	
-	if [[ $zero_pct -gt 50 ]]; then
-		log_warn "⚠️  WARNING: Over 50% of ${matrix_type}s have zero counts!"
-		log_warn "    This may indicate mapping issues or low sequencing depth."
-	fi
+	[[ $zero_pct -gt 50 ]] && log_warn "⚠️  >50% ${matrix_type}s have zero counts - check mapping/depth"
 	
 	return 0
 }
@@ -349,39 +321,30 @@ run_quality_control() {
 	local SRR="$1"
 	local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
 	
-	if [[ ! -d "$TrimGalore_DIR" ]]; then
-		log_warn "Trimmed directory not found for $SRR. Skipping QC."
-		return 1
-	fi
+	[[ ! -d "$TrimGalore_DIR" ]] && { log_warn "Trimmed dir not found for $SRR - skipping QC"; return 1; }
 	
-	log_step "Running quality control for $SRR"
+	log_step "QC: $SRR"
 	
-	# Create QC output directory
-	mkdir -p "$FASTQC_ROOT/$SRR"
-	
-	# FastQC on trimmed reads (skip if HTML report already exists)
+	# FastQC on trimmed reads
 	if command -v fastqc >/dev/null 2>&1; then
-		outdir="$FASTQC_ROOT/${SRR}_trimmed"
+		local outdir="$FASTQC_ROOT/${SRR}_trimmed"
 		mkdir -p "$outdir"
-		# If any FastQC HTML is present, assume QC was done and skip
 		if compgen -G "$outdir/*_fastqc.html" >/dev/null; then
-			log_info "[FASTQC] HTML report for $SRR already exists in $outdir. Skipping."
+			log_info "[FASTQC] Report exists - skipping"
 		else
 			run_with_space_time_log \
 				fastqc -t "${THREADS:-1}" -o "$outdir" \
 					"$TrimGalore_DIR"/${SRR}*val*.fq* 2>/dev/null || \
-					log_warn "FastQC failed for $SRR"
+					log_warn "[FASTQC] Failed for $SRR"
 		fi
 	else
-		log_warn "FastQC not available. Skipping read quality assessment."
+		log_warn "[FASTQC] Not available - skipping read quality assessment"
 	fi
 	
-	# MultiQC summary (if available)
-	if command -v multiqc >/dev/null 2>&1; then
-		run_with_space_time_log \
-			multiqc "$FASTQC_ROOT" -o "$FASTQC_ROOT/summary" --force 2>/dev/null || \
-				log_warn "MultiQC failed. Individual FastQC reports still available."
-	fi
+	# MultiQC summary
+	command -v multiqc >/dev/null 2>&1 && \
+		run_with_space_time_log multiqc "$FASTQC_ROOT" -o "$FASTQC_ROOT/summary" --force 2>/dev/null || \
+		log_warn "[MULTIQC] Failed - individual reports available"
 }
 
 # Combined pipeline: Build HISAT2 reference-guided index, align reads, assemble, merge, and quantify transcripts
@@ -435,44 +398,25 @@ hisat2_ref_guided_pipeline() {
 	# BUILD HISAT2 REFERENCE-GUIDED INDEX
 	mkdir -p "$HISAT2_REF_GUIDED_INDEX_DIR"
 	if ls "${index_prefix}".*.ht2 >/dev/null 2>&1; then
-		log_info "[HISAT2 INDEX] Reference-guided index for $fasta_base already exists. Skipping build."
+		log_info "[INDEX] Ref-guided index exists - skipping build"
 	else
-		log_step "Building HISAT2 reference-guided index from $fasta with GTF $gtf"
+		log_step "Building HISAT2 ref-guided index: $fasta_base"
 		
 		# Extract splice sites and exons from GTF
 		local splice_sites="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_splice_sites.txt"
 		local exons="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_exons.txt"
 		
-		# Extract splice sites with error handling
-		if ! hisat2_extract_splice_sites.py "$gtf" > "$splice_sites"; then
-			log_error "Failed to extract splice sites from GTF: $gtf"
-			log_error "Check that GTF is properly formatted and contains transcript features"
-			return 1
-		fi
+		# Extract and validate
+		hisat2_extract_splice_sites.py "$gtf" > "$splice_sites" || \
+			{ log_error "Failed to extract splice sites - check GTF format/transcript features"; return 1; }
 		
-		# Extract exons with error handling
-		if ! hisat2_extract_exons.py "$gtf" > "$exons"; then
-			log_error "Failed to extract exons from GTF: $gtf"
-			log_error "Check that GTF is properly formatted and contains exon features"
-			return 1
-		fi
+		hisat2_extract_exons.py "$gtf" > "$exons" || \
+			{ log_error "Failed to extract exons - check GTF format/exon features"; return 1; }
 		
-		# Validate outputs
-		if [[ ! -s "$splice_sites" ]]; then
-			log_error "Splice sites file is empty: $splice_sites"
-			log_error "GTF may be missing transcript/exon features or have incorrect format"
-			log_error "Ensure GTF reference sequences match FASTA headers"
-			return 1
-		fi
+		[[ ! -s "$splice_sites" ]] && { log_error "Empty splice sites file - GTF/FASTA mismatch"; return 1; }
+		[[ ! -s "$exons" ]] && { log_error "Empty exons file - GTF/FASTA mismatch"; return 1; }
 		
-		if [[ ! -s "$exons" ]]; then
-			log_error "Exons file is empty: $exons"
-			log_error "GTF may be missing exon features or have incorrect format"
-			log_error "Ensure GTF reference sequences match FASTA headers"
-			return 1
-		fi
-		
-		log_info "[HISAT2 INDEX] Extracted $(wc -l < "$splice_sites") splice sites and $(wc -l < "$exons") exons"
+		log_info "[INDEX] Extracted $(wc -l < "$splice_sites") splice sites, $(wc -l < "$exons") exons"
 		
 		# Build index with splice sites and exons
 		run_with_space_time_log \
@@ -519,7 +463,7 @@ hisat2_ref_guided_pipeline() {
 		fi
 		
 		if [[ -z "$trimmed1" ]]; then
-			log_warn "Trimmed FASTQ for $SRR not found in $TrimGalore_DIR; skipping."
+			log_warn "Trimmed FASTQ not found for $SRR - skipping"
 			continue
 		fi
 
@@ -528,9 +472,9 @@ hisat2_ref_guided_pipeline() {
 		
 		# Align and sort if BAM doesn't exist
 		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
-			log_info "[HISAT2 ALIGN] BAM file for $SRR and $fasta_tag (ref-guided) already exists. Skipping alignment."
+			log_info "[ALIGN] BAM exists for $SRR/$fasta_tag - skipping"
 		else
-			log_step "Aligning $fasta_tag with $SRR using HISAT2 Reference-Guided Approach"
+			log_step "Aligning: $SRR -> $fasta_tag (HISAT2 ref-guided)"
 			# Check if paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end alignment
@@ -549,11 +493,10 @@ hisat2_ref_guided_pipeline() {
 						-S "$sam"
 			fi
 			
-			log_info "[SAMTOOLS] Converting SAM to sorted BAM for $fasta_tag with $SRR (ref-guided)..."
+			log_info "[SAMTOOLS] Converting to sorted BAM..."
 			run_with_space_time_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
 			run_with_space_time_log samtools index -@ "${THREADS}" "$bam"
 			rm -f "$sam"
-			log_info "[HISAT2 ALIGN] Done aligning $fasta_tag with $SRR (ref-guided)."
 		fi
 
 		# StringTie assembly with reference GTF
@@ -564,9 +507,9 @@ hisat2_ref_guided_pipeline() {
 		mkdir -p "$out_dir" "$ballgown_dir"
 		
 		if [[ -f "$out_gtf" ]]; then
-			log_info "[STRINGTIE] Reference-guided assembly for $fasta_tag/$SRR already exists. Skipping."
+			log_info "[STRINGTIE] Assembly exists for $SRR/$fasta_tag - skipping"
 		else
-			log_step "Assembling transcripts for $fasta_tag with $SRR using reference GTF"
+			log_step "Assembling transcripts: $SRR -> $fasta_tag (ref GTF)"
 			run_with_space_time_log \
 				stringtie -p "$THREADS" "$bam" \
 					-G "$gtf" \
@@ -575,9 +518,6 @@ hisat2_ref_guided_pipeline() {
 					-B \
 					-C "$out_dir/${SRR}_${fasta_tag}_ref_guided_cov_refs.gtf"
 		fi
-		
-		log_info "[STRINGTIE] Done processing $fasta_tag with $SRR (ref-guided)."
-		log_info "--------------------------------------------------"
 	done
 	
 	# Create merged GTF for all samples
@@ -764,7 +704,7 @@ hisat2_ref_guided_pipeline() {
 	# POST-PROCESSING - GENERATE VISUALIZATIONS
 	log_step "Post-processing: Generating visualizations (heatmaps and bar graphs)"
 	
-	local method1_dir="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided"
+	local method1_dir="4_POST_PROCESSING/4a_Method_1_HISAT2_Ref_Guided"
 	local heatmap_basic_script="$method1_dir/b_modules_for_Method_1/b_make_heatmap_of_matrices.R"
 	local heatmap_cv_script="$method1_dir/b_modules_for_Method_1/c_make_heatmap_with_CV_of_matrices.R"
 	local bargraph_script="$method1_dir/b_modules_for_Method_1/d_make_BarGraph_of_matrices.R"
@@ -944,6 +884,20 @@ hisat2_de_novo_pipeline() {
 }
 
 # Trinity de novo alignment, stringtie quantification that can be an input to DeSeq2 pipeline
+# 
+# STATISTICAL CONSIDERATIONS FOR TISSUE-SPECIFIC EXPRESSION PROFILING:
+# 1. Trinity pools all samples into ONE assembly - may miss tissue-specific isoforms
+# 2. In-silico normalization (--normalize_reads) DISABLED to preserve biological variation
+# 3. RSEM expected_count used without rounding to preserve statistical precision
+# 4. Strand-specific protocols improve accuracy - set TRINITY_STRAND_SPECIFIC env var
+# 5. For publication: Use tximport with RSEM outputs instead of simple count matrices
+#
+# EFFICIENCY OPTIMIZATIONS:
+# - Reference preparation done once and reused across samples
+# - Configurable memory via TRINITY_MAX_MEMORY (default: 50G)
+# - Min contig length filter reduces spurious transcripts
+# - Full cleanup enabled to save disk space
+#
 trinity_de_novo_alignment_pipeline() {
 	local fasta="" rnaseq_list=()
 	while [[ $# -gt 0 ]]; do
@@ -980,12 +934,22 @@ trinity_de_novo_alignment_pipeline() {
 	fi
 
 	log_info "[TRINITY] Trinity pipeline will process ${#rnaseq_list[@]} RNA-seq samples"
+	log_warn "⚠️  Trinity pools all samples into one assembly - tissue-specific isoforms may be missed"
+	log_warn "   Consider: Running Trinity separately per tissue for better tissue-specific detection"
 	
 	local fasta_base fasta_tag trinity_out_dir trinity_fasta
 	fasta_base="$(basename "$fasta")"
 	fasta_tag="${fasta_base%.*}"
 	trinity_out_dir="$TRINITY_DE_NOVO_ROOT/${fasta_tag}_trinity_out_dir"
 	trinity_fasta="$trinity_out_dir/Trinity.fasta"
+	
+	# Trinity parameters for tissue-specific expression profiling
+	local trinity_max_memory="${TRINITY_MAX_MEMORY:-50G}"
+	local trinity_min_contig_length="${TRINITY_MIN_CONTIG_LENGTH:-200}"
+	local trinity_min_kmer_cov="${TRINITY_MIN_KMER_COV:-2}"
+	# For strand-specific libraries (set based on your protocol):
+	# --SS_lib_type RF (dUTP/NSR/NNSR), FR (Ligation), F/R (single-end)
+	local trinity_strand="${TRINITY_STRAND_SPECIFIC:-}"  # Leave empty for unstranded
 
 	# STEP 1: DE NOVO TRANSCRIPTOME ASSEMBLY WITH TRINITY
 	log_step "Trinity de novo transcriptome assembly for $fasta_tag"
@@ -1071,48 +1035,65 @@ trinity_de_novo_alignment_pipeline() {
 			if [[ ${#single_reads[@]} -gt 0 ]]; then
 				# Mixed reads: both paired and single
 				local single_files=$(IFS=,; echo "${single_reads[*]}")
-				log_info "[TRINITY] Running Trinity with both paired-end and single-end reads..."
+				log_info "[TRINITY] Running Trinity with mixed paired/single-end reads"
 				
-				run_with_space_time_log Trinity \
-					--seqType fq \
-					--left "$left_files" \
-					--right "$right_files" \
-					--single "$single_files" \
-					--CPU "$THREADS" \
-					--max_memory 20G \
-					--output "$trinity_out_dir" \
-					--normalize_reads \
-					--full_cleanup \
-					--no_version_check
+				# Build Trinity command with optional strand parameter
+				local trinity_cmd=(Trinity --seqType fq 
+					--left "$left_files" 
+					--right "$right_files" 
+					--single "$single_files"
+					--CPU "$THREADS" 
+					--max_memory "$trinity_max_memory"
+					--output "$trinity_out_dir"
+					--min_contig_length "$trinity_min_contig_length"
+					--min_kmer_cov "$trinity_min_kmer_cov"
+					--full_cleanup
+					--no_version_check)
+				
+				# Add strand-specific parameter if specified
+				[[ -n "$trinity_strand" ]] && trinity_cmd+=(--SS_lib_type "$trinity_strand")
+				
+				# Note: --normalize_reads removed to preserve biological variation for tissue comparison
+				log_warn "⚠️  In-silico normalization disabled - preserves tissue-specific expression differences"
+				
+				run_with_space_time_log "${trinity_cmd[@]}"
 			else
 				# Only paired-end reads
-				log_info "[TRINITY] Running Trinity with paired-end reads only..."
+				log_info "[TRINITY] Running Trinity with paired-end reads only"
 				
-				run_with_space_time_log Trinity \
-					--seqType fq \
-					--left "$left_files" \
-					--right "$right_files" \
-					--CPU "$THREADS" \
-					--max_memory 20G \
-					--output "$trinity_out_dir" \
-					--normalize_reads \
-					--full_cleanup \
-					--no_version_check
+				local trinity_cmd=(Trinity --seqType fq 
+					--left "$left_files" 
+					--right "$right_files"
+					--CPU "$THREADS" 
+					--max_memory "$trinity_max_memory"
+					--output "$trinity_out_dir"
+					--min_contig_length "$trinity_min_contig_length"
+					--min_kmer_cov "$trinity_min_kmer_cov"
+					--full_cleanup
+					--no_version_check)
+				
+				[[ -n "$trinity_strand" ]] && trinity_cmd+=(--SS_lib_type "$trinity_strand")
+				
+				run_with_space_time_log "${trinity_cmd[@]}"
 			fi
 		elif [[ ${#single_reads[@]} -gt 0 ]]; then
 			# Only single-end reads
 			local single_files=$(IFS=,; echo "${single_reads[*]}")
-			log_info "[TRINITY] Running Trinity with single-end reads only..."
+			log_info "[TRINITY] Running Trinity with single-end reads only"
 			
-			run_with_space_time_log Trinity \
-				--seqType fq \
-				--single "$single_files" \
-				--CPU "$THREADS" \
-				--max_memory 20G \
-				--output "$trinity_out_dir" \
-				--normalize_reads \
-				--full_cleanup \
-				--no_version_check
+			local trinity_cmd=(Trinity --seqType fq 
+				--single "$single_files"
+				--CPU "$THREADS" 
+				--max_memory "$trinity_max_memory"
+				--output "$trinity_out_dir"
+				--min_contig_length "$trinity_min_contig_length"
+				--min_kmer_cov "$trinity_min_kmer_cov"
+				--full_cleanup
+				--no_version_check)
+			
+			[[ -n "$trinity_strand" ]] && trinity_cmd+=(--SS_lib_type "$trinity_strand")
+			
+			run_with_space_time_log "${trinity_cmd[@]}"
 		else
 			log_error "No valid reads found for Trinity assembly."
 			return 1
@@ -1198,17 +1179,11 @@ trinity_de_novo_alignment_pipeline() {
 		local avg_length=0
 		[[ $num_transcripts -gt 0 ]] && avg_length=$((total_length / num_transcripts))
 		
-		log_info "[TRINITY] Assembly summary: $num_transcripts transcripts, $total_length total bp"
-		log_info "[TRINITY] Average transcript length: $avg_length bp"
+		log_info "[TRINITY] Assembly: $num_transcripts transcripts, avg $avg_length bp"
 		
 		# Quality validation
-		if [[ $num_transcripts -lt 1000 ]]; then
-			log_warn "⚠️  Very few transcripts assembled ($num_transcripts)"
-			log_warn "    This may indicate:"
-			log_warn "    - Insufficient read depth"
-			log_warn "    - Poor quality input reads"
-			log_warn "    - Overly aggressive quality trimming"
-		fi
+		[[ $num_transcripts -lt 1000 ]] && \
+			log_warn "⚠️  Low transcript count ($num_transcripts) - check read depth/quality"
 		
 		# Save basic stats
 		{
@@ -1221,8 +1196,8 @@ trinity_de_novo_alignment_pipeline() {
 			echo "Generated: $(date)"
 		} > "$trinity_out_dir/assembly_summary.txt"
 		
-		# Optional: Remove Trinity intermediate directories if only the assembly is needed
-		log_info "[TRINITY] Cleaning up intermediate files..."
+		# Optional: Clean up intermediate files
+		log_info "[TRINITY] Cleaning up intermediate files"
 		find "$trinity_out_dir" -name "chrysalis" -type d -exec rm -rf {} + 2>/dev/null || true
 		find "$trinity_out_dir" -name "jellyfish.kmers*" -delete 2>/dev/null || true
 	fi
@@ -1295,39 +1270,60 @@ trinity_de_novo_alignment_pipeline() {
 			# Determine if we have paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end reads
-				log_info "[TRINITY QUANT] Using paired-end reads for $SRR"
-				# Prepare reference only once
+				log_info "[TRINITY QUANT] Quantifying $SRR (paired-end)"
 				local prep_opt=()
-				if [[ ! -f "$prep_flag" ]]; then prep_opt=(--prep_reference); fi
-				run_with_space_time_log \
-					align_and_estimate_abundance.pl \
-						--transcripts "$trinity_ref" \
-						--seqType fq \
-						--left "$trimmed1" \
-						--right "$trimmed2" \
-						--est_method RSEM \
-						--aln_method bowtie2 \
-						--trinity_mode \
-						${prep_opt[@]} \
-						--thread_count "$THREADS" \
-						--output_dir "$abundance_dir"
+				[[ ! -f "$prep_flag" ]] && prep_opt=(--prep_reference)
+				
+				# Build RSEM command with optional strand-specific parameter
+				local rsem_cmd=(align_and_estimate_abundance.pl
+					--transcripts "$trinity_ref"
+					--seqType fq
+					--left "$trimmed1"
+					--right "$trimmed2"
+					--est_method RSEM
+					--aln_method bowtie2
+					--trinity_mode
+					"${prep_opt[@]}"
+					--thread_count "$THREADS"
+					--output_dir "$abundance_dir")
+				
+				# Add strand-specific parameter for RSEM if specified
+				# Trinity strand -> RSEM strand mapping:
+				# Trinity FR -> RSEM forward, Trinity RF -> RSEM reverse
+				if [[ "$trinity_strand" == "RF" ]]; then
+					rsem_cmd+=(--SS_lib_type reverse)
+					log_info "[TRINITY QUANT] Using reverse-stranded protocol"
+				elif [[ "$trinity_strand" == "FR" ]]; then
+					rsem_cmd+=(--SS_lib_type forward)
+					log_info "[TRINITY QUANT] Using forward-stranded protocol"
+				fi
+				
+				run_with_space_time_log "${rsem_cmd[@]}"
 			else
 				# Single-end reads
-				log_info "[TRINITY QUANT] Using single-end reads for $SRR"
-				# Prepare reference only once
+				log_info "[TRINITY QUANT] Quantifying $SRR (single-end)"
 				local prep_opt=()
-				if [[ ! -f "$prep_flag" ]]; then prep_opt=(--prep_reference); fi
-				run_with_space_time_log \
-					align_and_estimate_abundance.pl \
-						--transcripts "$trinity_ref" \
-						--seqType fq \
-						--single "$trimmed1" \
-						--est_method RSEM \
-						--aln_method bowtie2 \
-						--trinity_mode \
-						${prep_opt[@]} \
-						--thread_count "$THREADS" \
-						--output_dir "$abundance_dir"
+				[[ ! -f "$prep_flag" ]] && prep_opt=(--prep_reference)
+				
+				local rsem_cmd=(align_and_estimate_abundance.pl
+					--transcripts "$trinity_ref"
+					--seqType fq
+					--single "$trimmed1"
+					--est_method RSEM
+					--aln_method bowtie2
+					--trinity_mode
+					"${prep_opt[@]}"
+					--thread_count "$THREADS"
+					--output_dir "$abundance_dir")
+				
+				# Add strand parameter for single-end if specified
+				if [[ "$trinity_strand" == "F" ]]; then
+					rsem_cmd+=(--SS_lib_type forward)
+				elif [[ "$trinity_strand" == "R" ]]; then
+					rsem_cmd+=(--SS_lib_type reverse)
+				fi
+				
+				run_with_space_time_log "${rsem_cmd[@]}"
 			fi
 			
 			# Validate RSEM output
@@ -1337,31 +1333,16 @@ trinity_de_novo_alignment_pipeline() {
 				local highly_expressed=$(awk 'NR>1 && $5>100' "$abundance_dir/RSEM.genes.results" | wc -l)
 				local total_counts=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$abundance_dir/RSEM.genes.results")
 				
-				log_info "[TRINITY QUANT] RSEM quantification completed for $SRR:"
-				log_info "  - Total genes: $gene_count"
-				log_info "  - Expressed genes (count>0): $expressed_genes"
-				log_info "  - Highly expressed (count>100): $highly_expressed"
-				log_info "  - Total read counts: $total_counts"
+				log_info "[TRINITY QUANT] $SRR: $expressed_genes/$gene_count expressed, $total_counts total counts"
 				
 				# Quality checks
-				if [[ $expressed_genes -lt $((gene_count / 10)) ]]; then
-					log_warn "⚠️  Low expression: Only $expressed_genes of $gene_count genes expressed"
-					log_warn "    This may indicate:"
-					log_warn "    - Poor quality reads"
-					log_warn "    - Mismatch between assembly and RNA-seq samples"
-					log_warn "    - Technical issues during library preparation"
-				fi
+				[[ $expressed_genes -lt $((gene_count / 10)) ]] && \
+					log_warn "⚠️  Low expression for $SRR: $expressed_genes/$gene_count genes"
 				
-				if [[ $total_counts -lt 500000 ]]; then
-					log_warn "⚠️  Low total read counts: $total_counts"
-					log_warn "    Expected: >1M reads for robust quantification"
-					log_warn "    Consider checking:"
-					log_warn "    - Input FASTQ file quality and size"
-					log_warn "    - Alignment parameters"
-					log_warn "    - Potential technical failures"
-				fi
+				[[ $total_counts -lt 500000 ]] && \
+					log_warn "⚠️  Low counts for $SRR: $total_counts (expected >1M)"
 				
-				# Mark reference as prepared after first successful run
+				# Mark reference as prepared
 				if [[ ! -f "$prep_flag" ]]; then
 					mkdir -p "$(dirname "$prep_flag")"
 					touch "$prep_flag"
@@ -1372,78 +1353,60 @@ trinity_de_novo_alignment_pipeline() {
 			fi
 		fi
 
-	# Convert Trinity abundance to StringTie format for DeSeq2 compatibility
-	# Match the folder structure expected by d_stringtie_to_deseq2_m3.R:
-	# 5_stringtie_WD/a_Method_3_RAW_RESULTs/<fasta_tag>/<SRR>/<SRR>_<fasta_tag>_trinity_gene_abundances.tsv
-	local out_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/a_Method_3_RAW_RESULTs/$fasta_tag/$SRR"
-	local out_gtf="$out_dir/${SRR}_${fasta_tag}_trinity_stringtie_quantified.gtf"
-	local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
-	mkdir -p "$out_dir"
-	
-	if [[ -f "$out_gene_abundances_tsv" ]]; then
-		log_info "[TRINITY QUANT] Gene abundance file for Trinity assembly of $fasta_tag/$SRR already exists. Skipping."
-	else
-		log_info "[TRINITY QUANT] Converting Trinity abundance to StringTie format for $fasta_tag with $SRR..."
+		# Convert Trinity abundance to StringTie format for DeSeq2 compatibility
+		local out_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/a_Method_3_RAW_RESULTs/$fasta_tag/$SRR"
+		local out_gtf="$out_dir/${SRR}_${fasta_tag}_trinity_stringtie_quantified.gtf"
+		local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
+		mkdir -p "$out_dir"
 		
-		# Convert RSEM results to StringTie-like format with proper column headers
-		if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
-			# Create gene abundance file compatible with d_stringtie_to_deseq2_m3.R
-			# RSEM columns: gene_id, transcript_id(s), length, effective_length, expected_count, TPM, FPKM
-			# Column 5 = expected_count (use this as num_reads for DESeq2)
-			# Column 6 = TPM
-			# Column 7 = FPKM
-			awk 'BEGIN{OFS="\t"; print "gene_id\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM\tnum_reads"} 
-				 NR>1{print $1, $1, "trinity", ".", "1", "1000", $5, $7, $6, int($5 + 0.5)}' \
-				 "$abundance_dir/RSEM.genes.results" > "$out_gene_abundances_tsv"
-			
-			# Create a basic GTF file for compatibility
-			awk 'NR>1{print "trinity\tRSEM\tgene\t1\t1000\t.\t.\t.\tgene_id \"" $1 "\"; transcript_id \"" $1 "\"; FPKM \"" $7 "\"; TPM \"" $6 "\"; expected_count \"" $5 "\";"}' \
-				 "$abundance_dir/RSEM.genes.results" > "$out_gtf"
-			
-			# Log conversion statistics
-			local total_genes=$(awk 'NR>1' "$abundance_dir/RSEM.genes.results" | wc -l)
-			local expressed_genes=$(awk 'NR>1 && $5>1' "$abundance_dir/RSEM.genes.results" | wc -l)
-			log_info "[TRINITY QUANT] Converted $total_genes genes ($expressed_genes with >1 count) to StringTie format"
+		if [[ -f "$out_gene_abundances_tsv" ]]; then
+			log_info "[TRINITY QUANT] Gene abundance file for $fasta_tag/$SRR exists - skipping"
 		else
-		log_warn "RSEM results not found for $SRR. Creating empty abundance files."
-		echo -e "gene_id\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM\tnum_reads" > "$out_gene_abundances_tsv"
-		touch "$out_gtf"
-	fi
-	fi
-	
-	log_info "[TRINITY QUANT] Done processing Trinity assembly of $fasta_tag with $SRR."
-log_info "--------------------------------------------------"
-done
+			log_info "[TRINITY QUANT] Converting RSEM to StringTie format: $SRR"
+			
+			# Convert RSEM results to StringTie-like format
+			if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
+				# RSEM cols: gene_id, transcript_id(s), length, effective_length, expected_count, TPM, FPKM
+				# CRITICAL: Use expected_count directly without rounding - preserve fractional counts
+				# Rounding introduces bias and loses statistical precision for lowly expressed genes
+				awk 'BEGIN{OFS="\t"; print "gene_id\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM\tnum_reads"} 
+					 NR>1{print $1, $1, "trinity", ".", "1", "1000", $5, $7, $6, $5}' \
+					 "$abundance_dir/RSEM.genes.results" > "$out_gene_abundances_tsv"
+				
+				# Create basic GTF for compatibility
+				awk 'NR>1{print "trinity\tRSEM\tgene\t1\t1000\t.\t.\t.\tgene_id \"" $1 "\"; transcript_id \"" $1 "\"; FPKM \"" $7 "\"; TPM \"" $6 "\"; expected_count \"" $5 "\";"}' \
+					 "$abundance_dir/RSEM.genes.results" > "$out_gtf"
+				
+				local total_genes=$(awk 'NR>1' "$abundance_dir/RSEM.genes.results" | wc -l)
+				local expressed_genes=$(awk 'NR>1 && $5>1' "$abundance_dir/RSEM.genes.results" | wc -l)
+				log_info "[TRINITY QUANT] Converted $total_genes genes ($expressed_genes with >1 count)"
+			else
+				log_warn "RSEM results not found for $SRR - creating empty files"
+				echo -e "gene_id\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM\tnum_reads" > "$out_gene_abundances_tsv"
+				touch "$out_gtf"
+			fi
+		fi
+	done
 
 
 # STEP 3: PREPARE DESEQ2 INPUT FILES
 	log_step "Preparing count matrices for DESeq2 (Trinity)"
 	
-	# Match folder structure: 5_stringtie_WD/a_Method_3_RAW_RESULTs/<fasta_tag>/<SRR>/
+	# Actual folder structure: 4c_Method_3_Trinity_De_Novo/6_matrices_from_stringtie/
 	local stringtie_results_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/a_Method_3_RAW_RESULTs"
-	local deseq2_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/../7_DESeq2_input"
-	local gene_count_matrix="$deseq2_dir/gene_count_matrix_${fasta_tag}.tsv"
-	local sample_metadata="$deseq2_dir/sample_info.tsv"
-	mkdir -p "$deseq2_dir"
+	local method3_root="${TRINITY_DE_NOVO_ROOT%/*}"  # 4c_Method_3_Trinity_De_Novo
+	local matrix_dir="$method3_root/6_matrices_from_stringtie"
+	local gene_count_matrix="$matrix_dir/gene_count_matrix_${fasta_tag}.tsv"
+	local sample_metadata="$matrix_dir/sample_info.tsv"
+	mkdir -p "$matrix_dir"
 	
 	# Check if count matrix already exists
 	if [[ -f "$gene_count_matrix" ]]; then
-		log_info "[MATRIX] Count matrix for $fasta_tag (Trinity) already exists. Skipping."
+		log_info "[MATRIX] Trinity count matrix exists - skipping"
 	else
-		log_info "[MATRIX] Creating count matrix from Trinity RSEM abundance estimates..."
-		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-		log_warn "⚠️  CRITICAL: Using RSEM expected_count for Trinity quantifications"
-		log_warn "    - These are statistically estimated counts, not raw read counts"
-		log_warn "    - Expected counts may violate DESeq2's negative binomial assumptions"
-		log_warn ""
-		log_warn "📊 RECOMMENDED APPROACH FOR PUBLICATION:"
-		log_warn "    1. Use tximport in R with RSEM outputs (BEST - handles uncertainty)"
-		log_warn "    2. A tximport R script has been generated for you"
-		log_warn "    3. OR: Use HISAT2 Reference-Guided method instead (true counts)"
-		log_warn ""
-		log_warn "⚡ Quick Fix: After this pipeline completes, run:"
-		log_warn "    Rscript $deseq2_dir/run_tximport_trinity.R"
-		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+		log_info "[MATRIX] Creating count matrix from RSEM expected_count values"
+		log_warn "⚠️  Using RSEM expected_count (estimated) - consider tximport for better stats"
+		log_warn "   Recommended: Rscript $deseq2_dir/run_tximport_trinity.R"
 		
 		# Create count matrix from RSEM expected_count values
 		local temp_gene_matrix="$deseq2_dir/temp_gene_ids.txt"
@@ -1466,16 +1429,15 @@ done
 		done
 		
 		if [[ -z "$first_sample" ]]; then
-			log_error "No RSEM results found for any sample. Cannot create count matrix."
-			log_error "Searched in: $stringtie_results_dir/$fasta_tag/*/"
+			log_error "No RSEM results found - cannot create count matrix"
 			return 1
 		fi
 		
 		if [[ $samples_found -lt 2 ]]; then
-			log_error "Insufficient samples for count matrix (found: $samples_found, need: ≥2)"
+			log_error "Insufficient samples: $samples_found (need ≥2)"
 			return 1
 		fi
-		log_info "[MATRIX] Found $samples_found samples with RSEM quantifications"
+		log_info "[MATRIX] Processing $samples_found samples"
 		
 		# Extract expected counts (num_reads column) for each sample
 		for SRR in "${rnaseq_list[@]}"; do
@@ -1487,14 +1449,9 @@ done
 				# Validate count quality
 				local total_counts=$(awk '{sum+=$1} END {print sum}' "$deseq2_dir/${SRR}_counts.tmp")
 				local num_expressed=$(awk '$1>0 {count++} END {print count}' "$deseq2_dir/${SRR}_counts.tmp")
-				if [[ $total_counts -lt 100000 ]]; then
-					log_warn "Low count total for $SRR: $total_counts (expected >1M for typical RNA-seq)"
-				else
-					log_info "[MATRIX] Extracted counts for $SRR: $total_counts total, $num_expressed expressed genes"
-				fi
+				[[ $total_counts -lt 100000 ]] && log_warn "Low counts for $SRR: $total_counts (expected >1M)"
 			else
-				log_warn "RSEM results not found for $SRR at: $abundance_file"
-				log_warn "Using zeros for this sample."
+				log_warn "RSEM results not found for $SRR - using zeros"
 				local num_genes=$(wc -l < "$temp_gene_matrix")
 				yes 0 | head -n "$num_genes" > "$deseq2_dir/${SRR}_counts.tmp"
 			fi
@@ -1525,7 +1482,7 @@ done
 	fi
 	
 	# Generate tximport R script for proper RSEM import
-	local tximport_script="$deseq2_dir/run_tximport_trinity.R"
+	local tximport_script="$matrix_dir/run_tximport_trinity.R"
 	if [[ ! -f "$tximport_script" ]]; then
 		generate_tximport_script "rsem" "$TRINITY_DE_NOVO_ROOT/${fasta_tag}_alignment" "$tximport_script" "$sample_metadata"
 		log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -1543,17 +1500,16 @@ done
 	# STEP 4: POST-PROCESSING - GENERATE VISUALIZATIONS
 	log_step "Post-processing: Generating visualizations (heatmaps and bar graphs)"
 	
-	# Check if Method 3 post-processing scripts exist
-	local method3_dir="$TRINITY_DE_NOVO_ROOT/.."  # Navigate to 4c_Method_3_Trinity_De_Novo
-	local heatmap_basic_script="$method3_dir/b_modules_for_Method_3/b_make_heatmap_of_matrices.R"
-	local heatmap_cv_script="$method3_dir/b_modules_for_Method_3/c_make_heatmap_with_CV_of_matrices.R"
-	local bargraph_script="$method3_dir/b_modules_for_Method_3/d_make_BarGraph_of_matrices.R"
-	local gene_groups_dir="$method3_dir/a_gene_groups_input_list"
+	# Use actual folder structure from 4c_Method_3_Trinity_De_Novo
+	local heatmap_basic_script="$method3_root/b_modules_for_Method_3/b_make_heatmap_of_matrices.R"
+	local heatmap_cv_script="$method3_root/b_modules_for_Method_3/c_make_heatmap_with_CV_of_matrices.R"
+	local bargraph_script="$method3_root/b_modules_for_Method_3/d_make_BarGraph_of_matrices.R"
+	local gene_groups_dir="$method3_root/a_gene_groups_input_list"
 	
-	# Create output directories for visualizations
-	mkdir -p "$method3_dir/7_Heatmap_Outputs/I_Basic_Heatmap"
-	mkdir -p "$method3_dir/7_Heatmap_Outputs/II_Heatmap_with_CV"
-	mkdir -p "$method3_dir/7_Heatmap_Outputs/III_Bar_Graphs"
+	# Create output directories matching actual structure
+	mkdir -p "$method3_root/7_Heatmap_Outputs/I_Basic_Heatmap"
+	mkdir -p "$method3_root/7_Heatmap_Outputs/II_Heatmap_with_CV"
+	mkdir -p "$method3_root/7_Heatmap_Outputs/III_Bar_Graphs"
 	
 	if [[ -f "$heatmap_basic_script" && -f "$sample_metadata" && -f "$gene_count_matrix" ]]; then
 		log_info "[VISUALIZATION] Checking for gene group files to process..."
@@ -1583,7 +1539,7 @@ done
 				if [[ -f "$heatmap_basic_script" ]]; then
 					log_info "[VISUALIZATION] Generating basic heatmap for $group_name..."
 					if Rscript --vanilla "$heatmap_basic_script" \
-						-d "$method3_dir" \
+						-d "$method3_root" \
 						-f "$fasta_tag" \
 						-c "counts" \
 						-g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"; then
@@ -1597,7 +1553,7 @@ done
 				if [[ -f "$heatmap_cv_script" ]]; then
 					log_info "[VISUALIZATION] Generating CV heatmap for $group_name..."
 					if Rscript --vanilla "$heatmap_cv_script" \
-						-d "$method3_dir" \
+						-d "$method3_root" \
 						-f "$fasta_tag" \
 						-c "counts" \
 						-g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"; then
@@ -1611,7 +1567,7 @@ done
 				if [[ -f "$bargraph_script" ]]; then
 					log_info "[VISUALIZATION] Generating bar graphs for $group_name..."
 					if Rscript --vanilla "$bargraph_script" \
-						-d "$method3_dir" \
+						-d "$method3_root" \
 						-f "$fasta_tag" \
 						-c "counts" \
 						-g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"; then
@@ -1624,9 +1580,9 @@ done
 			
 			log_info "[VISUALIZATION] All visualizations completed"
 			log_info "[VISUALIZATION] Check output directories:"
-			log_info "  - Basic heatmaps: $method3_dir/7_Heatmap_Outputs/I_Basic_Heatmap"
-			log_info "  - CV heatmaps: $method3_dir/7_Heatmap_Outputs/II_Heatmap_with_CV"
-			log_info "  - Bar graphs: $method3_dir/7_Heatmap_Outputs/III_Bar_Graphs"
+			log_info "  - Basic heatmaps: $method3_root/7_Heatmap_Outputs/I_Basic_Heatmap"
+			log_info "  - CV heatmaps: $method3_root/7_Heatmap_Outputs/II_Heatmap_with_CV"
+			log_info "  - Bar graphs: $method3_root/7_Heatmap_Outputs/III_Bar_Graphs"
 		fi
 	else
 		log_warn "[VISUALIZATION] Skipping visualization generation:"
@@ -1639,6 +1595,7 @@ done
 	log_info "Trinity assembly: $trinity_fasta"
 	log_info "Abundance estimates in: $TRINITY_DE_NOVO_ROOT/${fasta_tag}_alignment/*/trinity_abundance_*/"
 	log_info "StringTie-compatible results: $stringtie_results_dir/$fasta_tag/"
+	log_info "Count matrices: $matrix_dir/"
 	log_info "DESeq2 input files:"
 	log_info "  - Gene count matrix: $gene_count_matrix"
 	log_info "  - Sample metadata: $sample_metadata"
@@ -2025,7 +1982,7 @@ bowtie2_rsem_pipeline() {
 
     [[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa"; return 1; }
     [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
-	dos2unix $fasta
+	dos2unix "$fasta"
 
     local tag="$(basename "${fasta%.*}")"
     local rsem_idx="$RSEM_INDEX_ROOT/${tag}_rsem"
