@@ -1333,6 +1333,7 @@ trinity_de_novo_alignment_pipeline() {
 	
 	# Create parallel quantification function
 	quantify_sample() {
+		set +e  # Disable exit on error for this function
 		local SRR="$1"
 		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
 		local trimmed1="" trimmed2=""
@@ -1357,11 +1358,16 @@ trinity_de_novo_alignment_pipeline() {
 			trimmed1="${files[0]}"
 		fi
 		
-		[[ -z "$trimmed1" ]] && { echo "[WARN] No trimmed reads for $SRR - skipping"; return 0; }
+		if [[ -z "$trimmed1" ]]; then
+			echo "[WARN] No trimmed reads for $SRR - skipping"
+			set -e
+			return 0
+		fi
 		
 		local quant_dir="$quant_root/$SRR"
 		if [[ -f "$quant_dir/quant.sf" ]]; then
 			echo "[SALMON] Quantification for $SRR exists - skipping"
+			set -e
 			return 0
 		fi
 		
@@ -1391,18 +1397,22 @@ trinity_de_novo_alignment_pipeline() {
 			esac
 		fi
 		
-		# Run Salmon
+		# Run Salmon and capture exit code
 		eval $salmon_cmd 2>&1
+		local salmon_exit=$?
 		
 		# Validate output
-		if [[ -f "$quant_dir/quant.sf" ]]; then
+		if [[ -f "$quant_dir/quant.sf" && $salmon_exit -eq 0 ]]; then
 			local num_transcripts=$(tail -n +2 "$quant_dir/quant.sf" | wc -l)
 			local expressed=$(awk 'NR>1 && $5>0' "$quant_dir/quant.sf" | wc -l)
 			local total_reads=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$quant_dir/quant.sf")
 			echo "[SALMON] $SRR: $expressed/$num_transcripts expressed, $total_reads total counts"
 			[[ $total_reads -lt 500000 ]] && echo "[WARN] Low counts: $total_reads (expected >1M)"
+			set -e
+			return 0
 		else
-			echo "[ERROR] Salmon quantification failed for $SRR"
+			echo "[ERROR] Salmon quantification failed for $SRR (exit code: $salmon_exit)"
+			set -e
 			return 1
 		fi
 	}
@@ -1410,13 +1420,25 @@ trinity_de_novo_alignment_pipeline() {
 	
 	# Run parallel quantification (2 samples at a time to balance I/O and compute)
 	if command -v parallel >/dev/null 2>&1; then
-		printf "%s\n" "${rnaseq_list[@]}" | parallel -j 2 --line-buffer quantify_sample {} 2>&1 | tee -a "$LOG_FILE"
+		printf "%s\n" "${rnaseq_list[@]}" | parallel -j 2 --line-buffer --halt soon,fail=1 quantify_sample {} 2>&1 | tee -a "$LOG_FILE" || {
+			local parallel_exit=$?
+			log_error "[SALMON] Parallel quantification failed with exit code: $parallel_exit"
+			return 1
+		}
 		log_info "[SALMON] Parallel quantification completed"
 	else
 		log_warn "[SALMON] GNU parallel not found, falling back to sequential processing"
+		local failed_samples=0
 		for SRR in "${rnaseq_list[@]}"; do
-			quantify_sample "$SRR" 2>&1 | tee -a "$LOG_FILE"
+			if ! quantify_sample "$SRR" 2>&1 | tee -a "$LOG_FILE"; then
+				log_error "[SALMON] Quantification failed for $SRR"
+				((failed_samples++))
+			fi
 		done
+		if [[ $failed_samples -gt 0 ]]; then
+			log_error "[SALMON] $failed_samples sample(s) failed during quantification"
+			return 1
+		fi
 	fi
 
 

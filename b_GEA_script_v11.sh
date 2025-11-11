@@ -19,7 +19,7 @@ eval "$(conda shell.bash hook)"
 # Activate conda environment
 conda activate GEA_ENV
 
-find . -type f \( -name "*.txt" -o -name "*.sh" -o -name "*.fasta" -o -name "*.fa" -o -name "*.py" -o -name "*.R" \) -exec dos2unix {} +
+find . -type f \( -name "*.txt" -o -name "*.sh" -o -name "*.fasta" -o -name "*.py" -o -name "*.R" \) -exec dos2unix {} +
 find . -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" \) -exec chmod +x {} +
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
