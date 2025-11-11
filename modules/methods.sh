@@ -968,6 +968,15 @@ trinity_tissue_specific_pipeline() {
 #
 trinity_de_novo_alignment_pipeline() {
 	local fasta="" rnaseq_list=() tissue_tag=""
+	
+	# Check for GNU parallel and warn if not available
+	if ! command -v parallel >/dev/null 2>&1; then
+		log_warn "[PERFORMANCE] GNU parallel not found - Salmon quantification will run sequentially"
+		log_warn "[PERFORMANCE] Install with: sudo apt-get install parallel (Ubuntu/Debian)"
+		log_warn "[PERFORMANCE] Or: brew install parallel (macOS)"
+		log_warn "[PERFORMANCE] Parallel processing can speed up quantification by 2-4x"
+	fi
+	
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--FASTA) fasta="$2"; shift 2;;
@@ -1021,6 +1030,11 @@ trinity_de_novo_alignment_pipeline() {
 	# For strand-specific libraries (set based on your protocol):
 	# --SS_lib_type RF (dUTP/NSR/NNSR), FR (Ligation), F/R (single-end)
 	local trinity_strand="${TRINITY_STRAND_SPECIFIC:-}"  # Leave empty for unstranded
+	
+	# Trinity parallelization settings
+	local trinity_bfly_cpu=$((THREADS / 4))
+	[[ $trinity_bfly_cpu -lt 1 ]] && trinity_bfly_cpu=1
+	log_info "[TRINITY] CPU allocation: Total=$THREADS, Butterfly=$trinity_bfly_cpu"
 
 	# STEP 1: DE NOVO TRANSCRIPTOME ASSEMBLY WITH TRINITY
 	log_step "Trinity de novo transcriptome assembly for $fasta_tag"
@@ -1113,7 +1127,9 @@ trinity_de_novo_alignment_pipeline() {
 					--left "$left_files" 
 					--right "$right_files" 
 					--single "$single_files"
-					--CPU "$THREADS" 
+					--CPU "$THREADS"
+					--bflyCalculateCPU
+					--bflyCPU "$trinity_bfly_cpu"
 					--max_memory "$trinity_max_memory"
 					--output "$trinity_out_dir"
 					--min_contig_length "$trinity_min_contig_length"
@@ -1135,7 +1151,9 @@ trinity_de_novo_alignment_pipeline() {
 				local trinity_cmd=(Trinity --seqType fq 
 					--left "$left_files" 
 					--right "$right_files"
-					--CPU "$THREADS" 
+					--CPU "$THREADS"
+					--bflyCalculateCPU
+					--bflyCPU "$trinity_bfly_cpu"
 					--max_memory "$trinity_max_memory"
 					--output "$trinity_out_dir"
 					--min_contig_length "$trinity_min_contig_length"
@@ -1154,7 +1172,9 @@ trinity_de_novo_alignment_pipeline() {
 			
 			local trinity_cmd=(Trinity --seqType fq 
 				--single "$single_files"
-				--CPU "$THREADS" 
+				--CPU "$THREADS"
+				--bflyCalculateCPU
+				--bflyCPU "$trinity_bfly_cpu"
 				--max_memory "$trinity_max_memory"
 				--output "$trinity_out_dir"
 				--min_contig_length "$trinity_min_contig_length"
@@ -1304,8 +1324,16 @@ trinity_de_novo_alignment_pipeline() {
 		run_with_space_time_log salmon index -t "$trinity_ref" -i "$salmon_idx" -k 31 --threads "$THREADS"
 	fi
 	
-	# Quantify each sample with Salmon
-	for SRR in "${rnaseq_list[@]}"; do
+	# Quantify each sample with Salmon using GNU parallel
+	log_info "[SALMON] Starting parallel quantification for ${#rnaseq_list[@]} samples"
+	
+	# Export required variables for parallel execution
+	export salmon_idx quant_root TRIM_DIR_ROOT THREADS trinity_strand LOG_FILE
+	export -f log_info log_warn log_error log_step run_with_space_time_log
+	
+	# Create parallel quantification function
+	quantify_sample() {
+		local SRR="$1"
 		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
 		local trimmed1="" trimmed2=""
 		
@@ -1329,49 +1357,67 @@ trinity_de_novo_alignment_pipeline() {
 			trimmed1="${files[0]}"
 		fi
 		
-		[[ -z "$trimmed1" ]] && { log_warn "No trimmed reads for $SRR - skipping"; continue; }
+		[[ -z "$trimmed1" ]] && { echo "[WARN] No trimmed reads for $SRR - skipping"; return 0; }
 		
 		local quant_dir="$quant_root/$SRR"
 		if [[ -f "$quant_dir/quant.sf" ]]; then
-			log_info "[SALMON] Quantification for $SRR exists - skipping"
-			continue
+			echo "[SALMON] Quantification for $SRR exists - skipping"
+			return 0
 		fi
 		
-		log_step "Salmon quantification: $SRR"
+		echo "[SALMON] Quantifying: $SRR"
 		mkdir -p "$quant_dir"
 		
-		# Build Salmon command based on read type and strand
-		local salmon_cmd=(salmon quant -i "$salmon_idx" -o "$quant_dir" -p "$THREADS" --validateMappings)
+		# Calculate threads per sample (divide total threads by number of parallel jobs)
+		local threads_per_sample=$((THREADS / 2))
+		[[ $threads_per_sample -lt 1 ]] && threads_per_sample=1
+		
+		# Build Salmon command
+		local salmon_cmd="salmon quant -i $salmon_idx -o $quant_dir -p $threads_per_sample --validateMappings"
 		
 		if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
-			salmon_cmd+=(-l A -1 "$trimmed1" -2 "$trimmed2")
+			salmon_cmd="$salmon_cmd -l A -1 $trimmed1 -2 $trimmed2"
 		else
-			salmon_cmd+=(-l A -r "$trimmed1")
+			salmon_cmd="$salmon_cmd -l A -r $trimmed1"
 		fi
 		
 		# Add strand-specific library type if specified
 		if [[ -n "$trinity_strand" ]]; then
 			case "$trinity_strand" in
-				RF) salmon_cmd=("${salmon_cmd[@]//-l A/-l ISR}") ;;
-				FR) salmon_cmd=("${salmon_cmd[@]//-l A/-l ISF}") ;;
-				F) salmon_cmd=("${salmon_cmd[@]//-l A/-l SF}") ;;
-				R) salmon_cmd=("${salmon_cmd[@]//-l A/-l SR}") ;;
+				RF) salmon_cmd="${salmon_cmd// -l A/ -l ISR}" ;;
+				FR) salmon_cmd="${salmon_cmd// -l A/ -l ISF}" ;;
+				F) salmon_cmd="${salmon_cmd// -l A/ -l SF}" ;;
+				R) salmon_cmd="${salmon_cmd// -l A/ -l SR}" ;;
 			esac
 		fi
 		
-		run_with_space_time_log "${salmon_cmd[@]}"
+		# Run Salmon
+		eval $salmon_cmd 2>&1
 		
 		# Validate output
 		if [[ -f "$quant_dir/quant.sf" ]]; then
 			local num_transcripts=$(tail -n +2 "$quant_dir/quant.sf" | wc -l)
 			local expressed=$(awk 'NR>1 && $5>0' "$quant_dir/quant.sf" | wc -l)
 			local total_reads=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$quant_dir/quant.sf")
-			log_info "[SALMON] $SRR: $expressed/$num_transcripts expressed, $total_reads total counts"
-			[[ $total_reads -lt 500000 ]] && log_warn "Low counts: $total_reads (expected >1M)"
+			echo "[SALMON] $SRR: $expressed/$num_transcripts expressed, $total_reads total counts"
+			[[ $total_reads -lt 500000 ]] && echo "[WARN] Low counts: $total_reads (expected >1M)"
 		else
-			log_error "Salmon quantification failed for $SRR"
+			echo "[ERROR] Salmon quantification failed for $SRR"
+			return 1
 		fi
-	done
+	}
+	export -f quantify_sample
+	
+	# Run parallel quantification (2 samples at a time to balance I/O and compute)
+	if command -v parallel >/dev/null 2>&1; then
+		printf "%s\n" "${rnaseq_list[@]}" | parallel -j 2 --line-buffer quantify_sample {} 2>&1 | tee -a "$LOG_FILE"
+		log_info "[SALMON] Parallel quantification completed"
+	else
+		log_warn "[SALMON] GNU parallel not found, falling back to sequential processing"
+		for SRR in "${rnaseq_list[@]}"; do
+			quantify_sample "$SRR" 2>&1 | tee -a "$LOG_FILE"
+		done
+	fi
 
 
 	# STEP 3: PREPARE TXIMPORT FILES FOR DESEQ2
