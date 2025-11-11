@@ -24,9 +24,9 @@ dos2unix ./*.sh
 log_step "Executing main GEA pipeline script"
 #run_with_space_time_log ./b_GEA_script_v11.sh
 
-log_step "Creating compressed archive for folders: 4_POST_PROCESSING and logs"
+log_step "Creating compressed archive for folders: 4_POST_PROCESSING, 4_OUTPUTS, and logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-tar -czf "CMSC244_${TIMESTAMP}.tar.gz" 4_POST_PROCESSING logs
+tar -czf "CMSC244_${TIMESTAMP}.tar.gz" 4_POST_PROCESSING 4_OUTPUTS logs
 log_info "Archive created: CMSC244_${TIMESTAMP}.tar.gz"
 
 log_info "Pipeline execution completed successfully"
