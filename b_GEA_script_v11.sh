@@ -14,7 +14,8 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #source "modules/all_functions.sh"
-source "modules/utils.sh"
+source "modules/logging_utils.sh"
+source "modules/pipeline_utils.sh"
 source "modules/methods.sh"
 
 # ============================================================================== 
@@ -22,27 +23,30 @@ source "modules/methods.sh"
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=32                               # Number of threads to use for parallel operations
-JOBS=4                                  # Number of parallel jobs for GNU Parallel 
+THREADS=2                               # Number of threads to use for parallel operations
+JOBS=1                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
 export THREADS JOBS
 
 # Pipeline Control Switches, Quality Control and Analysis Options
-RUN_MAMBA_INSTALLATION=FALSE
-RUN_DOWNLOAD_and_TRIM_SRR=TRUE
-RUN_GZIP_TRIMMED_FILES=TRUE
-RUN_QUALITY_CONTROL=FALSE
-
-# GEA Methods 
-RUN_METHOD_1_HISAT2_REF_GUIDED=FALSE
-RUN_METHOD_2_HISAT2_DE_NOVO=FALSE
-RUN_METHOD_3_TRINITY_DE_NOVO=TRUE
-RUN_METHOD_4_SALMON_SAF=TRUE
-RUN_METHOD_5_BOWTIE2_RSEM=TRUE
-
-RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=FALSE
-RUN_ZIP_RESULTS=FALSE
+# Pipeline Control Switches - Enable/disable pipeline stages
+PIPELINE_STAGES=(
+	#"MAMBA_INSTALLATION"
+	#"DOWNLOAD_and_TRIM_SRR"
+	#"GZIP_TRIMMED_FILES"
+	#"QUALITY_CONTROL"
+	
+	## GEA Methods
+	"METHOD_1_HISAT2_REF_GUIDED"
+	#"METHOD_2_HISAT2_DE_NOVO"
+	#"METHOD_3_TRINITY_DE_NOVO"
+	#"METHOD_4_SALMON_SAF"
+	#"METHOD_5_BOWTIE2_RSEM"
+	
+	#"HEATMAP_WRAPPER_for_HISAT2_DE_NOVO"
+	#"ZIP_RESULTS"
+)
 
 # ==============================================================================
 # INPUT FILES AND DATA SOURCES
@@ -50,8 +54,9 @@ RUN_ZIP_RESULTS=FALSE
 
 # Legacy GTF and FASTA references (commented out)
 #All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
-#Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4.1_transcripts_function.fa"
+Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/Eggplant_V4.1_transcripts.function.fa"
 ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/All_Smel_Genes_Full_Name_reformatted.gtf"
+decoy="0_INPUT_FASTAs/TEST.fasta"
 gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 
 # FASTA Files for Analysis
@@ -84,9 +89,9 @@ SRR_LIST_PRJNA328564=(
 	#SRR3884690	# Stems (vegetative growth)
 	#SRR3884689	# Leaves (vegetative growth)
 	#SRR3884684	# Senescent_leaves (leaf aging)
-	SRR3884686	# Buds_0.7cm (flower bud initiation)/
-	SRR3884687	# Opened_Buds (flower development)/
-	SRR3884597	# Flowers (anthesis)/
+	#SRR3884686	# Buds_0.7cm (flower bud initiation) [MAIN INTEREST]
+	SRR3884687	# Opened_Buds (flower development) 	 [MAIN INTEREST]
+	#SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
 	#SRR3884679	# Pistils (female reproductive parts)
 	#SRR3884608	# Fruits_1cm (early fruit development)
 	#SRR3884620	# Fruits_Stage_1 (early fruit stage)
@@ -96,7 +101,7 @@ SRR_LIST_PRJNA328564=(
 	#SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
 	#SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
 	#SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
-	#RR3884678	# Fruits_peduncle (fruit attachment)
+	#SRR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
@@ -153,23 +158,24 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	"${SRR_LIST_PRJNA328564[@]}"
-	#"${SRR_LIST_SAMN28540077[@]}"
-	#"${SRR_LIST_SAMN28540068[@]}"
-	#"${SRR_LIST_PRJNA865018[@]}"
+	"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
+	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset to increase replicability. 
+	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset to increase replicability. 
+	#"${SRR_LIST_PRJNA865018[@]}"	# Good Dataset for SmelDMP GEA.
 )
 
 # ==============================================================================
 # DIRECTORY STRUCTURE AND OUTPUT PATHS
 # ==============================================================================
 
-# Create required directories
+# Create required directories (including log directories)
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 	"$HISAT2_REF_GUIDED_ROOT" "$HISAT2_REF_GUIDED_INDEX_DIR" "$STRINGTIE_HISAT2_REF_GUIDED_ROOT" \
 	"$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT" \
 	"$TRINITY_DE_NOVO_ROOT" "$STRINGTIE_TRINITY_DE_NOVO_ROOT" \
 	"$SALMON_SAF_ROOT" "$SALMON_INDEX_ROOT" "$SALMON_QUANT_ROOT" "$SALMON_SAF_MATRIX_ROOT" \
-	"$BOWTIE2_RSEM_ROOT" "$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT"
+	"$BOWTIE2_RSEM_ROOT" "$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT" \
+	"logs/log_files" "logs/time_files"
 
 # ==============================================================================
 # CLEANUP OPTIONS AND TESTING ESSENTIALS
@@ -184,6 +190,21 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 # ==============================================================================
 # MAIN EXECUTION FUNCTIONS
 # ==============================================================================
+
+# Convert array to boolean flags for backward compatibility
+RUN_MAMBA_INSTALLATION=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^MAMBA_INSTALLATION$" && echo "TRUE" || echo "FALSE")
+RUN_DOWNLOAD_and_TRIM_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DOWNLOAD_and_TRIM_SRR$" && echo "TRUE" || echo "FALSE")
+RUN_GZIP_TRIMMED_FILES=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^GZIP_TRIMMED_FILES$" && echo "TRUE" || echo "FALSE")
+RUN_QUALITY_CONTROL=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^QUALITY_CONTROL$" && echo "TRUE" || echo "FALSE")
+RUN_METHOD_1_HISAT2_REF_GUIDED=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_1_HISAT2_REF_GUIDED$" && echo "TRUE" || echo "FALSE")
+RUN_METHOD_2_HISAT2_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_2_HISAT2_DE_NOVO$" && echo "TRUE" || echo "FALSE")
+RUN_METHOD_3_TRINITY_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_3_TRINITY_DE_NOVO$" && echo "TRUE" || echo "FALSE")
+RUN_METHOD_4_SALMON_SAF=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_4_SALMON_SAF$" && echo "TRUE" || echo "FALSE")
+RUN_METHOD_5_BOWTIE2_RSEM=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_5_BOWTIE2_RSEM$" && echo "TRUE" || echo "FALSE")
+RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^HEATMAP_WRAPPER_for_HISAT2_DE_NOVO$" && echo "TRUE" || echo "FALSE")
+RUN_ZIP_RESULTS=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^ZIP_RESULTS$" && echo "TRUE" || echo "FALSE")
+
+
 
 run_all() {
 	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
@@ -270,7 +291,7 @@ run_all() {
 	if [[ $RUN_METHOD_4_SALMON_SAF == "TRUE" ]]; then
 		log_step "STEP 04: Salmon SAF Quantification"
 		# Note: Requires genome file for decoy-aware indexing
-		local genome_file="${fasta%.*}_genome.fa"  # Assumes genome file exists
+		local genome_file="$decoy"  # Assumes genome file exists
 		if [[ -f "$genome_file" ]]; then
 			salmon_saf_pipeline \
 				--FASTA "$fasta" --GENOME "$genome_file" --RNASEQ_LIST "${rnaseq_list[@]}"
