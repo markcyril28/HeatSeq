@@ -39,6 +39,18 @@ METHODS_TO_RUN=(
 #       in each method's individual 1_run_Heatmap_Wrapper.sh script
 
 #==================================================================================
+# PARALLEL PROCESSING CONFIGURATION
+#==================================================================================
+
+# Number of threads for multi-threaded operations
+# Number of parallel jobs (set to 1 to disable parallel processing)
+THREADS=32
+JOBS=4
+# Use GNU Parallel for method execution (true/false)
+USE_PARALLEL=true
+
+
+#==================================================================================
 
 # Initialize conda for bash
 eval "$(conda shell.bash hook)"
@@ -62,6 +74,11 @@ setup_logging
 
 log_step "Starting Post-Processing for All Methods"
 log_info "Methods to run: ${METHODS_TO_RUN[*]}"
+log_info "Threads: $THREADS | Jobs: $JOBS | Parallel: $USE_PARALLEL"
+
+# Export variables for child processes
+export THREADS
+export JOBS
 
 # Helper function to check if method should run
 should_run_method() {
@@ -74,44 +91,50 @@ should_run_method() {
     return 1
 }
 
-if should_run_method "METHOD_1"; then
-    log_step "RUNNING METHOD 1 POST-PROCESSING"
-    pushd 4a_Method_1_HISAT2_Ref_Guided > /dev/null
-    run_with_space_time_log bash 1_run_Heatmap_Wrapper.sh
-    popd > /dev/null
-    log_info "METHOD 1 POST-PROCESSING COMPLETE"
-else
-    log_info "METHOD 1 POST-PROCESSING SKIPPED"
-fi
+# Function to run a single method
+run_method() {
+    local method_num=$1
+    local method_name=$2
+    local method_dir=$3
+    
+    if should_run_method "METHOD_$method_num"; then
+        log_step "RUNNING METHOD $method_num POST-PROCESSING ($method_name)"
+        pushd "$method_dir" > /dev/null
+        run_with_space_time_log bash 1_run_Heatmap_Wrapper.sh
+        popd > /dev/null
+        log_info "METHOD $method_num POST-PROCESSING COMPLETE"
+    else
+        log_info "METHOD $method_num POST-PROCESSING SKIPPED"
+    fi
+}
 
-if should_run_method "METHOD_3"; then
-    log_step "RUNNING METHOD 3 POST-PROCESSING"
-    pushd 4c_Method_3_Trinity_De_Novo > /dev/null
-    run_with_space_time_log bash 1_run_Heatmap_Wrapper.sh
-    popd > /dev/null
-    log_info "METHOD 3 POST-PROCESSING COMPLETE"
+# Run methods based on parallel configuration
+if [ "$USE_PARALLEL" = true ] && [ "$JOBS" -gt 1 ] && command -v parallel &> /dev/null; then
+    log_info "Using GNU Parallel with $JOBS jobs"
+    
+    # Build list of methods to run
+    METHODS_LIST=()
+    should_run_method "METHOD_1" && METHODS_LIST+=("1:HISAT2_Ref_Guided:4a_Method_1_HISAT2_Ref_Guided")
+    should_run_method "METHOD_3" && METHODS_LIST+=("3:Trinity_De_Novo:4c_Method_3_Trinity_De_Novo")
+    should_run_method "METHOD_4" && METHODS_LIST+=("4:Salmon_Saf:4d_Method_4_Salmon_Saf_Quantification")
+    should_run_method "METHOD_5" && METHODS_LIST+=("5:Bowtie2:4e_Method_5_Bowtie2_Quantification")
+    
+    # Export function for parallel
+    export -f run_method
+    export -f should_run_method
+    export -f log_step
+    export -f log_info
+    export -f run_with_space_time_log
+    
+    # Run in parallel
+    printf '%s\n' "${METHODS_LIST[@]}" | parallel -j "$JOBS" --colsep ':' run_method {1} {2} {3}
 else
-    log_info "METHOD 3 POST-PROCESSING SKIPPED"
-fi
-
-if should_run_method "METHOD_4"; then
-    log_step "RUNNING METHOD 4 POST-PROCESSING"
-    pushd 4d_Method_4_Salmon_Saf_Quantification > /dev/null
-    run_with_space_time_log bash 1_run_Heatmap_Wrapper.sh
-    popd > /dev/null
-    log_info "METHOD 4 POST-PROCESSING COMPLETE"
-else
-    log_info "METHOD 4 POST-PROCESSING SKIPPED"
-fi
-
-if should_run_method "METHOD_5"; then
-    log_step "RUNNING METHOD 5 POST-PROCESSING"
-    pushd 4e_Method_5_Bowtie2_Quantification > /dev/null
-    run_with_space_time_log bash 1_run_Heatmap_Wrapper.sh
-    popd > /dev/null
-    log_info "METHOD 5 POST-PROCESSING COMPLETE"
-else
-    log_info "METHOD 5 POST-PROCESSING SKIPPED"
+    log_info "Running methods sequentially"
+    
+    run_method 1 "HISAT2_Ref_Guided" "4a_Method_1_HISAT2_Ref_Guided"
+    run_method 3 "Trinity_De_Novo" "4c_Method_3_Trinity_De_Novo"
+    run_method 4 "Salmon_Saf" "4d_Method_4_Salmon_Saf_Quantification"
+    run_method 5 "Bowtie2" "4e_Method_5_Bowtie2_Quantification"
 fi
 
 log_step "All Post-Processing Complete"
