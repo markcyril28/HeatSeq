@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# GENE EXPRESSION ANALYSIS (GEA) PIPELINE - METHOD 2: HISAT2 DE NOVO
+# GENE EXPRESSION ANALYSIS (GEA) PIPELINE
 # ==============================================================================
-# Description: RNA-seq analysis pipeline using HISAT2 de novo assembly approach
+# Description: RNA-seq analysis (Tissue/Organ-specific Expression Profiling) pipeline using 
+# using various methods. 
 # Author: Mark Cyril R. Mercado
 # Version: v11
 # Date: October 2025
@@ -11,6 +12,12 @@
 # ==============================================================================
 
 set -euo pipefail
+
+# Initialize conda for bash
+eval "$(conda shell.bash hook)"
+
+# Activate conda environment
+conda activate GEA_ENV
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #source "modules/all_functions.sh"
@@ -23,8 +30,8 @@ source "modules/methods.sh"
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=2                               # Number of threads to use for parallel operations
-JOBS=1                                  # Number of parallel jobs for GNU Parallel 
+THREADS=32                               # Number of threads to use for parallel operations
+JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
 export THREADS JOBS
@@ -83,25 +90,25 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	# Developmental stages arranged from early to late
-	#SRR3884685	# Radicles (earliest - germination)
-	#SRR3884677	# Cotyledons (seed leaves)
-	#SRR3884675	# Roots (root development)
-	#SRR3884690	# Stems (vegetative growth)
-	#SRR3884689	# Leaves (vegetative growth)
-	#SRR3884684	# Senescent_leaves (leaf aging)
-	#SRR3884686	# Buds_0.7cm (flower bud initiation) [MAIN INTEREST]
+	SRR3884685	# Radicles (earliest - germination)
+	SRR3884677	# Cotyledons (seed leaves)
+	SRR3884675	# Roots (root development)
+	SRR3884690	# Stems (vegetative growth)
+	SRR3884689	# Leaves (vegetative growth)
+	SRR3884684	# Senescent_leaves (leaf aging)
+	SRR3884686	# Buds_0.7cm (flower bud initiation) [MAIN INTEREST]
 	SRR3884687	# Opened_Buds (flower development) 	 [MAIN INTEREST]
-	#SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
-	#SRR3884679	# Pistils (female reproductive parts)
-	#SRR3884608	# Fruits_1cm (early fruit development)
-	#SRR3884620	# Fruits_Stage_1 (early fruit stage)
-	#SRR3884631	# Fruits_6cm (fruit enlargement)
-	#SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
-	#SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
-	#SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
-	#SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
-	#SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
-	#SRR3884678	# Fruits_peduncle (fruit attachment)
+	SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
+	SRR3884679	# Pistils (female reproductive parts)
+	SRR3884608	# Fruits_1cm (early fruit development)
+	SRR3884620	# Fruits_Stage_1 (early fruit stage)
+	SRR3884631	# Fruits_6cm (fruit enlargement)
+	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
+	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
+	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
+	SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
+	SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
+	SRR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
