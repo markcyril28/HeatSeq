@@ -98,9 +98,9 @@ fi
 echo "Activating environment '${ENV_NAME}'..."
 conda activate ${ENV_NAME}
 
-conda install -c conda-forge r-base
+#conda install -c conda-forge r-base
 
-conda install -c conda-forge r-essentials
+mamba install -c conda-forge r-essentials
 
 # Install additional R packages via Rscript
 echo "Installing additional R packages..."

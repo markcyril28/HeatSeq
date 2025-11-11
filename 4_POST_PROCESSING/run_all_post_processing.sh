@@ -30,7 +30,7 @@ BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 METHODS_TO_RUN=(
     "METHOD_1"  # HISAT2 Reference-Guided
     #"METHOD_2"  # HISAT2 De Novo
-    "METHOD_3"  # Trinity De Novo
+    #"METHOD_3"  # Trinity De Novo
     "METHOD_4"  # Salmon SAF Quantification
     "METHOD_5"  # Bowtie2/RSEM Quantification
 )
@@ -43,12 +43,13 @@ METHODS_TO_RUN=(
 #==================================================================================
 
 # Number of threads for multi-threaded operations
-# Number of parallel jobs (set to 1 to disable parallel processing)
 THREADS=32
+
+# Number of parallel jobs (set to 1 to disable parallel processing)
 JOBS=4
+
 # Use GNU Parallel for method execution (true/false)
 USE_PARALLEL=true
-
 
 #==================================================================================
 
@@ -119,11 +120,16 @@ if [ "$USE_PARALLEL" = true ] && [ "$JOBS" -gt 1 ] && command -v parallel &> /de
     should_run_method "METHOD_4" && METHODS_LIST+=("4:Salmon_Saf:4d_Method_4_Salmon_Saf_Quantification")
     should_run_method "METHOD_5" && METHODS_LIST+=("5:Bowtie2:4e_Method_5_Bowtie2_Quantification")
     
-    # Export function for parallel
+    # Export variables and functions for parallel
+    export BASE_DIR
+    export LOG_DIR TIME_DIR SPACE_DIR SPACE_TIME_DIR
+    export LOG_FILE TIME_FILE TIME_TEMP SPACE_FILE SPACE_TIME_FILE
+    export RUN_ID
     export -f run_method
     export -f should_run_method
     export -f log_step
     export -f log_info
+    export -f log_error
     export -f run_with_space_time_log
     
     # Run in parallel
@@ -138,5 +144,4 @@ else
 fi
 
 log_step "All Post-Processing Complete"
-log_info "Methods processed: ${METHODS_TO_RUN[*]}" 
-
+log_info "Methods processed: ${METHODS_TO_RUN[*]}"
