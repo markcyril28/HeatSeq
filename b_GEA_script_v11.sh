@@ -45,13 +45,13 @@ PIPELINE_STAGES=(
 	#"QUALITY_CONTROL"
 	
 	## GEA Methods
-	"METHOD_1_HISAT2_REF_GUIDED"
+	#"METHOD_1_HISAT2_REF_GUIDED"
 	#"METHOD_2_HISAT2_DE_NOVO"
 	#"METHOD_3_TRINITY_DE_NOVO"
-	"METHOD_4_SALMON_SAF"
-	"METHOD_5_BOWTIE2_RSEM"
+	#"METHOD_4_SALMON_SAF"
+	#"METHOD_5_BOWTIE2_RSEM"
 	
-	#"HEATMAP_WRAPPER_for_HISAT2_DE_NOVO"
+	"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
 )
 
@@ -208,7 +208,7 @@ RUN_METHOD_2_HISAT2_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^
 RUN_METHOD_3_TRINITY_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_3_TRINITY_DE_NOVO$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_4_SALMON_SAF=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_4_SALMON_SAF$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_5_BOWTIE2_RSEM=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_5_BOWTIE2_RSEM$" && echo "TRUE" || echo "FALSE")
-RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^HEATMAP_WRAPPER_for_HISAT2_DE_NOVO$" && echo "TRUE" || echo "FALSE")
+RUN_HEATMAP_WRAPPER=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^HEATMAP_WRAPPER$" && echo "TRUE" || echo "FALSE")
 RUN_ZIP_RESULTS=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^ZIP_RESULTS$" && echo "TRUE" || echo "FALSE")
 
 
@@ -354,22 +354,36 @@ done
 # POST-PROCESSING: HEATMAP WRAPPER EXECUTION for HISAT2 DE NOVO
 # ==============================================================================
 
-if [[ $RUN_HEATMAP_WRAPPER_for_HISAT2_DE_NOVO == "TRUE" ]]; then
+if [[ $RUN_HEATMAP_WRAPPER == "TRUE" ]]; then
 	log_step "Heatmap Wrapper post-processing enabled"
-	cd 4b_Method_2_HISAT2_De_Novo
-	# Execute the Heatmap Wrapper script for post-processing
-	if [[ -f "0_Heatmap_Wrapper.sh" ]]; then
-		log_step "Executing Heatmap Wrapper post-processing script"
-		chmod +x *.sh
-		chmod +x 0_Heatmap_Wrapper.sh
-
-		if bash "0_Heatmap_Wrapper.sh" 2>&1; then
-			log_info "Heatmap Wrapper completed successfully"
-		else
-			log_error "Heatmap Wrapper failed with exit code $?"
-		fi
+	
+	# Navigate to post-processing directory
+	if [[ ! -d "4_POST_PROCESSING" ]]; then
+		log_error "Directory '4_POST_PROCESSING' not found"
 	else
-		log_warn "Heatmap Wrapper script not found - skipping"
+		cd 4_POST_PROCESSING || {
+			log_error "Failed to change to 4_POST_PROCESSING directory"
+			exit 1
+		}
+		
+		# Execute the Heatmap Wrapper script for post-processing
+		if [[ -f "run_all_post_processing.sh" ]]; then
+			log_step "Executing Heatmap Wrapper post-processing script"
+			chmod +x ./*.sh
+			chmod +x run_all_post_processing.sh
+			
+			if bash "run_all_post_processing.sh" 2>&1; then
+				log_info "Heatmap Wrapper completed successfully"
+			else
+				local exit_code=$?
+				log_error "Heatmap Wrapper failed with exit code $exit_code"
+			fi
+		else
+			log_warn "Heatmap Wrapper script 'run_all_post_processing.sh' not found - skipping"
+		fi
+		
+		# Return to original directory
+		cd - > /dev/null || log_warn "Failed to return to previous directory"
 	fi
 fi
 

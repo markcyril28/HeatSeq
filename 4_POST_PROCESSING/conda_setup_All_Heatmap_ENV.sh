@@ -78,6 +78,9 @@ else
 fi
 OFF
 
+# Initialize conda for bash
+eval "$(conda shell.bash hook)"
+
 # Check if the environment already exists
 if conda env list | grep -q "^${ENV_NAME}\s"; then
     echo "Environment '${ENV_NAME}' already exists. Updating..."
@@ -91,6 +94,10 @@ else
     "${CONDA_CMD}" install -n ${ENV_NAME} -c conda-forge -c bioconda ${MAMBA_FLAGS} "${PACKAGES[@]}"
 fi
 
+# Activate the environment
+echo "Activating environment '${ENV_NAME}'..."
+conda activate ${ENV_NAME}
+
 # Install additional R packages via Rscript
 echo "Installing additional R packages..."
 if [ -f "install_R_packages.R" ]; then
@@ -100,7 +107,6 @@ else
 fi
 
 echo "-------------------------------------------------"
-echo "Environment setup complete!"
-echo "To activate this environment, use:"
-echo "conda activate ${ENV_NAME}"
+echo "Environment setup complete and activated!"
+echo "Current environment: ${ENV_NAME}"
 echo "================================================="
