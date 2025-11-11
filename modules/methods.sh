@@ -16,7 +16,7 @@
 # - Method 5: Bowtie2 + RSEM Quantification
 #
 # SCRIPT ORGANIZATION:
-# 1. Configuration and Runtime Switches (All 5 Methods + QC Options)
+# 1. Configuration 
 # 2. Pipeline Configuration Examples  
 # 3. Input Files and Data Sources
 # 5. Directory Structure and Output Paths  
@@ -31,50 +31,314 @@
 # ==============================================================================
 
 set -euo pipefail
-source "modules/utils.sh"
+source "modules/logging_utils.sh"
+source "modules/pipeline_utils.sh"
+
+# ------------------------------------------------------------------------------
+# Global safe defaults and guards
+# ------------------------------------------------------------------------------
+# Provide safe defaults for commonly referenced environment variables to avoid
+# unbound variable errors under 'set -u' and ensure reasonable behavior.
+THREADS="${THREADS:-4}"
+keep_bam_global="${keep_bam_global:-n}"
+
+# Ensure SRR arrays exist (some pipelines fall back to these lists)
+if ! declare -p SRR_COMBINED_LIST >/dev/null 2>&1; then
+	declare -a SRR_COMBINED_LIST=()
+fi
+if ! declare -p SRR_LIST_PRJNA328564 >/dev/null 2>&1; then
+	declare -a SRR_LIST_PRJNA328564=()
+fi
 
 # ==============================================================================
 # DIRECTORY STRUCTURE AND OUTPUT PATHS
 # ==============================================================================
+# Standardized folder structure across all methods in 4_OUTPUTS/
+# Pattern: 4_{alignment_tool}_WD, 5_{quant_tool}_WD, 6_matrices, 7_Heatmap_Outputs
+# Common: a_gene_groups_input_list, b_modules_for_{method}, logs
 
 # Raw and Processed Data Directories
-RAW_DIR_ROOT="1_RAW_SRR"                # Raw SRR download directory
-TRIM_DIR_ROOT="2_TRIMMED_SRR"           # Trimmed reads directory
-FASTQC_ROOT="3_FastQC"                  # FastQC quality control reports
+RAW_DIR_ROOT="1_RAW_SRR"
+TRIM_DIR_ROOT="2_TRIMMED_SRR"
+FASTQC_ROOT="3_FastQC"
 
-# Method 1: HISAT2 Reference Guided 
+# Method 1: HISAT2 Reference Guided
 HISAT2_REF_GUIDED_ROOT="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD"
-HISAT2_REF_GUIDED_INDEX_DIR="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD/index"
-STRINGTIE_HISAT2_REF_GUIDED_ROOT="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD/a_Method_1_RAW_RESULTs"
-
-# Method 2: HISAT2 De Novo Assembly (main method in this script)
-HISAT2_DE_NOVO_ROOT="4_OUTPUTS/4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD"
-HISAT2_DE_NOVO_INDEX_DIR="4_OUTPUTS/4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD/index"
-STRINGTIE_HISAT2_DE_NOVO_ROOT="4_OUTPUTS/4b_Method_2_HISAT2_De_Novo/5_stringtie_WD/a_Method_2_RAW_RESULTs"
+HISAT2_REF_GUIDED_INDEX_DIR="$HISAT2_REF_GUIDED_ROOT/index"
+STRINGTIE_HISAT2_REF_GUIDED_ROOT="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD"
 
 # Method 3: Trinity De Novo Assembly
 TRINITY_DE_NOVO_ROOT="4_OUTPUTS/4c_Method_3_Trinity_De_Novo/4_Trinity_WD"
-STRINGTIE_TRINITY_DE_NOVO_ROOT="4_OUTPUTS/4c_Method_3_Trinity_De_Novo/5_stringtie_WD/a_Method_3_RAW_RESULTs"
+STRINGTIE_TRINITY_DE_NOVO_ROOT="4_OUTPUTS/4c_Method_3_Trinity_De_Novo/5_stringtie_WD"
 
 # Method 4: Salmon SAF Quantification
 SALMON_SAF_ROOT="4_OUTPUTS/4d_Method_4_Salmon_Saf_Quantification"
-SALMON_INDEX_ROOT="$SALMON_SAF_ROOT/index"
-SALMON_QUANT_ROOT="$SALMON_SAF_ROOT/quant"
-SALMON_SAF_MATRIX_ROOT="$SALMON_SAF_ROOT/matrices"
+SALMON_INDEX_ROOT="$SALMON_SAF_ROOT/4_Salmon_WD/index"
+SALMON_QUANT_ROOT="$SALMON_SAF_ROOT/5_Salmon_Quant_WD"
+SALMON_SAF_MATRIX_ROOT="$SALMON_SAF_ROOT/6_matrices_from_Salmon"
+SALMON_MATRIX_ROOT="${SALMON_MATRIX_ROOT:-$SALMON_SAF_MATRIX_ROOT}"
 
 # Method 5: Bowtie2 + RSEM Quantification
 BOWTIE2_RSEM_ROOT="4_OUTPUTS/4e_Method_5_Bowtie2_Quantification"
-RSEM_INDEX_ROOT="$BOWTIE2_RSEM_ROOT/index"
-RSEM_QUANT_ROOT="$BOWTIE2_RSEM_ROOT/quant"
-RSEM_MATRIX_ROOT="$BOWTIE2_RSEM_ROOT/matrices"
+RSEM_INDEX_ROOT="$BOWTIE2_RSEM_ROOT/4_Bowtie2_WD/index"
+RSEM_QUANT_ROOT="$BOWTIE2_RSEM_ROOT/5_RSEM_Quant_WD"
+RSEM_MATRIX_ROOT="$BOWTIE2_RSEM_ROOT/6_matrices_from_RSEM"
 
 # Create required directories
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 	"$HISAT2_REF_GUIDED_ROOT" "$HISAT2_REF_GUIDED_INDEX_DIR" "$STRINGTIE_HISAT2_REF_GUIDED_ROOT" \
-	"$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT" \
 	"$TRINITY_DE_NOVO_ROOT" "$STRINGTIE_TRINITY_DE_NOVO_ROOT" \
-	"$SALMON_SAF_ROOT" "$SALMON_INDEX_ROOT" "$SALMON_QUANT_ROOT" "$SALMON_SAF_MATRIX_ROOT" \
-	"$BOWTIE2_RSEM_ROOT" "$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT"
+	"$SALMON_INDEX_ROOT" "$SALMON_QUANT_ROOT" "$SALMON_SAF_MATRIX_ROOT" \
+	"$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT"
+
+# ------------------------------------------------------------------------------
+# HELPER FUNCTIONS FOR METADATA AND VALIDATION
+# ------------------------------------------------------------------------------
+
+# Generate tximport R script for proper RSEM/Salmon import into DESeq2
+generate_tximport_script() {
+	local method="$1"  # "rsem" or "salmon"
+	local quant_dir="$2"
+	local output_script="$3"
+	local metadata_file="$4"
+	
+	# Path to the template R script
+	local template_script="modules/tximport.R"
+	
+	# Check if template exists
+	if [[ ! -f "$template_script" ]]; then
+		log_error "[TXIMPORT] Template script not found: $template_script"
+		log_error "[TXIMPORT] Please ensure tximport.R exists in the modules directory"
+		return 1
+	fi
+	
+	# Copy template to output location
+	cp "$template_script" "$output_script"
+	
+	# Replace placeholders with actual values using sed
+	sed -i "s|METHOD_PLACEHOLDER|$method|g" "$output_script"
+	sed -i "s|QUANT_DIR_PLACEHOLDER|$quant_dir|g" "$output_script"
+	sed -i "s|METADATA_FILE_PLACEHOLDER|$metadata_file|g" "$output_script"
+	
+	chmod +x "$output_script"
+	log_info "[TXIMPORT] Generated tximport R script: $output_script"
+	log_info "[TXIMPORT] Run this script for proper import into DESeq2: Rscript $output_script"
+}
+
+# Load sample metadata from external file for proper experimental design
+load_sample_metadata() {
+	local metadata_file="${1:-sample_conditions.txt}"
+	local -n metadata_array=$2  # Use nameref to return associative array
+	
+	if [[ ! -f "$metadata_file" ]]; then
+		log_warn "Sample metadata file not found: $metadata_file"
+		log_warn "Expected format (tab-separated):"
+		log_warn "  SRR_ID<tab>condition<tab>batch"
+		log_warn "  SRR3884597	control	1"
+		log_warn "  SRR3884653	treatment	1"
+		log_warn ""
+		log_warn "Continuing with default metadata (all samples as 'treatment')."
+		log_warn "IMPORTANT: This prevents differential expression analysis!"
+		return 1
+	fi
+	
+	# Validate metadata file structure
+	local line_count=$(wc -l < "$metadata_file")
+	if [[ $line_count -lt 2 ]]; then
+		log_error "Metadata file must contain at least 2 samples"
+		return 1
+	fi
+	
+	# Parse metadata into associative array
+	while IFS=$'\t' read -r srr condition batch; do
+		[[ -z "$srr" || "$srr" =~ ^# ]] && continue  # Skip empty/comment lines
+		metadata_array["${srr}_condition"]="$condition"
+		metadata_array["${srr}_batch"]="$batch"
+	done < "$metadata_file"
+	
+	# Validate that we have at least 2 different conditions
+	local unique_conditions=$(printf '%s\n' "${metadata_array[@]}" | grep -v "_batch" | sort -u | wc -l)
+	if [[ $unique_conditions -lt 2 ]]; then
+		log_error "Need at least 2 different experimental conditions for DE analysis"
+		log_error "Found only: $(printf '%s\n' "${metadata_array[@]}" | grep -v "_batch" | sort -u | tr '\n' ', ')"
+		return 1
+	fi
+	
+	log_info "Loaded metadata for $(( ${#metadata_array[@]} / 2 )) samples with $unique_conditions conditions"
+	return 0
+}
+
+# Create sample metadata CSV for DESeq2 with proper condition assignment
+create_sample_metadata() {
+	local metadata_file="$1"
+	local -a sample_list=("${!2}")
+	local metadata_source="${3:-sample_conditions.txt}"
+	local output_format="${4:-csv}"  # csv or tsv
+	
+	# Try to load external metadata
+	declare -A sample_metadata
+	local has_external_metadata=false
+	if load_sample_metadata "$metadata_source" sample_metadata 2>/dev/null; then
+		has_external_metadata=true
+		log_info "Using experimental conditions from: $metadata_source"
+	fi
+	
+	# Determine delimiter based on output format
+	local delim=","
+	if [[ "$output_format" == "tsv" || "$metadata_file" == *.tsv ]]; then
+		delim=$'\t'
+	fi
+	
+	# Create metadata file with appropriate format
+	echo -e "sample${delim}condition${delim}batch" > "$metadata_file"
+	for SRR in "${sample_list[@]}"; do
+		if [[ "$has_external_metadata" == "true" ]]; then
+			local condition="${sample_metadata[${SRR}_condition]:-unknown}"
+			local batch="${sample_metadata[${SRR}_batch]:-1}"
+			echo -e "$SRR${delim}$condition${delim}$batch" >> "$metadata_file"
+		else
+			# Default fallback - assign placeholder conditions
+			# Try to infer from SRR ID patterns, otherwise use generic names
+			local condition="condition_${SRR}"
+			echo -e "$SRR${delim}$condition${delim}1" >> "$metadata_file"
+		fi
+	done
+	
+	if [[ "$has_external_metadata" == "false" ]]; then
+		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+		log_warn "⚠️  CRITICAL: Sample conditions need manual specification!"
+		log_warn "⚠️  Each sample assigned generic placeholder condition."
+		log_warn ""
+		log_warn "📝 FOR TISSUE-SPECIFIC EXPRESSION PROFILING:"
+		log_warn "   Edit: $metadata_file"
+		log_warn "   Replace 'condition' values with tissue/organ names:"
+		log_warn "   Examples: root, leaf, flower, stem, seed, fruit"
+		log_warn ""
+		log_warn "📝 ALTERNATIVE: Create external metadata file: $metadata_source"
+		log_warn "   Format (tab-separated):"
+		log_warn "   SRR3884597	root	1"
+		log_warn "   SRR3884653	leaf	1"
+		log_warn "   SRR3884677	flower	1"
+		log_warn ""
+		log_warn "⚠️  Differential expression requires ≥2 biological replicates per condition"
+		log_warn "⚠️  Statistical power increases with ≥3 replicates per tissue/organ"
+		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+		
+		# Generate example metadata template
+		local metadata_dir=$(dirname "$metadata_file")
+		local template_file="$metadata_dir/sample_info_template.txt"
+		if [[ ! -f "$template_file" ]]; then
+			{
+				echo "# SAMPLE METADATA TEMPLATE FOR TISSUE-SPECIFIC EXPRESSION PROFILING"
+				echo "# Instructions:"
+				echo "#   1. Copy this template to 'sample_conditions.txt' in your modules/ directory"
+				echo "#   2. Edit the condition and batch columns for each sample"
+				echo "#   3. Re-run the pipeline to use these conditions"
+				echo "#"
+				echo "# Format: SRR_ID<TAB>condition<TAB>batch"
+				echo "# condition: Tissue/organ name (e.g., root, leaf, flower, stem)"
+				echo "# batch: Experimental batch number (use 1 if all samples from same batch)"
+				echo "#"
+				for SRR in "${sample_list[@]}"; do
+					echo "$SRR	tissue_name_here	1"
+				done
+			} > "$template_file"
+			log_info "Generated template file: $template_file"
+		fi
+	fi
+}
+
+# Validate count matrix quality and structure
+validate_count_matrix() {
+	local matrix="$1"
+	local matrix_type="${2:-gene}"  # gene or transcript
+	local min_samples="${3:-2}"
+	
+	[[ ! -f "$matrix" ]] && { log_error "Matrix not found: $matrix"; return 1; }
+	
+	log_step "Validating $matrix_type count matrix: $matrix"
+	
+	# Check number of samples
+	local header=$(head -n1 "$matrix")
+	local num_samples
+	if [[ "$matrix" == *.csv ]]; then
+		num_samples=$(echo "$header" | tr ',' '\n' | tail -n +2 | wc -l)
+	else
+		num_samples=$(echo "$header" | tr '\t' '\n' | tail -n +2 | wc -l)
+	fi
+	
+	if [[ $num_samples -lt $min_samples ]]; then
+		log_error "Insufficient samples: $num_samples (need ≥$min_samples)"
+		return 1
+	fi
+	
+	# Check for duplicate IDs
+	local total_rows=$(tail -n +2 "$matrix" | wc -l)
+	local unique_ids
+	if [[ "$matrix" == *.csv ]]; then
+		unique_ids=$(tail -n +2 "$matrix" | cut -d',' -f1 | sort -u | wc -l)
+	else
+		unique_ids=$(tail -n +2 "$matrix" | cut -f1 | sort -u | wc -l)
+	fi
+	
+	if [[ $total_rows -ne $unique_ids ]]; then
+		log_error "Duplicate ${matrix_type} IDs detected!"
+		log_error "Total rows: $total_rows, Unique IDs: $unique_ids"
+		return 1
+	fi
+	
+	# Check for zero-count genes/transcripts
+	local zero_count
+	if [[ "$matrix" == *.csv ]]; then
+		zero_count=$(awk -F',' 'NR>1 {s=0; for(i=2;i<=NF;i++) s+=$i; if(s==0) count++} END {print count+0}' "$matrix")
+	else
+		zero_count=$(awk 'NR>1 {s=0; for(i=2;i<=NF;i++) s+=$i; if(s==0) count++} END {print count+0}' "$matrix")
+	fi
+	
+	local zero_pct=$((total_rows > 0 ? zero_count * 100 / total_rows : 0))
+	
+	log_info "[VALIDATION] Matrix validation passed for $matrix"
+	log_info "  - Samples: $num_samples"
+	log_info "  - ${matrix_type^}s: $unique_ids"
+	log_info "  - Zero-count ${matrix_type}s: $zero_count ($zero_pct%)"
+	
+	if [[ $zero_pct -gt 50 ]]; then
+		log_warn "⚠️  WARNING: Over 50% of ${matrix_type}s have zero counts!"
+		log_warn "    This may indicate mapping issues or low sequencing depth."
+	fi
+	
+	return 0
+}
+
+# Improved read length detection with fallback handling
+detect_read_length() {
+	local fastq="$1"
+	local default_length="${2:-150}"
+	
+	[[ ! -f "$fastq" ]] && { echo "$default_length"; return 1; }
+	
+	# Determine decompression command
+	local decompress_cmd="cat"
+	case "$fastq" in
+		*.gz) decompress_cmd="zcat" ;;
+		*.bz2) decompress_cmd="bzcat" ;;
+	esac
+	
+	# Sample first 1000 reads to get average length
+	local avg_length=$($decompress_cmd "$fastq" 2>/dev/null | \
+		awk 'NR%4==2 {sum+=length($0); count++} count==1000 {print int(sum/count); exit}')
+	
+	# Validate detected length
+	if [[ -z "$avg_length" || $avg_length -lt 50 || $avg_length -gt 300 ]]; then
+		log_warn "Could not detect valid read length from $fastq (got: ${avg_length:-N/A})"
+		log_warn "Using default: $default_length bp"
+		echo "$default_length"
+		return 1
+	fi
+	
+	echo "$avg_length"
+	return 0
+}
 
 # ------------------------------------------------------------------------------
 # MAIN PIPELINES FOR ALIGNMENT, ASSEMBLY, AND QUANTIFICATION
@@ -90,7 +354,7 @@ run_quality_control() {
 		return 1
 	fi
 	
-	log_info "Running quality control for $SRR..."
+	log_step "Running quality control for $SRR"
 	
 	# Create QC output directory
 	mkdir -p "$FASTQC_ROOT/$SRR"
@@ -101,9 +365,9 @@ run_quality_control() {
 		mkdir -p "$outdir"
 		# If any FastQC HTML is present, assume QC was done and skip
 		if compgen -G "$outdir/*_fastqc.html" >/dev/null; then
-			log_info "FastQC HTML already exists for $SRR in $outdir. Skipping FastQC."
+			log_info "[FASTQC] HTML report for $SRR already exists in $outdir. Skipping."
 		else
-			run_with_time_to_log \
+			run_with_space_time_log \
 				fastqc -t "${THREADS:-1}" -o "$outdir" \
 					"$TrimGalore_DIR"/${SRR}*val*.fq* 2>/dev/null || \
 					log_warn "FastQC failed for $SRR"
@@ -114,13 +378,13 @@ run_quality_control() {
 	
 	# MultiQC summary (if available)
 	if command -v multiqc >/dev/null 2>&1; then
-		run_with_time_to_log \
+		run_with_space_time_log \
 			multiqc "$FASTQC_ROOT" -o "$FASTQC_ROOT/summary" --force 2>/dev/null || \
 				log_warn "MultiQC failed. Individual FastQC reports still available."
 	fi
 }
 
-
+# Combined pipeline: Build HISAT2 reference-guided index, align reads, assemble, merge, and quantify transcripts
 hisat2_ref_guided_pipeline() {
 	# HISAT2 Reference Guided Pipeline using reference GTF and genome
 	local fasta="" gtf="" rnaseq_list=()
@@ -171,19 +435,47 @@ hisat2_ref_guided_pipeline() {
 	# BUILD HISAT2 REFERENCE-GUIDED INDEX
 	mkdir -p "$HISAT2_REF_GUIDED_INDEX_DIR"
 	if ls "${index_prefix}".*.ht2 >/dev/null 2>&1; then
-		log_info "HISAT2 reference-guided index already exists for $fasta_base. Skipping build."
+		log_info "[HISAT2 INDEX] Reference-guided index for $fasta_base already exists. Skipping build."
 	else
-		log_info "Building HISAT2 reference-guided index from $fasta with GTF $gtf..."
+		log_step "Building HISAT2 reference-guided index from $fasta with GTF $gtf"
 		
 		# Extract splice sites and exons from GTF
 		local splice_sites="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_splice_sites.txt"
 		local exons="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_exons.txt"
 		
-		run_with_time_to_log hisat2_extract_splice_sites.py "$gtf" > "$splice_sites"
-		run_with_time_to_log hisat2_extract_exons.py "$gtf" > "$exons"
+		# Extract splice sites with error handling
+		if ! hisat2_extract_splice_sites.py "$gtf" > "$splice_sites"; then
+			log_error "Failed to extract splice sites from GTF: $gtf"
+			log_error "Check that GTF is properly formatted and contains transcript features"
+			return 1
+		fi
+		
+		# Extract exons with error handling
+		if ! hisat2_extract_exons.py "$gtf" > "$exons"; then
+			log_error "Failed to extract exons from GTF: $gtf"
+			log_error "Check that GTF is properly formatted and contains exon features"
+			return 1
+		fi
+		
+		# Validate outputs
+		if [[ ! -s "$splice_sites" ]]; then
+			log_error "Splice sites file is empty: $splice_sites"
+			log_error "GTF may be missing transcript/exon features or have incorrect format"
+			log_error "Ensure GTF reference sequences match FASTA headers"
+			return 1
+		fi
+		
+		if [[ ! -s "$exons" ]]; then
+			log_error "Exons file is empty: $exons"
+			log_error "GTF may be missing exon features or have incorrect format"
+			log_error "Ensure GTF reference sequences match FASTA headers"
+			return 1
+		fi
+		
+		log_info "[HISAT2 INDEX] Extracted $(wc -l < "$splice_sites") splice sites and $(wc -l < "$exons") exons"
 		
 		# Build index with splice sites and exons
-		run_with_time_to_log \
+		run_with_space_time_log \
 			hisat2-build \
 				-p "${THREADS}" \
 				--ss "$splice_sites" \
@@ -199,7 +491,7 @@ hisat2_ref_guided_pipeline() {
 		local trimmed1="" trimmed2=""
 		mkdir -p "$HISAT2_DIR"
 		
-		# Find trimmed FASTQ files
+		# Find trimmed FASTQ files (paired-end or single-end)
 		if [[ -f "$TrimGalore_DIR/${SRR}_1_val_1.fq" && -f "$TrimGalore_DIR/${SRR}_2_val_2.fq" ]]; then
 			trimmed1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
 			trimmed2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
@@ -211,9 +503,22 @@ hisat2_ref_guided_pipeline() {
 			local files2=( "$TrimGalore_DIR"/${SRR}*val_2.* )
 			trimmed1="${files1[0]}"
 			trimmed2="${files2[0]}"
+		elif [[ -f "$TrimGalore_DIR/${SRR}_trimmed.fq" ]]; then
+			# Single-end reads (uncompressed)
+			trimmed1="$TrimGalore_DIR/${SRR}_trimmed.fq"
+			trimmed2=""
+		elif [[ -f "$TrimGalore_DIR/${SRR}_trimmed.fq.gz" ]]; then
+			# Single-end reads (compressed)
+			trimmed1="$TrimGalore_DIR/${SRR}_trimmed.fq.gz"
+			trimmed2=""
+		elif compgen -G "$TrimGalore_DIR/${SRR}*trimmed.fq*" >/dev/null 2>&1; then
+			# Generic single-end pattern
+			local files=( "$TrimGalore_DIR"/${SRR}*trimmed.fq* )
+			trimmed1="${files[0]}"
+			trimmed2=""
 		fi
 		
-		if [[ -z "$trimmed1" || -z "$trimmed2" ]]; then
+		if [[ -z "$trimmed1" ]]; then
 			log_warn "Trimmed FASTQ for $SRR not found in $TrimGalore_DIR; skipping."
 			continue
 		fi
@@ -223,34 +528,32 @@ hisat2_ref_guided_pipeline() {
 		
 		# Align and sort if BAM doesn't exist
 		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
-			log_info "BAM for $SRR and $fasta_tag (ref-guided) already exists. Skipping alignment."
+			log_info "[HISAT2 ALIGN] BAM file for $SRR and $fasta_tag (ref-guided) already exists. Skipping alignment."
 		else
-			log_info "Aligning $fasta_tag with $SRR using HISAT2 Reference-Guided Approach..."
+			log_step "Aligning $fasta_tag with $SRR using HISAT2 Reference-Guided Approach"
 			# Check if paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end alignment
-				run_with_time_to_log \
+				run_with_space_time_log \
 					hisat2 -p "${THREADS}" --dta \
-						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
 						-x "$index_prefix" \
 						-1 "$trimmed1" \
 						-2 "$trimmed2" \
 						-S "$sam"
 			else
 				# Single-end alignment
-				run_with_time_to_log \
+				run_with_space_time_log \
 					hisat2 -p "${THREADS}" --dta \
-						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
 						-x "$index_prefix" \
 						-U "$trimmed1" \
 						-S "$sam"
 			fi
 			
-			log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR (ref-guided)..."
-			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
-			run_with_time_to_log samtools index -@ "${THREADS}" "$bam"
+			log_info "[SAMTOOLS] Converting SAM to sorted BAM for $fasta_tag with $SRR (ref-guided)..."
+			run_with_space_time_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			run_with_space_time_log samtools index -@ "${THREADS}" "$bam"
 			rm -f "$sam"
-			log_info "Done aligning $fasta_tag with $SRR (ref-guided)."
+			log_info "[HISAT2 ALIGN] Done aligning $fasta_tag with $SRR (ref-guided)."
 		fi
 
 		# StringTie assembly with reference GTF
@@ -261,25 +564,24 @@ hisat2_ref_guided_pipeline() {
 		mkdir -p "$out_dir" "$ballgown_dir"
 		
 		if [[ -f "$out_gtf" ]]; then
-			log_info "Reference-guided assembly exists for $fasta_tag/$SRR. Skipping."
+			log_info "[STRINGTIE] Reference-guided assembly for $fasta_tag/$SRR already exists. Skipping."
 		else
-			log_info "Assembling transcripts for $fasta_tag with $SRR using reference GTF..."
-			run_with_time_to_log \
+			log_step "Assembling transcripts for $fasta_tag with $SRR using reference GTF"
+			run_with_space_time_log \
 				stringtie -p "$THREADS" "$bam" \
 					-G "$gtf" \
 					-o "$out_gtf" \
 					-A "$out_gene_abundances_tsv" \
 					-B \
-					-e \
 					-C "$out_dir/${SRR}_${fasta_tag}_ref_guided_cov_refs.gtf"
 		fi
 		
-		log_info "Done processing $fasta_tag with $SRR (ref-guided)."
+		log_info "[STRINGTIE] Done processing $fasta_tag with $SRR (ref-guided)."
 		log_info "--------------------------------------------------"
 	done
 	
 	# Create merged GTF for all samples
-	log_info "Creating merged GTF file for reference-guided assembly..."
+	log_step "Creating merged GTF file for reference-guided assembly"
 	local merge_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/merged"
 	local merged_gtf="$merge_dir/${fasta_tag}_ref_guided_merged.gtf"
 	local gtf_list="$merge_dir/gtf_list.txt"
@@ -295,10 +597,10 @@ hisat2_ref_guided_pipeline() {
 	done
 	
 	if [[ -f "$merged_gtf" ]]; then
-		log_info "Merged GTF already exists for $fasta_tag (ref-guided). Skipping merge."
+		log_info "[STRINGTIE MERGE] Merged GTF for $fasta_tag (ref-guided) already exists. Skipping merge."
 	else
-		log_info "Merging GTF files for $fasta_tag (ref-guided)..."
-		run_with_time_to_log \
+		log_info "[STRINGTIE MERGE] Merging GTF files for $fasta_tag (ref-guided)..."
+		run_with_space_time_log \
 			stringtie --merge \
 				-p "$THREADS" \
 				-G "$gtf" \
@@ -319,13 +621,13 @@ hisat2_ref_guided_pipeline() {
 		
 		# Skip if BAM was deleted and final quantification already exists
 		if [[ ! -f "$bam" && -f "$final_gtf" ]]; then
-			log_info "Final quantification already exists for $SRR (ref-guided). Skipping re-estimation."
+			log_info "[STRINGTIE QUANT] Final quantification for $SRR (ref-guided) already exists. Skipping re-estimation."
 			continue
 		fi
 		
 		if [[ -f "$bam" ]]; then
-			log_info "Re-estimating abundances for $SRR with merged GTF (ref-guided)..."
-			run_with_time_to_log \
+			log_step "Re-estimating abundances for $SRR with merged GTF (ref-guided)"
+			run_with_space_time_log \
 				stringtie \
 					-p "$THREADS" \
 					-e -B \
@@ -336,7 +638,7 @@ hisat2_ref_guided_pipeline() {
 			
 			# Cleanup BAM files after final quantification if specified
 			if [[ "$keep_bam_global" != "y" ]]; then
-				log_info "Deleting the BAM file for $SRR (ref-guided) after final quantification."
+				log_info "[CLEANUP] Deleting BAM file for $SRR (ref-guided) after final quantification."
 				rm -f "$bam" "${bam}.bai"
 			fi
 		else
@@ -345,7 +647,7 @@ hisat2_ref_guided_pipeline() {
 	done
 	
 	# PREPARE COUNT MATRICES FOR DESEQ2 USING prepDE.py
-	log_info "Preparing count matrices for DESeq2 using prepDE.py..."
+	log_step "Preparing count matrices for DESeq2 using prepDE.py"
 	local deseq2_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/deseq2_input"
 	local sample_list="$deseq2_dir/sample_list.txt"
 	local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
@@ -355,93 +657,155 @@ hisat2_ref_guided_pipeline() {
 	
 	# Create sample list file for prepDE.py
 	> "$sample_list"
+	local samples_found=0
 	for SRR in "${rnaseq_list[@]}"; do
 		local final_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/final"
 		local final_gtf="$final_dir/${SRR}_${fasta_tag}_ref_guided_final.gtf"
 		
 		if [[ -f "$final_gtf" ]]; then
 			echo "$SRR $final_gtf" >> "$sample_list"
+			((samples_found++))
 		else
 			log_warn "Final GTF not found for $SRR. Skipping from count matrix preparation."
 		fi
 	done
 	
+	# Validate we have enough samples
+	if [[ $samples_found -lt 2 ]]; then
+		log_error "Insufficient samples for count matrix generation (found: $samples_found, need: ≥2)"
+		return 1
+	fi
+	log_info "[PREPDE] Found $samples_found samples for count matrix generation"
+	
 	# Check if count matrices already exist
 	if [[ -f "$gene_count_matrix" && -f "$transcript_count_matrix" ]]; then
-		log_info "Count matrices already exist for $fasta_tag (ref-guided). Skipping prepDE.py."
+		log_info "[PREPDE] Count matrices for $fasta_tag (ref-guided) already exist. Skipping prepDE.py."
 	else
+		# Auto-detect read length from first available trimmed FASTQ file using improved function
+		local read_length=150  # Default fallback
+		local read_length_detected=false
+		for SRR in "${rnaseq_list[@]}"; do
+			local trim_dir="$TRIM_DIR_ROOT/$SRR"
+			# Try multiple patterns for both paired-end and single-end trimmed files
+			local r1=$(find "$trim_dir" -type f \( \
+				-name "*_1_val_1.fq.gz" -o -name "*_1_val_1.fq" \
+				-o -name "*_val_1.fq.gz" -o -name "*_val_1.fq" \
+				-o -name "*_1.fq.gz" -o -name "*_1.fq" \
+				-o -name "*_trimmed.fq.gz" -o -name "*_trimmed.fq" \
+			\) 2>/dev/null | head -n1)
+			
+			if [[ -f "$r1" ]]; then
+				# Attempt to detect read length
+				read_length=$(detect_read_length "$r1" 150)
+				if [[ $? -eq 0 && "$read_length" -gt 0 ]]; then
+					read_length_detected=true
+					log_info "[PREPDE] Auto-detected read length: $read_length bp (from $SRR: $(basename "$r1"))"
+					break
+				else
+					log_warn "[PREPDE] Could not detect valid read length from $(basename "$r1"), trying next sample..."
+				fi
+			fi
+		done
+		
+		if [[ "$read_length_detected" == "false" ]]; then
+			log_warn "[PREPDE] Could not auto-detect read length from any sample. Using default: $read_length bp"
+			log_warn "[PREPDE] For better accuracy, verify read length matches your data"
+			log_warn "[PREPDE] You can manually specify read length by modifying the pipeline or prepDE.py command"
+		fi
+		
 		# Run prepDE.py to generate count matrices
 		if command -v prepDE.py >/dev/null 2>&1; then
-			log_info "Running prepDE.py to generate count matrices..."
-			run_with_time_to_log \
+			log_info "[PREPDE] Running prepDE.py to generate count matrices (read length: $read_length bp)..."
+			run_with_space_time_log \
 				prepDE.py \
 					-i "$sample_list" \
 					-g "$gene_count_matrix" \
 					-t "$transcript_count_matrix" \
-					-l 150
+					-l "$read_length"
 		elif command -v python >/dev/null 2>&1 && python -c "import prepDE" 2>/dev/null; then
-			log_info "Running prepDE.py via python to generate count matrices..."
-			run_with_time_to_log \
+			log_info "[PREPDE] Running prepDE.py via python to generate count matrices (read length: $read_length bp)..."
+			run_with_space_time_log \
 				python -m prepDE \
 					-i "$sample_list" \
 					-g "$gene_count_matrix" \
 					-t "$transcript_count_matrix" \
-					-l 150
+					-l "$read_length"
 		else
-			log_warn "prepDE.py not found. Creating basic count matrices from abundance files..."
-			
-			# Alternative: Create basic count matrix from StringTie abundance files
-			local temp_gene_matrix="$deseq2_dir/temp_gene_counts.txt"
-			local temp_transcript_matrix="$deseq2_dir/temp_transcript_counts.txt"
-			
-			# Extract gene counts from abundance files
-			local first_file=""
-			for SRR in "${rnaseq_list[@]}"; do
-				local final_abundances="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/final/${SRR}_${fasta_tag}_ref_guided_final_abundances.tsv"
-				if [[ -f "$final_abundances" ]]; then
-					if [[ -z "$first_file" ]]; then
-						# Create header and gene IDs from first file
-						awk 'NR>1 {print $1}' "$final_abundances" > "$temp_gene_matrix"
-						first_file="$SRR"
-					fi
-					# Extract counts (assuming TPM * length / 1000 approximates counts)
-					awk -v srr="$SRR" 'NR>1 {print int($7)}' "$final_abundances" > "$deseq2_dir/${SRR}_counts.tmp"
-				fi
-			done
-			
-			# Combine all count files
-			if [[ -n "$first_file" ]]; then
-				paste "$temp_gene_matrix" "$deseq2_dir"/*_counts.tmp > "$gene_count_matrix.tmp"
-				
-				# Add header
-				echo -n "Gene_ID" > "$gene_count_matrix"
-				for SRR in "${rnaseq_list[@]}"; do
-					echo -n ",$SRR" >> "$gene_count_matrix"
-				done
-				echo "" >> "$gene_count_matrix"
-				
-				# Add data
-				cat "$gene_count_matrix.tmp" >> "$gene_count_matrix"
-				
-				# Cleanup
-				rm -f "$temp_gene_matrix" "$gene_count_matrix.tmp" "$deseq2_dir"/*_counts.tmp
-			fi
+			log_error "prepDE.py is required but not found in PATH"
+			log_error "Install from: https://github.com/gpertea/stringtie/blob/master/prepDE.py"
+			log_error "Or download: wget https://raw.githubusercontent.com/gpertea/stringtie/master/prepDE.py && chmod +x prepDE.py"
+			log_error "Then add to PATH or place in working directory"
+			return 1
+		fi
+		
+		# Verify prepDE.py generated output files
+		if [[ ! -f "$gene_count_matrix" || ! -f "$transcript_count_matrix" ]]; then
+			log_error "prepDE.py failed to generate count matrices"
+			log_error "Check sample_list file: $sample_list"
+			return 1
 		fi
 	fi
 	
-	# Create sample metadata file for DESeq2
+	# Create sample metadata file for DESeq2 using improved function
 	local sample_metadata="$deseq2_dir/sample_metadata.csv"
 	if [[ ! -f "$sample_metadata" ]]; then
-		log_info "Creating sample metadata file for DESeq2..."
-		echo "sample,condition,batch" > "$sample_metadata"
-		for SRR in "${rnaseq_list[@]}"; do
-			# Default condition assignment - customize based on your experimental design
-			local condition="treatment"  # You may want to customize this logic
-			echo "$SRR,$condition,1" >> "$sample_metadata"
-		done
+		create_sample_metadata "$sample_metadata" rnaseq_list[@]
 	fi
 	
-	log_info "HISAT2 reference-guided pipeline completed for $fasta_tag."
+	# Validate count matrix quality using validation function
+	if [[ -f "$gene_count_matrix" ]]; then
+		validate_count_matrix "$gene_count_matrix" "gene" 2
+	fi
+	
+	if [[ -f "$transcript_count_matrix" ]]; then
+		validate_count_matrix "$transcript_count_matrix" "transcript" 2
+	fi
+	
+	# POST-PROCESSING - GENERATE VISUALIZATIONS
+	log_step "Post-processing: Generating visualizations (heatmaps and bar graphs)"
+	
+	local method1_dir="4_OUTPUTS/4a_Method_1_HISAT2_Ref_Guided"
+	local heatmap_basic_script="$method1_dir/b_modules_for_Method_1/b_make_heatmap_of_matrices.R"
+	local heatmap_cv_script="$method1_dir/b_modules_for_Method_1/c_make_heatmap_with_CV_of_matrices.R"
+	local bargraph_script="$method1_dir/b_modules_for_Method_1/d_make_BarGraph_of_matrices.R"
+	local gene_groups_dir="$method1_dir/a_gene_groups_input_list"
+	
+	mkdir -p "$method1_dir/7_Heatmap_Outputs/I_Basic_Heatmap"
+	mkdir -p "$method1_dir/7_Heatmap_Outputs/II_Heatmap_with_CV"
+	mkdir -p "$method1_dir/7_Heatmap_Outputs/III_Bar_Graphs"
+	
+	if [[ -f "$heatmap_basic_script" && -f "$sample_metadata" && -f "$gene_count_matrix" ]]; then
+		log_info "[VISUALIZATION] Checking for gene group files..."
+		
+		local gene_group_files=()
+		if [[ -d "$gene_groups_dir" ]]; then
+			while IFS= read -r -d '' file; do
+				gene_group_files+=("$file")
+			done < <(find "$gene_groups_dir" -name "*.txt" -type f -print0 2>/dev/null)
+		fi
+		
+		if [[ ${#gene_group_files[@]} -eq 0 ]]; then
+			log_warn "[VISUALIZATION] No gene group files found in $gene_groups_dir"
+		else
+			log_info "[VISUALIZATION] Found ${#gene_group_files[@]} gene group file(s)"
+			
+			for gene_group_file in "${gene_group_files[@]}"; do
+				local group_name=$(basename "$gene_group_file" .txt)
+				log_info "[VISUALIZATION] Processing: $group_name"
+				
+				[[ -f "$heatmap_basic_script" ]] && \
+					Rscript --vanilla "$heatmap_basic_script" -d "$method1_dir" -f "$fasta_tag" -c "counts" -g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"
+				
+				[[ -f "$heatmap_cv_script" ]] && \
+					Rscript --vanilla "$heatmap_cv_script" -d "$method1_dir" -f "$fasta_tag" -c "counts" -g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"
+				
+				[[ -f "$bargraph_script" ]] && \
+					Rscript --vanilla "$bargraph_script" -d "$method1_dir" -f "$fasta_tag" -c "counts" -g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"
+			done
+		fi
+	fi
+	
+	log_step "HISAT2 reference-guided pipeline completed for $fasta_tag"
 	log_info "Merged GTF: $merged_gtf"
 	log_info "Final quantifications in: $STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/*/final/"
 	log_info "DESeq2 input files:"
@@ -490,10 +854,10 @@ hisat2_de_novo_pipeline() {
 	# BUILD HISAT2 INDEX
 	mkdir -p "$HISAT2_DE_NOVO_INDEX_DIR"
 	if ls "${index_prefix}".*.ht2 >/dev/null 2>&1; then
-		log_info "HISAT2 index already exists for $fasta_base. Skipping build."
+		log_info "[HISAT2 INDEX] De novo index for $fasta_base already exists. Skipping build."
 	else
-		log_info "Building HISAT2 index from $fasta ..."
-		run_with_time_to_log hisat2-build -p "${THREADS}" "$fasta" "$index_prefix"
+		log_step "Building HISAT2 de novo index from $fasta"
+		run_with_space_time_log hisat2-build -p "${THREADS}" "$fasta" "$index_prefix"
 	fi
 
 	# ALIGNMENT, SORTING, AND STRINGTIE ASSEMBLY for each SRR
@@ -527,35 +891,33 @@ hisat2_de_novo_pipeline() {
 		
 		# Align and sort if BAM doesn't exist
 		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
-			log_info "BAM for $SRR and $fasta_tag already exists. Skipping alignment."
+			log_info "[HISAT2 ALIGN] BAM file for $SRR and $fasta_tag (de novo) already exists. Skipping alignment."
 		else
-			log_info "Aligning $fasta_tag with $SRR..."
+			log_step "Aligning $fasta_tag with $SRR using HISAT2 De Novo Approach"
 			# Check if paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end alignment
-				run_with_time_to_log \
+				run_with_space_time_log \
 					hisat2 -p "${THREADS}" --dta \
-						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
 						-x "$index_prefix" \
 						-1 "$trimmed1" \
 						-2 "$trimmed2" \
 						-S "$sam"
 			else
 				# Single-end alignment
-				run_with_time_to_log \
+				run_with_space_time_log \
 					hisat2 -p "${THREADS}" --dta \
-						$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--rna-strandness $RNA_STRAND_PROTOCOL") \
 						-x "$index_prefix" \
 						-U "$trimmed1" \
 						-S "$sam"
 			fi
 			
-			log_info "Converting SAM to sorted BAM for $fasta_tag with $SRR..."
-			run_with_time_to_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
-			run_with_time_to_log samtools index -@ "${THREADS}" "$bam"
-			log_info "Deleting the SAM file."
+			log_info "[SAMTOOLS] Converting SAM to sorted BAM for $fasta_tag with $SRR (de novo)..."
+			run_with_space_time_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			run_with_space_time_log samtools index -@ "${THREADS}" "$bam"
+			log_info "[CLEANUP] Deleting SAM file."
 			rm -f "$sam"
-			log_info "Done aligning $fasta_tag with $SRR."
+			log_info "[HISAT2 ALIGN] Done aligning $fasta_tag with $SRR (de novo)."
 		fi
 
 		# StringTie assembly
@@ -565,21 +927,22 @@ hisat2_de_novo_pipeline() {
 		mkdir -p "$out_dir"
 		
 		if [[ -f "$out_gtf" ]]; then
-			log_info "Assembly exists for $fasta_tag/$SRR. Skipping."
+			log_info "[STRINGTIE] De novo assembly for $fasta_tag/$SRR already exists. Skipping."
 		else
-			log_info "Assembling transcripts for $fasta_tag with $SRR ..."
-			run_with_time_to_log \
+			log_step "Assembling transcripts for $fasta_tag with $SRR (de novo)"
+			run_with_space_time_log \
 				stringtie -p "$THREADS" "$bam" \
 					-o "$out_gtf" \
 					-A "$out_gene_abundances_tsv"
 		fi
 		
-		log_info "Deleting the SAM and BAM file."
+		log_info "[CLEANUP] Deleting the BAM file."
 		rm -f "$bam" "${bam}.bai"
-		log_info "Done processing $fasta_tag with $SRR."
+		log_info "[STRINGTIE] Done processing $fasta_tag with $SRR (de novo)."
 		log_info "--------------------------------------------------"
 	done
 }
+
 # Trinity de novo alignment, stringtie quantification that can be an input to DeSeq2 pipeline
 trinity_de_novo_alignment_pipeline() {
 	local fasta="" rnaseq_list=()
@@ -616,7 +979,7 @@ trinity_de_novo_alignment_pipeline() {
 		return 1
 	fi
 
-	log_info "Trinity pipeline will process ${#rnaseq_list[@]} RNA-seq samples"
+	log_info "[TRINITY] Trinity pipeline will process ${#rnaseq_list[@]} RNA-seq samples"
 	
 	local fasta_base fasta_tag trinity_out_dir trinity_fasta
 	fasta_base="$(basename "$fasta")"
@@ -625,23 +988,23 @@ trinity_de_novo_alignment_pipeline() {
 	trinity_fasta="$trinity_out_dir/Trinity.fasta"
 
 	# STEP 1: DE NOVO TRANSCRIPTOME ASSEMBLY WITH TRINITY
-	log_info "Trinity de novo transcriptome assembly for $fasta_tag"
+	log_step "Trinity de novo transcriptome assembly for $fasta_tag"
 	
 	if [[ -f "$trinity_fasta" || -f "${trinity_fasta}.gz" ]]; then
-		log_info "Trinity assembly already exists for $fasta_tag. Skipping assembly."
+		log_info "[TRINITY] Assembly for $fasta_tag already exists. Skipping."
 		# Set trinity_fasta to the existing file
 		[[ -f "${trinity_fasta}.gz" ]] && trinity_fasta="${trinity_fasta}.gz"
 	else
-		log_info "Starting Trinity de novo assembly for $fasta_tag..."
+		log_info "[TRINITY] Starting de novo assembly for $fasta_tag..."
 		mkdir -p "$trinity_out_dir"
 		
-		log_info "Collecting trimmed FASTQ files from: $TRIM_DIR_ROOT"
+		log_info "[TRINITY] Collecting trimmed FASTQ files from: $TRIM_DIR_ROOT"
 		
 		# Collect all trimmed FASTQ files for Trinity
 		local left_reads=() right_reads=() single_reads=()
 		local paired_count=0 single_count=0
 		
-		log_info "Processing ${#rnaseq_list[@]} SRR samples for Trinity input..."
+		log_info "[TRINITY] Processing ${#rnaseq_list[@]} SRR samples for Trinity input..."
 		
 		for SRR in "${rnaseq_list[@]}"; do
 			local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
@@ -675,18 +1038,18 @@ trinity_de_novo_alignment_pipeline() {
 				left_reads+=("$trimmed1")
 				right_reads+=("$trimmed2")
 				paired_count=$((paired_count + 1))
-				log_info "Added paired-end reads for $SRR: $trimmed1, $trimmed2"
+				log_info "[TRINITY] Added paired-end reads for $SRR: $trimmed1, $trimmed2"
 			elif [[ -n "$trimmed1" && -f "$trimmed1" ]]; then
 				# Single-end reads
 				single_reads+=("$trimmed1")
 				single_count=$((single_count + 1))
-				log_info "Added single-end reads for $SRR: $trimmed1"
+				log_info "[TRINITY] Added single-end reads for $SRR: $trimmed1"
 			else
 				log_warn "Trimmed FASTQ for $SRR not found; skipping from Trinity input."
 			fi
 		done
 		
-		log_info "Read collection completed: Paired=$paired_count, Single=$single_count"
+		log_info "[TRINITY] Read collection completed: Paired=$paired_count, Single=$single_count"
 		log_info "Left reads array size: ${#left_reads[@]}"
 		log_info "Right reads array size: ${#right_reads[@]}"
 		log_info "Single reads array size: ${#single_reads[@]}"
@@ -708,9 +1071,9 @@ trinity_de_novo_alignment_pipeline() {
 			if [[ ${#single_reads[@]} -gt 0 ]]; then
 				# Mixed reads: both paired and single
 				local single_files=$(IFS=,; echo "${single_reads[*]}")
-				log_info "Running Trinity with both paired-end and single-end reads..."
+				log_info "[TRINITY] Running Trinity with both paired-end and single-end reads..."
 				
-				run_with_time_to_log Trinity \
+				run_with_space_time_log Trinity \
 					--seqType fq \
 					--left "$left_files" \
 					--right "$right_files" \
@@ -723,9 +1086,9 @@ trinity_de_novo_alignment_pipeline() {
 					--no_version_check
 			else
 				# Only paired-end reads
-				log_info "Running Trinity with paired-end reads only..."
+				log_info "[TRINITY] Running Trinity with paired-end reads only..."
 				
-				run_with_time_to_log Trinity \
+				run_with_space_time_log Trinity \
 					--seqType fq \
 					--left "$left_files" \
 					--right "$right_files" \
@@ -739,9 +1102,9 @@ trinity_de_novo_alignment_pipeline() {
 		elif [[ ${#single_reads[@]} -gt 0 ]]; then
 			# Only single-end reads
 			local single_files=$(IFS=,; echo "${single_reads[*]}")
-			log_info "Running Trinity with single-end reads only..."
+			log_info "[TRINITY] Running Trinity with single-end reads only..."
 			
-			run_with_time_to_log Trinity \
+			run_with_space_time_log Trinity \
 				--seqType fq \
 				--single "$single_files" \
 				--CPU "$THREADS" \
@@ -762,27 +1125,116 @@ trinity_de_novo_alignment_pipeline() {
 			return 1
 		fi
 		
-		log_info "Trinity assembly completed successfully: $trinity_fasta"
+		log_info "[TRINITY] Assembly completed successfully: $trinity_fasta"
 		
-		# Optional: Compress Trinity assembly to save space
-		log_info "Compressing Trinity assembly to save disk space..."
-		if ! gzip -f "$trinity_fasta"; then
-			log_warn "Failed to compress Trinity assembly, but continuing..."
+		# Generate assembly statistics and quality metrics
+		log_info "[TRINITY] Generating assembly statistics and quality metrics..."
+		local stats_file="$trinity_out_dir/assembly_stats.txt"
+		local quality_report="$trinity_out_dir/assembly_quality_report.txt"
+		
+		# Run TrinityStats.pl if available
+		if command -v TrinityStats.pl >/dev/null 2>&1; then
+			TrinityStats.pl "$trinity_fasta" > "$stats_file" 2>&1 || \
+				log_warn "Failed to generate detailed Trinity statistics"
+			
+			# Check assembly quality metrics
+			if [[ -f "$stats_file" ]]; then
+				local n50=$(grep -oP 'N50:\s*\K[0-9]+' "$stats_file" 2>/dev/null || echo "0")
+				local median_contig=$(grep -oP 'Median contig length:\s*\K[0-9]+' "$stats_file" 2>/dev/null || echo "0")
+				local total_assembled=$(grep -oP 'Total assembled bases:\s*\K[0-9]+' "$stats_file" 2>/dev/null || echo "0")
+				
+				# Quality assessment
+				{
+					echo "═══════════════════════════════════════════════════════════"
+					echo "TRINITY ASSEMBLY QUALITY REPORT"
+					echo "Assembly: $fasta_tag"
+					echo "Date: $(date)"
+					echo "═══════════════════════════════════════════════════════════"
+					echo ""
+					
+					if [[ ${n50:-0} -lt 500 ]]; then
+						echo "⚠️  WARNING: Low N50 ($n50 bp)"
+						echo "   - Assembly may be highly fragmented"
+						echo "   - Consider increasing read depth or adjusting assembly parameters"
+						echo "   - Recommended N50: >1000 bp for most transcriptomes"
+					elif [[ ${n50:-0} -lt 1000 ]]; then
+						echo "✓ Acceptable N50: $n50 bp"
+						echo "   - Assembly quality is moderate"
+					else
+						echo "✓✓ Good N50: $n50 bp"
+						echo "   - Assembly quality is high"
+					fi
+					echo ""
+					
+					if [[ ${median_contig:-0} -lt 300 ]]; then
+						echo "⚠️  WARNING: Low median contig length ($median_contig bp)"
+						echo "   - Many short contigs detected"
+					else
+						echo "✓ Median contig length: $median_contig bp"
+					fi
+					echo ""
+					
+					if [[ ${total_assembled:-0} -lt 10000000 ]]; then
+						echo "⚠️  WARNING: Low total assembled bases ($total_assembled bp)"
+						echo "   - Transcriptome may be incomplete"
+						echo "   - Expected: 10-100 Mbp for most eukaryotic transcriptomes"
+					else
+						echo "✓ Total assembled bases: $total_assembled bp"
+					fi
+					echo ""
+					
+					echo "See full statistics in: $stats_file"
+					echo "═══════════════════════════════════════════════════════════"
+				} > "$quality_report"
+				
+				cat "$quality_report"
+				log_info "[TRINITY] Assembly N50: $n50 bp"
+			fi
 		fi
-		trinity_fasta="${trinity_fasta}.gz"
+		
+		# Basic statistics using standard tools
+		local num_transcripts=$(grep -c "^>" "$trinity_fasta" || echo "0")
+		local total_length=$(grep -v "^>" "$trinity_fasta" | tr -d '\n' | wc -c)
+		local avg_length=0
+		[[ $num_transcripts -gt 0 ]] && avg_length=$((total_length / num_transcripts))
+		
+		log_info "[TRINITY] Assembly summary: $num_transcripts transcripts, $total_length total bp"
+		log_info "[TRINITY] Average transcript length: $avg_length bp"
+		
+		# Quality validation
+		if [[ $num_transcripts -lt 1000 ]]; then
+			log_warn "⚠️  Very few transcripts assembled ($num_transcripts)"
+			log_warn "    This may indicate:"
+			log_warn "    - Insufficient read depth"
+			log_warn "    - Poor quality input reads"
+			log_warn "    - Overly aggressive quality trimming"
+		fi
+		
+		# Save basic stats
+		{
+			echo "Trinity Assembly Statistics for $fasta_tag"
+			echo "==========================================="
+			echo "Assembly file: $trinity_fasta"
+			echo "Number of transcripts: $num_transcripts"
+			echo "Total sequence length: $total_length bp"
+			echo "Average transcript length: $avg_length bp"
+			echo "Generated: $(date)"
+		} > "$trinity_out_dir/assembly_summary.txt"
 		
 		# Optional: Remove Trinity intermediate directories if only the assembly is needed
-		log_info "Cleaning up Trinity intermediate files..."
+		log_info "[TRINITY] Cleaning up intermediate files..."
 		find "$trinity_out_dir" -name "chrysalis" -type d -exec rm -rf {} + 2>/dev/null || true
 		find "$trinity_out_dir" -name "jellyfish.kmers*" -delete 2>/dev/null || true
 	fi
 
-	# Handle compressed Trinity assembly
+	# Use Trinity assembly directly (keep uncompressed during pipeline for efficiency)
 	local trinity_ref="$trinity_fasta"
+	
+	# Handle if assembly is already compressed from previous run
 	if [[ "$trinity_fasta" == *.gz ]]; then
 		trinity_ref="${trinity_fasta%.gz}"
 		if [[ ! -f "$trinity_ref" ]]; then
-			log_info "Decompressing Trinity assembly for downstream analysis..."
+			log_info "[TRINITY] Decompressing assembly for downstream analysis..."
 			if ! gunzip -k "$trinity_fasta"; then
 				log_error "Failed to decompress Trinity assembly"
 				return 1
@@ -791,6 +1243,8 @@ trinity_de_novo_alignment_pipeline() {
 	fi
 
 	# STEP 2: ALIGN READS TO TRINITY ASSEMBLY AND RUN QUANTIFICATION
+	# Build RSEM/Bowtie2 reference once and reuse for all samples
+	local prep_flag="$TRINITY_DE_NOVO_ROOT/${fasta_tag}_alignment/.trinity_rsem_prep_done"
 	for SRR in "${rnaseq_list[@]}"; do
 		local TRINITY_ALIGN_DIR="$TRINITY_DE_NOVO_ROOT/${fasta_tag}_alignment/$SRR"
 		local TrimGalore_DIR="$TRIM_DIR_ROOT/$SRR"
@@ -826,14 +1280,14 @@ trinity_de_novo_alignment_pipeline() {
 			continue
 		fi
 
-		log_info "Processing $SRR with Trinity quantification..."
+		log_step "Processing $SRR with Trinity quantification"
 		local abundance_dir="$TRINITY_ALIGN_DIR/trinity_abundance_${SRR}_${fasta_tag}"
 		
 		# Use Trinity's native alignment and quantification workflow
 		if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
-			log_info "Trinity abundance estimation for $SRR and $fasta_tag already exists. Skipping."
+			log_info "[TRINITY QUANT] Abundance estimation for $SRR and $fasta_tag already exists. Skipping."
 		else
-			log_info "Running Trinity align_and_estimate_abundance for $SRR to Trinity assembly of $fasta_tag..."
+			log_info "[TRINITY QUANT] Running align_and_estimate_abundance for $SRR to Trinity assembly of $fasta_tag..."
 			
 			# Trinity's recommended workflow for quantification
 			mkdir -p "$abundance_dir"
@@ -841,78 +1295,155 @@ trinity_de_novo_alignment_pipeline() {
 			# Determine if we have paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end reads
-				log_info "Using paired-end reads for $SRR"
-				run_with_time_to_log align_and_estimate_abundance.pl \
-					--transcripts "$trinity_ref" \
-					--seqType fq \
-					--left "$trimmed1" \
-					--right "$trimmed2" \
-					--est_method RSEM \
-					--aln_method bowtie2 \
-					--trinity_mode \
-					--prep_reference \
-					--thread_count "$THREADS" \
-					--output_dir "$abundance_dir"
+				log_info "[TRINITY QUANT] Using paired-end reads for $SRR"
+				# Prepare reference only once
+				local prep_opt=()
+				if [[ ! -f "$prep_flag" ]]; then prep_opt=(--prep_reference); fi
+				run_with_space_time_log \
+					align_and_estimate_abundance.pl \
+						--transcripts "$trinity_ref" \
+						--seqType fq \
+						--left "$trimmed1" \
+						--right "$trimmed2" \
+						--est_method RSEM \
+						--aln_method bowtie2 \
+						--trinity_mode \
+						${prep_opt[@]} \
+						--thread_count "$THREADS" \
+						--output_dir "$abundance_dir"
 			else
 				# Single-end reads
-				log_info "Using single-end reads for $SRR"
-				run_with_time_to_log align_and_estimate_abundance.pl \
-					--transcripts "$trinity_ref" \
-					--seqType fq \
-					--single "$trimmed1" \
-					--est_method RSEM \
-					--aln_method bowtie2 \
-					--trinity_mode \
-					--prep_reference \
-					--thread_count "$THREADS" \
-					--output_dir "$abundance_dir"
+				log_info "[TRINITY QUANT] Using single-end reads for $SRR"
+				# Prepare reference only once
+				local prep_opt=()
+				if [[ ! -f "$prep_flag" ]]; then prep_opt=(--prep_reference); fi
+				run_with_space_time_log \
+					align_and_estimate_abundance.pl \
+						--transcripts "$trinity_ref" \
+						--seqType fq \
+						--single "$trimmed1" \
+						--est_method RSEM \
+						--aln_method bowtie2 \
+						--trinity_mode \
+						${prep_opt[@]} \
+						--thread_count "$THREADS" \
+						--output_dir "$abundance_dir"
+			fi
+			
+			# Validate RSEM output
+			if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
+				local gene_count=$(awk 'NR>1' "$abundance_dir/RSEM.genes.results" | wc -l)
+				local expressed_genes=$(awk 'NR>1 && $5>0' "$abundance_dir/RSEM.genes.results" | wc -l)
+				local highly_expressed=$(awk 'NR>1 && $5>100' "$abundance_dir/RSEM.genes.results" | wc -l)
+				local total_counts=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$abundance_dir/RSEM.genes.results")
+				
+				log_info "[TRINITY QUANT] RSEM quantification completed for $SRR:"
+				log_info "  - Total genes: $gene_count"
+				log_info "  - Expressed genes (count>0): $expressed_genes"
+				log_info "  - Highly expressed (count>100): $highly_expressed"
+				log_info "  - Total read counts: $total_counts"
+				
+				# Quality checks
+				if [[ $expressed_genes -lt $((gene_count / 10)) ]]; then
+					log_warn "⚠️  Low expression: Only $expressed_genes of $gene_count genes expressed"
+					log_warn "    This may indicate:"
+					log_warn "    - Poor quality reads"
+					log_warn "    - Mismatch between assembly and RNA-seq samples"
+					log_warn "    - Technical issues during library preparation"
+				fi
+				
+				if [[ $total_counts -lt 500000 ]]; then
+					log_warn "⚠️  Low total read counts: $total_counts"
+					log_warn "    Expected: >1M reads for robust quantification"
+					log_warn "    Consider checking:"
+					log_warn "    - Input FASTQ file quality and size"
+					log_warn "    - Alignment parameters"
+					log_warn "    - Potential technical failures"
+				fi
+				
+				# Mark reference as prepared after first successful run
+				if [[ ! -f "$prep_flag" ]]; then
+					mkdir -p "$(dirname "$prep_flag")"
+					touch "$prep_flag"
+				fi
+			else
+				log_error "RSEM quantification failed for $SRR - no results file generated"
+				log_error "Check alignment logs in: $abundance_dir"
 			fi
 		fi
 
-		# Convert Trinity abundance to StringTie format for DeSeq2 compatibility
-		local out_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/$SRR"
-		local out_gtf="$out_dir/${SRR}_${fasta_tag}_trinity_stringtie_quantified.gtf"
-		local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
-		mkdir -p "$out_dir"
-		
-		if [[ -f "$out_gene_abundances_tsv" ]]; then
-			log_info "Gene abundance file exists for Trinity assembly of $fasta_tag/$SRR. Skipping."
-		else
-			log_info "Converting Trinity abundance to StringTie format for $fasta_tag with $SRR..."
-			
-			# Convert RSEM results to StringTie-like format
-			if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
-				# Create gene abundance file compatible with prepDE.py
-				awk 'BEGIN{OFS="\t"; print "Gene ID\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM"} 
-					 NR>1{print $1, $1, "trinity", ".", "1", "1000", $5, $7, $6}' \
-					 "$abundance_dir/RSEM.genes.results" > "$out_gene_abundances_tsv"
-				
-				# Create a basic GTF file for compatibility
-				awk 'NR>1{print "trinity\tRSEM\tgene\t1\t1000\t.\t.\t.\tgene_id \"" $1 "\"; transcript_id \"" $1 "\"; FPKM \"" $7 "\"; TPM \"" $6 "\";"}' \
-					 "$abundance_dir/RSEM.genes.results" > "$out_gtf"
-			else
-				log_warn "RSEM results not found for $SRR. Creating empty abundance files."
-				echo -e "Gene ID\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM" > "$out_gene_abundances_tsv"
-				touch "$out_gtf"
-			fi
-		fi
-		
-		log_info "Done processing Trinity assembly of $fasta_tag with $SRR."
-		log_info "--------------------------------------------------"
-	done
+	# Convert Trinity abundance to StringTie format for DeSeq2 compatibility
+	# Match the folder structure expected by d_stringtie_to_deseq2_m3.R:
+	# 5_stringtie_WD/a_Method_3_RAW_RESULTs/<fasta_tag>/<SRR>/<SRR>_<fasta_tag>_trinity_gene_abundances.tsv
+	local out_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/a_Method_3_RAW_RESULTs/$fasta_tag/$SRR"
+	local out_gtf="$out_dir/${SRR}_${fasta_tag}_trinity_stringtie_quantified.gtf"
+	local out_gene_abundances_tsv="$out_dir/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
+	mkdir -p "$out_dir"
 	
-	# STEP 3: PREPARE DESEQ2 INPUT FILES
-	log_info "Preparing count matrices for DESeq2..."
-	local deseq2_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/deseq2_input"
-	local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
-	local sample_metadata="$deseq2_dir/sample_metadata.csv"
+	if [[ -f "$out_gene_abundances_tsv" ]]; then
+		log_info "[TRINITY QUANT] Gene abundance file for Trinity assembly of $fasta_tag/$SRR already exists. Skipping."
+	else
+		log_info "[TRINITY QUANT] Converting Trinity abundance to StringTie format for $fasta_tag with $SRR..."
+		
+		# Convert RSEM results to StringTie-like format with proper column headers
+		if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
+			# Create gene abundance file compatible with d_stringtie_to_deseq2_m3.R
+			# RSEM columns: gene_id, transcript_id(s), length, effective_length, expected_count, TPM, FPKM
+			# Column 5 = expected_count (use this as num_reads for DESeq2)
+			# Column 6 = TPM
+			# Column 7 = FPKM
+			awk 'BEGIN{OFS="\t"; print "gene_id\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM\tnum_reads"} 
+				 NR>1{print $1, $1, "trinity", ".", "1", "1000", $5, $7, $6, int($5 + 0.5)}' \
+				 "$abundance_dir/RSEM.genes.results" > "$out_gene_abundances_tsv"
+			
+			# Create a basic GTF file for compatibility
+			awk 'NR>1{print "trinity\tRSEM\tgene\t1\t1000\t.\t.\t.\tgene_id \"" $1 "\"; transcript_id \"" $1 "\"; FPKM \"" $7 "\"; TPM \"" $6 "\"; expected_count \"" $5 "\";"}' \
+				 "$abundance_dir/RSEM.genes.results" > "$out_gtf"
+			
+			# Log conversion statistics
+			local total_genes=$(awk 'NR>1' "$abundance_dir/RSEM.genes.results" | wc -l)
+			local expressed_genes=$(awk 'NR>1 && $5>1' "$abundance_dir/RSEM.genes.results" | wc -l)
+			log_info "[TRINITY QUANT] Converted $total_genes genes ($expressed_genes with >1 count) to StringTie format"
+		else
+		log_warn "RSEM results not found for $SRR. Creating empty abundance files."
+		echo -e "gene_id\tGene Name\tReference\tStrand\tStart\tEnd\tCoverage\tFPKM\tTPM\tnum_reads" > "$out_gene_abundances_tsv"
+		touch "$out_gtf"
+	fi
+	fi
+	
+	log_info "[TRINITY QUANT] Done processing Trinity assembly of $fasta_tag with $SRR."
+log_info "--------------------------------------------------"
+done
+
+
+# STEP 3: PREPARE DESEQ2 INPUT FILES
+	log_step "Preparing count matrices for DESeq2 (Trinity)"
+	
+	# Match folder structure: 5_stringtie_WD/a_Method_3_RAW_RESULTs/<fasta_tag>/<SRR>/
+	local stringtie_results_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/a_Method_3_RAW_RESULTs"
+	local deseq2_dir="$STRINGTIE_TRINITY_DE_NOVO_ROOT/../7_DESeq2_input"
+	local gene_count_matrix="$deseq2_dir/gene_count_matrix_${fasta_tag}.tsv"
+	local sample_metadata="$deseq2_dir/sample_info.tsv"
 	mkdir -p "$deseq2_dir"
 	
 	# Check if count matrix already exists
 	if [[ -f "$gene_count_matrix" ]]; then
-		log_info "Count matrix already exists for $fasta_tag (Trinity). Skipping matrix creation."
+		log_info "[MATRIX] Count matrix for $fasta_tag (Trinity) already exists. Skipping."
 	else
-		log_info "Creating count matrix from Trinity abundance estimates..."
+		log_info "[MATRIX] Creating count matrix from Trinity RSEM abundance estimates..."
+		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+		log_warn "⚠️  CRITICAL: Using RSEM expected_count for Trinity quantifications"
+		log_warn "    - These are statistically estimated counts, not raw read counts"
+		log_warn "    - Expected counts may violate DESeq2's negative binomial assumptions"
+		log_warn ""
+		log_warn "📊 RECOMMENDED APPROACH FOR PUBLICATION:"
+		log_warn "    1. Use tximport in R with RSEM outputs (BEST - handles uncertainty)"
+		log_warn "    2. A tximport R script has been generated for you"
+		log_warn "    3. OR: Use HISAT2 Reference-Guided method instead (true counts)"
+		log_warn ""
+		log_warn "⚡ Quick Fix: After this pipeline completes, run:"
+		log_warn "    Rscript $deseq2_dir/run_tximport_trinity.R"
+		log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 		
 		# Create count matrix from RSEM expected_count values
 		local temp_gene_matrix="$deseq2_dir/temp_gene_ids.txt"
@@ -920,28 +1451,50 @@ trinity_de_novo_alignment_pipeline() {
 		
 		# Get gene IDs from first sample
 		local first_sample=""
+		local samples_found=0
 		for SRR in "${rnaseq_list[@]}"; do
-			local abundance_dir="$HISAT2_DE_NOVO_ROOT/${fasta_tag}_trinity/$SRR/trinity_abundance_${SRR}_${fasta_tag}"
-			if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
-				first_sample="$SRR"
-				awk 'NR>1 {print $1}' "$abundance_dir/RSEM.genes.results" > "$temp_gene_matrix"
-				break
+			local abundance_file="$stringtie_results_dir/$fasta_tag/$SRR/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
+			if [[ -f "$abundance_file" ]]; then
+				if [[ -z "$first_sample" ]]; then
+					first_sample="$SRR"
+					# Extract gene_id column (skip header)
+					awk 'NR>1 {print $1}' "$abundance_file" > "$temp_gene_matrix"
+					log_info "[MATRIX] Using $SRR as reference for gene IDs (found $(wc -l < "$temp_gene_matrix") genes)"
+				fi
+				((samples_found++))
 			fi
 		done
 		
 		if [[ -z "$first_sample" ]]; then
 			log_error "No RSEM results found for any sample. Cannot create count matrix."
+			log_error "Searched in: $stringtie_results_dir/$fasta_tag/*/"
 			return 1
 		fi
 		
-		# Extract expected counts for each sample
+		if [[ $samples_found -lt 2 ]]; then
+			log_error "Insufficient samples for count matrix (found: $samples_found, need: ≥2)"
+			return 1
+		fi
+		log_info "[MATRIX] Found $samples_found samples with RSEM quantifications"
+		
+		# Extract expected counts (num_reads column) for each sample
 		for SRR in "${rnaseq_list[@]}"; do
-			local abundance_dir="$HISAT2_DE_NOVO_ROOT/${fasta_tag}_trinity/$SRR/trinity_abundance_${SRR}_${fasta_tag}"
-			if [[ -f "$abundance_dir/RSEM.genes.results" ]]; then
-				# Use expected_count (column 5) rounded to integers
-				awk 'NR>1 {print int($5 + 0.5)}' "$abundance_dir/RSEM.genes.results" > "$deseq2_dir/${SRR}_counts.tmp"
+			local abundance_file="$stringtie_results_dir/$fasta_tag/$SRR/${SRR}_${fasta_tag}_trinity_gene_abundances.tsv"
+			if [[ -f "$abundance_file" ]]; then
+				# Extract num_reads column (column 10 in our format)
+				awk 'NR>1 {print $10}' "$abundance_file" > "$deseq2_dir/${SRR}_counts.tmp"
+				
+				# Validate count quality
+				local total_counts=$(awk '{sum+=$1} END {print sum}' "$deseq2_dir/${SRR}_counts.tmp")
+				local num_expressed=$(awk '$1>0 {count++} END {print count}' "$deseq2_dir/${SRR}_counts.tmp")
+				if [[ $total_counts -lt 100000 ]]; then
+					log_warn "Low count total for $SRR: $total_counts (expected >1M for typical RNA-seq)"
+				else
+					log_info "[MATRIX] Extracted counts for $SRR: $total_counts total, $num_expressed expressed genes"
+				fi
 			else
-				log_warn "RSEM results not found for $SRR. Using zeros."
+				log_warn "RSEM results not found for $SRR at: $abundance_file"
+				log_warn "Using zeros for this sample."
 				local num_genes=$(wc -l < "$temp_gene_matrix")
 				yes 0 | head -n "$num_genes" > "$deseq2_dir/${SRR}_counts.tmp"
 			fi
@@ -950,37 +1503,175 @@ trinity_de_novo_alignment_pipeline() {
 		# Combine all count files
 		paste "$temp_gene_matrix" "$deseq2_dir"/*_counts.tmp > "$temp_count_matrix"
 		
-		# Add header and create final CSV
-		echo -n "Gene_ID" > "$gene_count_matrix"
+		# Add header and create final TSV (use TSV format to match d_stringtie_to_deseq2_m3.R)
+		echo -ne "gene_id" > "$gene_count_matrix"
 		for SRR in "${rnaseq_list[@]}"; do
-			echo -n ",$SRR" >> "$gene_count_matrix"
+			echo -ne "\t$SRR" >> "$gene_count_matrix"
 		done
 		echo "" >> "$gene_count_matrix"
 		
-		# Convert to CSV format
-		tr '\t' ',' < "$temp_count_matrix" >> "$gene_count_matrix"
+		# Append count data
+		cat "$temp_count_matrix" >> "$gene_count_matrix"
 		
 		# Cleanup temporary files
 		rm -f "$temp_gene_matrix" "$temp_count_matrix" "$deseq2_dir"/*_counts.tmp
+		
+		log_info "[MATRIX] Created count matrix with $(wc -l < "$gene_count_matrix") rows (including header)"
 	fi
 	
-	# Create sample metadata file for DESeq2
+	# Create sample metadata file for DESeq2 using improved function
 	if [[ ! -f "$sample_metadata" ]]; then
-		log_info "Creating sample metadata file for DESeq2..."
-		echo "sample,condition,batch" > "$sample_metadata"
-		for SRR in "${rnaseq_list[@]}"; do
-			# Default condition assignment - customize based on your experimental design
-			local condition="treatment"  # You may want to customize this logic
-			echo "$SRR,$condition,1" >> "$sample_metadata"
-		done
+		create_sample_metadata "$sample_metadata" rnaseq_list[@]
 	fi
 	
-	log_info "Trinity de novo pipeline completed for $fasta_tag."
+	# Generate tximport R script for proper RSEM import
+	local tximport_script="$deseq2_dir/run_tximport_trinity.R"
+	if [[ ! -f "$tximport_script" ]]; then
+		generate_tximport_script "rsem" "$TRINITY_DE_NOVO_ROOT/${fasta_tag}_alignment" "$tximport_script" "$sample_metadata"
+		log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+		log_info "✅ RECOMMENDED: Use tximport for proper statistical handling"
+		log_info "   Run: Rscript $tximport_script"
+		log_info "   This properly accounts for transcript-level uncertainty"
+		log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	fi
+	
+	# Validate count matrix quality using validation function
+	if [[ -f "$gene_count_matrix" ]]; then
+		validate_count_matrix "$gene_count_matrix" "gene" 2
+	fi
+	
+	# STEP 4: POST-PROCESSING - GENERATE VISUALIZATIONS
+	log_step "Post-processing: Generating visualizations (heatmaps and bar graphs)"
+	
+	# Check if Method 3 post-processing scripts exist
+	local method3_dir="$TRINITY_DE_NOVO_ROOT/.."  # Navigate to 4c_Method_3_Trinity_De_Novo
+	local heatmap_basic_script="$method3_dir/b_modules_for_Method_3/b_make_heatmap_of_matrices.R"
+	local heatmap_cv_script="$method3_dir/b_modules_for_Method_3/c_make_heatmap_with_CV_of_matrices.R"
+	local bargraph_script="$method3_dir/b_modules_for_Method_3/d_make_BarGraph_of_matrices.R"
+	local gene_groups_dir="$method3_dir/a_gene_groups_input_list"
+	
+	# Create output directories for visualizations
+	mkdir -p "$method3_dir/7_Heatmap_Outputs/I_Basic_Heatmap"
+	mkdir -p "$method3_dir/7_Heatmap_Outputs/II_Heatmap_with_CV"
+	mkdir -p "$method3_dir/7_Heatmap_Outputs/III_Bar_Graphs"
+	
+	if [[ -f "$heatmap_basic_script" && -f "$sample_metadata" && -f "$gene_count_matrix" ]]; then
+		log_info "[VISUALIZATION] Checking for gene group files to process..."
+		
+		# Find gene group files
+		local gene_group_files=()
+		if [[ -d "$gene_groups_dir" ]]; then
+			while IFS= read -r -d '' file; do
+				gene_group_files+=("$file")
+			done < <(find "$gene_groups_dir" -name "*.txt" -type f -print0 2>/dev/null)
+		fi
+		
+		if [[ ${#gene_group_files[@]} -eq 0 ]]; then
+			log_warn "[VISUALIZATION] No gene group files found in $gene_groups_dir"
+			log_warn "[VISUALIZATION] Skipping visualization generation."
+			log_info "[VISUALIZATION] To generate visualizations, create gene group files in:"
+			log_info "                $gene_groups_dir"
+			log_info "                Format: One gene ID per line"
+		else
+			log_info "[VISUALIZATION] Found ${#gene_group_files[@]} gene group file(s)"
+			
+			for gene_group_file in "${gene_group_files[@]}"; do
+				local group_name=$(basename "$gene_group_file" .txt)
+				log_info "[VISUALIZATION] Processing gene group: $group_name"
+				
+				# Generate basic heatmap
+				if [[ -f "$heatmap_basic_script" ]]; then
+					log_info "[VISUALIZATION] Generating basic heatmap for $group_name..."
+					if Rscript --vanilla "$heatmap_basic_script" \
+						-d "$method3_dir" \
+						-f "$fasta_tag" \
+						-c "counts" \
+						-g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"; then
+						log_info "[VISUALIZATION] ✓ Basic heatmap completed"
+					else
+						log_warn "[VISUALIZATION] ✗ Basic heatmap generation failed for $group_name"
+					fi
+				fi
+				
+				# Generate CV heatmap
+				if [[ -f "$heatmap_cv_script" ]]; then
+					log_info "[VISUALIZATION] Generating CV heatmap for $group_name..."
+					if Rscript --vanilla "$heatmap_cv_script" \
+						-d "$method3_dir" \
+						-f "$fasta_tag" \
+						-c "counts" \
+						-g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"; then
+						log_info "[VISUALIZATION] ✓ CV heatmap completed"
+					else
+						log_warn "[VISUALIZATION] ✗ CV heatmap generation failed for $group_name"
+					fi
+				fi
+				
+				# Generate bar graphs
+				if [[ -f "$bargraph_script" ]]; then
+					log_info "[VISUALIZATION] Generating bar graphs for $group_name..."
+					if Rscript --vanilla "$bargraph_script" \
+						-d "$method3_dir" \
+						-f "$fasta_tag" \
+						-c "counts" \
+						-g "$gene_group_file" 2>&1 | tee -a "$LOG_FILE"; then
+						log_info "[VISUALIZATION] ✓ Bar graphs completed"
+					else
+						log_warn "[VISUALIZATION] ✗ Bar graph generation failed for $group_name"
+					fi
+				fi
+			done
+			
+			log_info "[VISUALIZATION] All visualizations completed"
+			log_info "[VISUALIZATION] Check output directories:"
+			log_info "  - Basic heatmaps: $method3_dir/7_Heatmap_Outputs/I_Basic_Heatmap"
+			log_info "  - CV heatmaps: $method3_dir/7_Heatmap_Outputs/II_Heatmap_with_CV"
+			log_info "  - Bar graphs: $method3_dir/7_Heatmap_Outputs/III_Bar_Graphs"
+		fi
+	else
+		log_warn "[VISUALIZATION] Skipping visualization generation:"
+		[[ ! -f "$heatmap_basic_script" ]] && log_warn "  - Missing: $heatmap_basic_script"
+		[[ ! -f "$sample_metadata" ]] && log_warn "  - Missing: $sample_metadata"
+		[[ ! -f "$gene_count_matrix" ]] && log_warn "  - Missing: $gene_count_matrix"
+	fi
+	
+	log_step "Trinity de novo pipeline completed for $fasta_tag"
 	log_info "Trinity assembly: $trinity_fasta"
-	log_info "Abundance estimates in: $HISAT2_DE_NOVO_ROOT/${fasta_tag}_trinity/*/trinity_abundance_*/"
+	log_info "Abundance estimates in: $TRINITY_DE_NOVO_ROOT/${fasta_tag}_alignment/*/trinity_abundance_*/"
+	log_info "StringTie-compatible results: $stringtie_results_dir/$fasta_tag/"
 	log_info "DESeq2 input files:"
 	log_info "  - Gene count matrix: $gene_count_matrix"
 	log_info "  - Sample metadata: $sample_metadata"
+	log_info ""
+	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	log_info "📊 NEXT STEPS FOR TISSUE-SPECIFIC EXPRESSION PROFILING:"
+	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	log_info "1. Edit sample metadata with tissue/organ information:"
+	log_info "   File: $sample_metadata"
+	log_info "   Update 'condition' column with tissue names (e.g., root, leaf, flower)"
+	log_info ""
+	log_info "2. Create gene group files for genes of interest:"
+	log_info "   Directory: $gene_groups_dir"
+	log_info "   Format: One gene ID per line (use gene IDs from Trinity assembly)"
+	log_info ""
+	log_info "3. For proper statistical analysis, use tximport:"
+	log_info "   Rscript $tximport_script"
+	log_info ""
+	log_info "4. Generate visualizations (automatic if gene groups exist):"
+	log_info "   - Heatmaps showing tissue-specific expression patterns"
+	log_info "   - Coefficient of variation analysis"
+	log_info "   - Bar graphs for individual gene comparisons"
+	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	
+	# Compress Trinity assembly to save space (after all quantification is complete)
+	if [[ -f "$trinity_ref" && "$trinity_ref" != *.gz ]]; then
+		log_info "[CLEANUP] Compressing Trinity assembly to save disk space..."
+		if gzip -f "$trinity_ref"; then
+			log_info "[CLEANUP] Trinity assembly compressed: ${trinity_ref}.gz"
+		else
+			log_warn "Failed to compress Trinity assembly, but pipeline completed successfully."
+		fi
+	fi
 }
 
 # Quantify expression using decoy-aware Salmon (Selective Alignment)
@@ -1011,12 +1702,12 @@ salmon_saf_pipeline() {
 
     # --- Build decoy-aware index ---
     if [[ -f "$idx_dir/versionInfo.json" ]]; then
-        log_info "Salmon decoy index already exists. Skipping."
+        log_info "[SALMON INDEX] Decoy index already exists. Skipping."
     else
-        log_info "Building decoy-aware Salmon index for $tag..."
+        log_step "Building decoy-aware Salmon index for $tag"
         awk '/^>/{print substr($0,2); next}{next}' "$genome" > "$work/decoys.txt"
         cat "$fasta" "$genome" > "$work/gentrome.fa"
-        run_with_time_to_log salmon index \
+        run_with_space_time_log salmon index \
             -t "$work/gentrome.fa" \
             -d "$work/decoys.txt" \
             -i "$idx_dir" \
@@ -1029,68 +1720,293 @@ salmon_saf_pipeline() {
         local tdir="$TRIM_DIR_ROOT/$SRR"
         local r1=$(ls "$tdir"/${SRR}*val_1.* 2>/dev/null | head -n1)
         local r2=$(ls "$tdir"/${SRR}*val_2.* 2>/dev/null | head -n1)
-        [[ -z "$r1" || -z "$r2" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
+        
+        # Check for single-end reads if paired-end not found
+        if [[ -z "$r1" ]]; then
+            r1=$(ls "$tdir"/${SRR}*trimmed.* 2>/dev/null | head -n1)
+        fi
+        
+        [[ -z "$r1" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
 
         local out_dir="$quant_root/$SRR"
         mkdir -p "$out_dir"
         if [[ -f "$out_dir/quant.sf" ]]; then
-            log_info "Quantification already exists for $SRR. Skipping."
+            log_info "[SALMON QUANT] Quantification for $SRR already exists. Skipping."
             continue
         fi
 
-        log_info "Quantifying expression for $SRR..."
+		log_step "Quantifying expression for $SRR with Salmon"
 		# Determine if we have paired-end or single-end reads
 		if [[ -n "$r2" && -f "$r2" ]]; then
 			# Paired-end reads
-			log_info "Using paired-end reads for $SRR"
-			run_with_time_to_log salmon quant \
-			-i "$idx_dir" -l A \
-			-1 "$r1" -2 "$r2" \
-			-p "$THREADS" \
-			--validateMappings \
-			--seqBias --gcBias --posBias \
-			--rangeFactorizationBins 4 \
-			--numBootstraps 100 \
-			--numGibbsSamples 20 \
-			--thinningFactor 16 \
-			$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--libType $([ "$RNA_STRAND_PROTOCOL" = "RF" ] && echo "ISR" || echo "ISF")") \
-			-o "$out_dir"
+			log_info "[SALMON QUANT] Using paired-end reads for $SRR"
+			run_with_space_time_log salmon quant \
+				-i "$idx_dir" -l A \
+				-1 "$r1" -2 "$r2" \
+				-p "$THREADS" \
+				--validateMappings \
+				--seqBias --gcBias --posBias \
+				--numBootstraps 30 \
+				-o "$out_dir"
 		else
 			# Single-end reads
-			log_info "Using single-end reads for $SRR"
-			run_with_time_to_log salmon quant \
-			-i "$idx_dir" -l A \
-			-r "$r1" \
-			-p "$THREADS" \
-			--validateMappings \
-			--seqBias --gcBias --posBias \
-			--rangeFactorizationBins 4 \
-			--numBootstraps 100 \
-			--numGibbsSamples 20 \
-			--thinningFactor 16 \
-			$([ "$RNA_STRAND_PROTOCOL" != "unstranded" ] && echo "--libType $([ "$RNA_STRAND_PROTOCOL" = "RF" ] && echo "SR" || echo "SF")") \
-			-o "$out_dir"
+			log_info "[SALMON QUANT] Using single-end reads for $SRR"
+			run_with_space_time_log salmon quant \
+				-i "$idx_dir" -l A \
+				-r "$r1" \
+				-p "$THREADS" \
+				--validateMappings \
+				--seqBias --gcBias --posBias \
+				--numBootstraps 30 \
+				-o "$out_dir"
 		fi
     done
 
-    # --- Merge matrices ---
-    log_info "Generating gene and transcript matrices..."
+    # --- Merge matrices for Salmon ---
+    log_step "Generating gene and transcript matrices (Salmon)"
     
     # Check if gene_trans_map exists, create if needed
     local gene_trans_map="${fasta}.gene_trans_map"
     if [[ ! -f "$gene_trans_map" ]]; then
-        log_info "Creating gene-transcript mapping file..."
-        grep "^>" "$fasta" | sed 's/^>//' | awk '{print $1 "\t" $1}' > "$gene_trans_map"
+        log_info "[SALMON MATRIX] Creating gene-transcript mapping file..."
+        
+        # Detect if this is a Trinity assembly by checking header format
+        local is_trinity=false
+        if grep -q "^>TRINITY_" "$fasta" 2>/dev/null; then
+            is_trinity=true
+            log_info "[SALMON MATRIX] Detected Trinity assembly format"
+        fi
+        
+        # Extract gene info from FASTA headers with format-specific handling
+        if [[ "$is_trinity" == "true" ]]; then
+            # Trinity format: >TRINITY_DN1000_c0_g1_i1 [additional_info]
+            # Gene ID: TRINITY_DN1000_c0_g1
+            # Transcript ID: TRINITY_DN1000_c0_g1_i1
+            awk '/^>/ {
+                # Extract full transcript ID
+                trans = $1
+                gsub(/^>/, "", trans)
+                
+                # Extract gene ID by removing isoform suffix (_i[0-9]+)
+                gene = trans
+                if (match(gene, /^(.+)_i[0-9]+$/, arr)) {
+                    gene = arr[1]
+                }
+                
+                print gene "\t" trans
+            }' "$fasta" > "$gene_trans_map"
+        else
+            # Generic format handling for non-Trinity assemblies
+            grep "^>" "$fasta" | sed 's/^>//' | awk '{
+                trans=$1
+                # Try to extract gene ID from different header formats
+                if (match($0, /gene=([^ ]+)/, arr)) {
+                    gene=arr[1]
+                } else if (match($0, /gene_id[=:]([^ ]+)/, arr)) {
+                    gene=arr[1]
+                } else if (match(trans, /^([^|]+)\|/, arr)) {
+                    gene=arr[1]  # Format: gene|transcript
+                } else {
+                    gene=trans  # Fallback: use transcript as gene
+                }
+                print gene "\t" trans
+            }' > "$gene_trans_map"
+        fi
+        
+        local unique_genes=$(cut -f1 "$gene_trans_map" | sort -u | wc -l)
+        local total_transcripts=$(wc -l < "$gene_trans_map")
+        log_info "[SALMON MATRIX] Created gene-transcript map: $unique_genes genes, $total_transcripts transcripts"
+        
+        # Validate mapping
+        if [[ $total_transcripts -eq 0 ]]; then
+            log_error "Failed to create gene-transcript mapping!"
+            return 1
+        fi
     fi
     
-    run_with_time_to_log abundance_estimates_to_matrix.pl \
-        --est_method salmon \
-        --gene_trans_map "$gene_trans_map" \
-        --out_prefix "$matrix_dir/genes" \
-        --name_sample_by_basedir "$quant_root"/*/quant.sf
-
-    log_info "COMPLETED: Salmon-SAF pipeline for $tag"
-    log_info "Outputs: $matrix_dir/"
+    # Generate count matrices using Trinity's abundance_estimates_to_matrix.pl
+    if command -v abundance_estimates_to_matrix.pl >/dev/null 2>&1; then
+        log_info "[SALMON MATRIX] Running abundance_estimates_to_matrix.pl for Salmon quantifications..."
+        run_with_space_time_log abundance_estimates_to_matrix.pl \
+            --est_method salmon \
+            --gene_trans_map "$gene_trans_map" \
+            --out_prefix "$matrix_dir/genes" \
+            --name_sample_by_basedir "$quant_root"/*/quant.sf
+    else
+        log_warn "abundance_estimates_to_matrix.pl not found. Creating manual count matrix..."
+        
+        # Manual matrix creation from Salmon quant.sf files
+        local temp_gene_ids="$matrix_dir/temp_gene_ids.txt"
+        local temp_counts="$matrix_dir/temp_counts.txt"
+        
+        # Get gene IDs from first successful quantification
+        local first_sample=""
+        for SRR in "${rnaseq_list[@]}"; do
+            if [[ -f "$quant_root/$SRR/quant.sf" ]]; then
+                first_sample="$SRR"
+                awk 'NR>1 {print $1}' "$quant_root/$SRR/quant.sf" > "$temp_gene_ids"
+                break
+            fi
+        done
+        
+        if [[ -n "$first_sample" ]]; then
+            # Extract NumReads (column 5) for each sample
+            for SRR in "${rnaseq_list[@]}"; do
+                if [[ -f "$quant_root/$SRR/quant.sf" ]]; then
+                    awk 'NR>1 {print int($5 + 0.5)}' "$quant_root/$SRR/quant.sf" > "$matrix_dir/${SRR}_counts.tmp"
+                    
+                    # Validate count quality
+                    local total_counts=$(awk '{sum+=$1} END {print sum}' "$matrix_dir/${SRR}_counts.tmp")
+                    if [[ $total_counts -lt 100000 ]]; then
+                        log_warn "Low count total for $SRR: $total_counts (expected >1M for typical RNA-seq)"
+                    fi
+                else
+                    log_warn "Quantification not found for $SRR. Using zeros."
+                    local num_genes=$(wc -l < "$temp_gene_ids")
+                    yes 0 | head -n "$num_genes" > "$matrix_dir/${SRR}_counts.tmp"
+                fi
+            done
+            
+            # Combine all count files
+            paste "$temp_gene_ids" "$matrix_dir"/*_counts.tmp > "$temp_counts"
+            
+            # Create count matrix
+            echo -n "gene_id" > "$matrix_dir/genes.counts.matrix"
+            for SRR in "${rnaseq_list[@]}"; do
+                echo -ne "\t$SRR" >> "$matrix_dir/genes.counts.matrix"
+            done
+            echo "" >> "$matrix_dir/genes.counts.matrix"
+            cat "$temp_counts" >> "$matrix_dir/genes.counts.matrix"
+            
+            # Cleanup
+            rm -f "$temp_gene_ids" "$temp_counts" "$matrix_dir"/*_counts.tmp
+        fi
+    fi
+    
+    # --- Prepare DESeq2-compatible outputs ---
+    log_step "Preparing DESeq2-compatible count matrix for Salmon pipeline"
+    local deseq2_dir="$matrix_dir/deseq2_input"
+    local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
+    local sample_metadata="$deseq2_dir/sample_metadata.csv"
+    mkdir -p "$deseq2_dir"
+    
+    # Verify we have quantifications
+    local quant_count=0
+    for SRR in "${rnaseq_list[@]}"; do
+        [[ -f "$quant_root/$SRR/quant.sf" ]] && ((quant_count++))
+    done
+    
+    if [[ $quant_count -lt 2 ]]; then
+        log_error "Insufficient Salmon quantifications (found: $quant_count, need: ≥2)"
+        return 1
+    fi
+    log_info "[SALMON] Found $quant_count samples with successful quantifications"
+    
+    # Convert tab-delimited matrix to CSV for DESeq2
+    if [[ -f "$matrix_dir/genes.counts.matrix" ]]; then
+        if [[ ! -f "$gene_count_matrix" ]]; then
+            log_info "[SALMON MATRIX] Converting count matrix to CSV format for DESeq2..."
+            # Convert tabs to commas and rename first column
+            sed 's/\t/,/g' "$matrix_dir/genes.counts.matrix" | \
+                sed '1s/gene_id/Gene_ID/' > "$gene_count_matrix"
+        fi
+    else
+        log_warn "Count matrix not found. Cannot create DESeq2 input."
+    fi
+    
+    # Create sample metadata file using improved function
+    if [[ ! -f "$sample_metadata" ]]; then
+        create_sample_metadata "$sample_metadata" rnaseq_list[@]
+    fi
+    
+    # Generate tximport R script for Salmon (RECOMMENDED for publication)
+    local tximport_script="$deseq2_dir/run_tximport_salmon.R"
+    if [[ ! -f "$tximport_script" ]]; then
+        generate_tximport_script "salmon" "$quant_root" "$tximport_script" "$sample_metadata"
+        log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "✅ BEST PRACTICE: Use tximport for Salmon data"
+        log_info "   While NumReads counts work, tximport handles uncertainty better"
+        log_info "   Run: Rscript $tximport_script"
+        log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    fi
+    
+    # Create TPM matrix for exploratory analysis
+    if [[ -f "$matrix_dir/genes.TPM.not_cross_norm" ]]; then
+        local tpm_matrix="$deseq2_dir/gene_tpm_matrix.csv"
+        if [[ ! -f "$tpm_matrix" ]]; then
+            log_info "[SALMON MATRIX] Converting TPM matrix to CSV format..."
+            sed 's/\t/,/g' "$matrix_dir/genes.TPM.not_cross_norm" | \
+                sed '1s/gene_id/Gene_ID/' > "$tpm_matrix"
+        fi
+    fi
+    
+    # Create aggregated summary statistics
+    local summary_file="$deseq2_dir/salmon_summary.txt"
+    if [[ ! -f "$summary_file" ]]; then
+        log_info "[SALMON SUMMARY] Creating Salmon quantification summary..."
+        {
+            echo "==================================================================="
+            echo "Salmon SAF Quantification Summary for $tag"
+            echo "==================================================================="
+            echo "Date: $(date)"
+            echo ""
+            echo "Samples processed: ${#rnaseq_list[@]}"
+            echo "Quantification method: Salmon Selective Alignment with decoy-aware indexing"
+            echo ""
+            echo "Per-sample statistics:"
+            echo "-------------------------------------------------------------------"
+            
+            for SRR in "${rnaseq_list[@]}"; do
+                if [[ -f "$quant_root/$SRR/quant.sf" ]]; then
+                    local total_transcripts=$(awk 'NR>1' "$quant_root/$SRR/quant.sf" | wc -l)
+                    local expressed_transcripts=$(awk 'NR>1 && $5>0' "$quant_root/$SRR/quant.sf" | wc -l)
+                    local total_reads=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$quant_root/$SRR/quant.sf")
+                    
+                    echo "$SRR:"
+                    echo "  Total transcripts: $total_transcripts"
+                    echo "  Expressed transcripts (NumReads > 0): $expressed_transcripts"
+                    echo "  Total mapped reads: $total_reads"
+                    
+                    # Extract mapping rate if available (using POSIX-compatible awk instead of grep -P)
+                    if [[ -f "$quant_root/$SRR/aux_info/meta_info.json" ]]; then
+                        # Extract percent_mapped without requiring grep -P
+                        local mapping_rate
+                        mapping_rate=$(awk -F: '/"percent_mapped"/ {gsub(/[ ,"]/, "", $2); print $2}' "$quant_root/$SRR/aux_info/meta_info.json" 2>/dev/null || echo "N/A")
+                        echo "  Mapping rate: ${mapping_rate}%"
+                    fi
+                fi
+            done
+            
+            echo ""
+            echo "Output files:"
+            echo "  - Count matrix: $gene_count_matrix"
+            echo "  - Sample metadata: $sample_metadata"
+            if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
+                echo "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
+            fi
+            echo "==================================================================="
+        } > "$summary_file"
+        
+        log_info "[SALMON SUMMARY] Summary saved to: $summary_file"
+    fi
+    
+    # Validate count matrix quality using validation function
+    if [[ -f "$gene_count_matrix" ]]; then
+        validate_count_matrix "$gene_count_matrix" "gene" 2
+    fi
+    
+    log_step "COMPLETED: Salmon-SAF pipeline for $tag"
+    log_info "Count matrices: $matrix_dir/"
+    log_info "DESeq2 input files:"
+    log_info "  - Gene count matrix: $gene_count_matrix"
+    log_info "  - Sample metadata: $sample_metadata"
+    if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
+        log_info "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
+    fi
+    log_info "  - Summary: $summary_file"
+    
+    # Apply normalization to expression matrices
+    normalize_expression_data "$matrix_dir" "salmon"
 }
 
 # Quantify expression using Bowtie2 + RSEM
@@ -1109,6 +2025,7 @@ bowtie2_rsem_pipeline() {
 
     [[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa"; return 1; }
     [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
+	dos2unix $fasta
 
     local tag="$(basename "${fasta%.*}")"
     local rsem_idx="$RSEM_INDEX_ROOT/${tag}_rsem"
@@ -1119,10 +2036,10 @@ bowtie2_rsem_pipeline() {
 
     # --- Prepare reference ---
     if [[ -f "${rsem_idx}.grp" ]]; then
-        log_info "RSEM reference already exists. Skipping."
+        log_info "[RSEM INDEX] RSEM reference already exists. Skipping."
     else
-        log_info "Building RSEM reference for $tag..."
-        run_with_time_to_log rsem-prepare-reference --bowtie2 "$fasta" "$rsem_idx"
+        log_step "Building RSEM reference for $tag"
+        run_with_space_time_log rsem-prepare-reference --bowtie2 "$fasta" "$rsem_idx"
     fi
 
     # --- Quantify each SRR ---
@@ -1130,58 +2047,375 @@ bowtie2_rsem_pipeline() {
         local tdir="$TRIM_DIR_ROOT/$SRR"
         local r1=$(ls "$tdir"/${SRR}*val_1.* 2>/dev/null | head -n1)
         local r2=$(ls "$tdir"/${SRR}*val_2.* 2>/dev/null | head -n1)
-        [[ -z "$r1" || -z "$r2" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
+        
+        # Check for single-end reads if paired-end not found
+        if [[ -z "$r1" ]]; then
+            r1=$(ls "$tdir"/${SRR}*trimmed.* 2>/dev/null | head -n1)
+        fi
+        
+        [[ -z "$r1" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
 
         local out_dir="$quant_root/$SRR"
         mkdir -p "$out_dir"
         if [[ -f "$out_dir/${SRR}.genes.results" ]]; then
-            log_info "RSEM results already exist for $SRR. Skipping."
+            log_info "[RSEM QUANT] RSEM results for $SRR already exist. Skipping."
             continue
         fi
 
-        log_info "Running Bowtie2 + RSEM for $SRR..."
+        log_step "Running Bowtie2 + RSEM for $SRR"
 		# Determine if we have paired-end or single-end reads
 		if [[ -n "$r2" && -f "$r2" ]]; then
 			# Paired-end reads
-			log_info "Using paired-end reads for $SRR"
-			run_with_time_to_log rsem-calculate-expression \
-			--paired-end \
-			--bowtie2 \
-			--num-threads "$THREADS" \
-			"$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
+			log_info "[RSEM QUANT] Using paired-end reads for $SRR"
+			run_with_space_time_log \
+				rsem-calculate-expression \
+					--paired-end \
+					--bowtie2 \
+					--num-threads "$THREADS" \
+					"$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
 		else
 			# Single-end reads
-			log_info "Using single-end reads for $SRR"
-			run_with_time_to_log rsem-calculate-expression \
-			--bowtie2 \
-			--num-threads "$THREADS" \
-			"$r1" "$rsem_idx" "$out_dir/$SRR"
+			log_info "[RSEM QUANT] Using single-end reads for $SRR"
+			run_with_space_time_log \
+				rsem-calculate-expression \
+					--bowtie2 \
+					--num-threads "$THREADS" \
+					"$r1" "$rsem_idx" "$out_dir/$SRR"
 		fi
     done
 
-    # --- Merge matrices ---
-    log_info "Generating gene and transcript matrices..."
+    # --- Merge matrices for RSEM ---
+    log_step "Generating gene and transcript matrices (RSEM)"
     
     # Check if gene_trans_map exists, create if needed
     local gene_trans_map="${fasta}.gene_trans_map"
     if [[ ! -f "$gene_trans_map" ]]; then
-        log_info "Creating gene-transcript mapping file..."
-        grep "^>" "$fasta" | sed 's/^>//' | awk '{print $1 "\t" $1}' > "$gene_trans_map"
+        log_info "[RSEM MATRIX] Creating gene-transcript mapping file..."
+        
+        # Detect if this is a Trinity assembly by checking header format
+        local is_trinity=false
+        if grep -q "^>TRINITY_" "$fasta" 2>/dev/null; then
+            is_trinity=true
+            log_info "[RSEM MATRIX] Detected Trinity assembly format"
+        fi
+        
+        # Extract gene info from FASTA headers with format-specific handling
+        if [[ "$is_trinity" == "true" ]]; then
+            # Trinity format: >TRINITY_DN1000_c0_g1_i1 [additional_info]
+            # Gene ID: TRINITY_DN1000_c0_g1
+            # Transcript ID: TRINITY_DN1000_c0_g1_i1
+            awk '/^>/ {
+                # Extract full transcript ID
+                trans = $1
+                gsub(/^>/, "", trans)
+                
+                # Extract gene ID by removing isoform suffix (_i[0-9]+)
+                gene = trans
+                if (match(gene, /^(.+)_i[0-9]+$/, arr)) {
+                    gene = arr[1]
+                }
+                
+                print gene "\t" trans
+            }' "$fasta" > "$gene_trans_map"
+        else
+            # Generic format handling for non-Trinity assemblies
+            grep "^>" "$fasta" | sed 's/^>//' | awk '{
+                trans=$1
+                # Try to extract gene ID from different header formats
+                if (match($0, /gene=([^ ]+)/, arr)) {
+                    gene=arr[1]
+                } else if (match($0, /gene_id[=:]([^ ]+)/, arr)) {
+                    gene=arr[1]
+                } else if (match(trans, /^([^|]+)\|/, arr)) {
+                    gene=arr[1]  # Format: gene|transcript
+                } else {
+                    gene=trans  # Fallback: use transcript as gene
+                }
+                print gene "\t" trans
+            }' > "$gene_trans_map"
+        fi
+        
+        local unique_genes=$(cut -f1 "$gene_trans_map" | sort -u | wc -l)
+        local total_transcripts=$(wc -l < "$gene_trans_map")
+        log_info "[RSEM MATRIX] Created gene-transcript map: $unique_genes genes, $total_transcripts transcripts"
+        
+        # Validate mapping
+        if [[ $total_transcripts -eq 0 ]]; then
+            log_error "Failed to create gene-transcript mapping!"
+            return 1
+        fi
     fi
     
-    run_with_time_to_log abundance_estimates_to_matrix.pl \
-        --est_method RSEM \
-        --gene_trans_map "$gene_trans_map" \
-        --out_prefix "$matrix_dir/genes" \
-        --name_sample_by_basedir "$quant_root"/*/*.genes.results
+    run_with_space_time_log \
+		abundance_estimates_to_matrix.pl \
+			--est_method RSEM \
+			--gene_trans_map "$gene_trans_map" \
+			--out_prefix "$matrix_dir/genes" \
+			--name_sample_by_basedir "$quant_root"/*/*.genes.results || {
+		log_warn "abundance_estimates_to_matrix.pl failed. Creating manual count matrix..."
+		
+		# Manual matrix creation from RSEM .genes.results files
+		local temp_gene_ids="$matrix_dir/temp_gene_ids.txt"
+		local temp_counts="$matrix_dir/temp_counts.txt"
+		local temp_tpm="$matrix_dir/temp_tpm.txt"
+		local temp_fpkm="$matrix_dir/temp_fpkm.txt"
+		
+		# Get gene IDs from first successful quantification
+		local first_sample=""
+		for SRR in "${rnaseq_list[@]}"; do
+			if [[ -f "$quant_root/$SRR/${SRR}.genes.results" ]]; then
+				first_sample="$SRR"
+				awk 'NR>1 {print $1}' "$quant_root/$SRR/${SRR}.genes.results" > "$temp_gene_ids"
+				break
+			fi
+		done
+		
+		if [[ -n "$first_sample" ]]; then
+			# Extract expected_count (column 5), TPM (column 6), and FPKM (column 7) for each sample
+			for SRR in "${rnaseq_list[@]}"; do
+				if [[ -f "$quant_root/$SRR/${SRR}.genes.results" ]]; then
+					# Expected counts (rounded to integers)
+					awk 'NR>1 {print int($5 + 0.5)}' "$quant_root/$SRR/${SRR}.genes.results" > "$matrix_dir/${SRR}_counts.tmp"
+					# TPM values
+					awk 'NR>1 {print $6}' "$quant_root/$SRR/${SRR}.genes.results" > "$matrix_dir/${SRR}_tpm.tmp"
+					# FPKM values
+					awk 'NR>1 {print $7}' "$quant_root/$SRR/${SRR}.genes.results" > "$matrix_dir/${SRR}_fpkm.tmp"
+				else
+					log_warn "RSEM results not found for $SRR. Using zeros."
+					local num_genes=$(wc -l < "$temp_gene_ids")
+					yes 0 | head -n "$num_genes" > "$matrix_dir/${SRR}_counts.tmp"
+					yes 0 | head -n "$num_genes" > "$matrix_dir/${SRR}_tpm.tmp"
+					yes 0 | head -n "$num_genes" > "$matrix_dir/${SRR}_fpkm.tmp"
+				fi
+			done
+			
+			# Combine all count files
+			paste "$temp_gene_ids" "$matrix_dir"/*_counts.tmp > "$temp_counts"
+			paste "$temp_gene_ids" "$matrix_dir"/*_tpm.tmp > "$temp_tpm"
+			paste "$temp_gene_ids" "$matrix_dir"/*_fpkm.tmp > "$temp_fpkm"
+			
+			# Create count matrix
+			echo -n "gene_id" > "$matrix_dir/genes.counts.matrix"
+			for SRR in "${rnaseq_list[@]}"; do
+				echo -ne "\t$SRR" >> "$matrix_dir/genes.counts.matrix"
+			done
+			echo "" >> "$matrix_dir/genes.counts.matrix"
+			cat "$temp_counts" >> "$matrix_dir/genes.counts.matrix"
+			
+			# Create TPM matrix
+			echo -n "gene_id" > "$matrix_dir/genes.TPM.not_cross_norm"
+			for SRR in "${rnaseq_list[@]}"; do
+				echo -ne "\t$SRR" >> "$matrix_dir/genes.TPM.not_cross_norm"
+			done
+			echo "" >> "$matrix_dir/genes.TPM.not_cross_norm"
+			cat "$temp_tpm" >> "$matrix_dir/genes.TPM.not_cross_norm"
+			
+			# Create FPKM matrix
+			echo -n "gene_id" > "$matrix_dir/genes.FPKM.not_cross_norm"
+			for SRR in "${rnaseq_list[@]}"; do
+				echo -ne "\t$SRR" >> "$matrix_dir/genes.FPKM.not_cross_norm"
+			done
+			echo "" >> "$matrix_dir/genes.FPKM.not_cross_norm"
+			cat "$temp_fpkm" >> "$matrix_dir/genes.FPKM.not_cross_norm"
+			
+			# Cleanup
+			rm -f "$temp_gene_ids" "$temp_counts" "$temp_tpm" "$temp_fpkm" \
+				  "$matrix_dir"/*_counts.tmp "$matrix_dir"/*_tpm.tmp "$matrix_dir"/*_fpkm.tmp
+		fi
+	}
+    
+    # --- Prepare DESeq2-compatible outputs ---
+    log_step "Preparing DESeq2-compatible count matrix for RSEM pipeline"
+    log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_warn "⚠️  STATISTICAL CONSIDERATION: RSEM Expected Counts vs. tximport"
+    log_warn ""
+    log_warn "📊 WHAT'S HAPPENING:"
+    log_warn "    - RSEM produces 'expected counts' (probabilistically estimated)"
+    log_warn "    - These account for multi-mapping reads but may violate DESeq2 assumptions"
+    log_warn "    - Direct use of expected_count can lead to incorrect p-values"
+    log_warn ""
+    log_warn "✅ RECOMMENDED FOR PUBLICATION (Gold Standard):"
+    log_warn "    Use tximport - it properly handles transcript-level uncertainty"
+    log_warn "    A ready-to-use tximport script will be generated below"
+    log_warn ""
+    log_warn "📌 ALTERNATIVE:"
+    log_warn "    Use Method 1 (HISAT2 Reference-Guided) for true integer counts"
+    log_warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    local deseq2_dir="$matrix_dir/deseq2_input"
+    local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
+    local sample_metadata="$deseq2_dir/sample_metadata.csv"
+    mkdir -p "$deseq2_dir"
+    
+    # Verify we have quantifications
+    local quant_count=0
+    for SRR in "${rnaseq_list[@]}"; do
+        [[ -f "$quant_root/$SRR/${SRR}.genes.results" ]] && ((quant_count++))
+    done
+    
+    if [[ $quant_count -lt 2 ]]; then
+        log_error "Insufficient RSEM quantifications (found: $quant_count, need: ≥2)"
+        return 1
+    fi
+    log_info "[RSEM] Found $quant_count samples with successful quantifications"
+    
+    # Convert tab-delimited matrix to CSV for DESeq2
+    if [[ -f "$matrix_dir/genes.counts.matrix" ]]; then
+        if [[ ! -f "$gene_count_matrix" ]]; then
+            log_info "[RSEM MATRIX] Converting count matrix to CSV format for DESeq2..."
+            # Convert tabs to commas and rename first column
+            sed 's/\t/,/g' "$matrix_dir/genes.counts.matrix" | \
+                sed '1s/gene_id/Gene_ID/' > "$gene_count_matrix"
+        fi
+    else
+        log_warn "Count matrix not found. Cannot create DESeq2 input."
+    fi
+    
+    # Create sample metadata file using improved function
+    if [[ ! -f "$sample_metadata" ]]; then
+        create_sample_metadata "$sample_metadata" rnaseq_list[@]
+    fi
+    
+    # Generate tximport R script for RSEM (RECOMMENDED for publication)
+    local tximport_script="$deseq2_dir/run_tximport_rsem.R"
+    if [[ ! -f "$tximport_script" ]]; then
+        log_info ""
+        log_info "🔧 Generating tximport script for publication-ready analysis..."
+        generate_tximport_script "rsem" "$quant_root" "$tximport_script" "$sample_metadata"
+        log_info ""
+        log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "✅ tximport SCRIPT GENERATED (RECOMMENDED FOR PUBLICATION)"
+        log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info ""
+        log_info "📍 Script location: $tximport_script"
+        log_info ""
+        log_info "🚀 To use the recommended tximport approach:"
+        log_info "   cd $(dirname "$tximport_script")"
+        log_info "   Rscript $(basename "$tximport_script")"
+        log_info ""
+        log_info "📖 This script will:"
+        log_info "   • Properly import RSEM quantifications with uncertainty handling"
+        log_info "   • Create a DESeq2 object ready for differential expression"
+        log_info "   • Generate QC plots (PCA, sample correlation)"
+        log_info "   • Save normalized count matrices"
+        log_info ""
+        log_info "💡 The basic count matrix below is for quick inspection only"
+        log_info "   Use tximport results for formal statistical analysis"
+        log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info ""
+    else
+        log_info "✅ tximport script already exists: $tximport_script"
+    fi
+    
+    # Create TPM and FPKM matrices for exploratory analysis
+    if [[ -f "$matrix_dir/genes.TPM.not_cross_norm" ]]; then
+        local tpm_matrix="$deseq2_dir/gene_tpm_matrix.csv"
+        if [[ ! -f "$tpm_matrix" ]]; then
+            log_info "[RSEM MATRIX] Converting TPM matrix to CSV format..."
+            sed 's/\t/,/g' "$matrix_dir/genes.TPM.not_cross_norm" | \
+                sed '1s/gene_id/Gene_ID/' > "$tpm_matrix"
+        fi
+    fi
+    
+    if [[ -f "$matrix_dir/genes.FPKM.not_cross_norm" ]]; then
+        local fpkm_matrix="$deseq2_dir/gene_fpkm_matrix.csv"
+        if [[ ! -f "$fpkm_matrix" ]]; then
+            log_info "[RSEM MATRIX] Converting FPKM matrix to CSV format..."
+            sed 's/\t/,/g' "$matrix_dir/genes.FPKM.not_cross_norm" | \
+                sed '1s/gene_id/Gene_ID/' > "$fpkm_matrix"
+        fi
+    fi
+    
+    # Create aggregated summary statistics
+    local summary_file="$deseq2_dir/rsem_summary.txt"
+    if [[ ! -f "$summary_file" ]]; then
+        log_info "[RSEM SUMMARY] Creating RSEM quantification summary..."
+        {
+            echo "==================================================================="
+            echo "RSEM Quantification Summary for $tag"
+            echo "==================================================================="
+            echo "Date: $(date)"
+            echo ""
+            echo "Samples processed: ${#rnaseq_list[@]}"
+            echo "Quantification method: RSEM with Bowtie2 alignment"
+            echo ""
+            echo "Per-sample statistics:"
+            echo "-------------------------------------------------------------------"
+            
+            for SRR in "${rnaseq_list[@]}"; do
+                if [[ -f "$quant_root/$SRR/${SRR}.genes.results" ]]; then
+                    local total_genes=$(awk 'NR>1' "$quant_root/$SRR/${SRR}.genes.results" | wc -l)
+                    local expressed_genes=$(awk 'NR>1 && $5>0' "$quant_root/$SRR/${SRR}.genes.results" | wc -l)
+                    local total_counts=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$quant_root/$SRR/${SRR}.genes.results")
+                    
+                    echo "$SRR:"
+                    echo "  Total genes: $total_genes"
+                    echo "  Expressed genes (count > 0): $expressed_genes"
+                    echo "  Total expected counts: $total_counts"
+                fi
+            done
+            
+            echo ""
+            echo "Output files:"
+            echo "  - Count matrix: $gene_count_matrix"
+            echo "  - Sample metadata: $sample_metadata"
+            if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
+                echo "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
+            fi
+            if [[ -f "$deseq2_dir/gene_fpkm_matrix.csv" ]]; then
+                echo "  - FPKM matrix: $deseq2_dir/gene_fpkm_matrix.csv"
+            fi
+            echo "==================================================================="
+        } > "$summary_file"
+        
+        log_info "[RSEM SUMMARY] Summary saved to: $summary_file"
+    fi
 
-    log_info "COMPLETED: Bowtie2-RSEM pipeline for $tag"
-    log_info "Outputs: $matrix_dir/"
+    # Validate count matrix quality using validation function
+    if [[ -f "$gene_count_matrix" ]]; then
+        validate_count_matrix "$gene_count_matrix" "gene" 2
+    fi
+
+    log_step "COMPLETED: Bowtie2-RSEM pipeline for $tag"
+    log_info "Count matrices: $matrix_dir/"
+    log_info "DESeq2 input files:"
+    log_info "  - Gene count matrix: $gene_count_matrix"
+    log_info "  - Sample metadata: $sample_metadata"
+    if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
+        log_info "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
+    fi
+    if [[ -f "$deseq2_dir/gene_fpkm_matrix.csv" ]]; then
+        log_info "  - FPKM matrix: $deseq2_dir/gene_fpkm_matrix.csv"
+    fi
+    log_info "  - Summary: $summary_file"
+    
+    # Apply normalization to expression matrices
+    normalize_expression_data "$matrix_dir" "RSEM"
 }
 
 # ------------------------------------------------------------------------------
 # METHOD COMPARISON AND VALIDATION FUNCTIONS
 # ------------------------------------------------------------------------------
+
+# IMPORTANT: Sample Metadata Configuration
+# =========================================
+# All pipeline methods create a default sample_metadata.csv file with:
+#   - All samples assigned to "treatment" condition
+#   - All samples in batch "1"
+# 
+# THIS MUST BE CUSTOMIZED for differential expression analysis!
+# 
+# Option 1: Create a sample_conditions.txt file with format:
+#   SRR_ID condition batch
+#   SRR3884597 control 1
+#   SRR3884653 treatment 1
+#
+# Option 2: Manually edit the generated sample_metadata.csv files:
+#   - Located in: */deseq2_input/sample_metadata.csv
+#   - Assign appropriate experimental conditions and batch information
+#
+# Without proper condition assignment, DESeq2 cannot perform differential
+# expression analysis!
+# =========================================
 
 normalize_expression_data() {
 	# Apply normalization to expression matrices
@@ -1189,9 +2423,9 @@ normalize_expression_data() {
 	local method="$2"
 	
 	if [[ -f "$matrix_dir/genes.counts.matrix" ]]; then
-		log_info "Applying TMM normalization for $method..."
+		log_step "Applying TMM normalization for $method"
 		if command -v normalize_matrix.pl >/dev/null 2>&1; then
-			run_with_time_to_log normalize_matrix.pl "$matrix_dir/genes.counts.matrix" \
+			run_with_space_time_log normalize_matrix.pl "$matrix_dir/genes.counts.matrix" \
 				--est_method "$method" \
 				--out_prefix "$matrix_dir/genes.TMM" || \
 				log_warn "TMM normalization failed for $method"
@@ -1200,3 +2434,74 @@ normalize_expression_data() {
 		fi
 	fi
 }
+
+# Cross-method validation and comparison
+compare_methods_summary() {
+	local fasta_tag="$1"
+	
+	log_step "Cross-Method Validation Summary for $fasta_tag"
+	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	
+	# Method 1: HISAT2 Reference-Guided
+	local m1_matrix="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/deseq2_input/gene_count_matrix.csv"
+	if [[ -f "$m1_matrix" ]]; then
+		local m1_genes=$(tail -n +2 "$m1_matrix" | wc -l)
+		local m1_samples=$(head -n1 "$m1_matrix" | tr ',' '\n' | tail -n +2 | wc -l)
+		log_info "✅ Method 1 (HISAT2 Ref-Guided): $m1_genes genes, $m1_samples samples"
+		log_info "   Status: BEST for publication (true read counts via prepDE.py)"
+	fi
+	
+	# Method 3: Trinity De Novo
+	local m3_matrix="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/deseq2_input/gene_count_matrix.csv"
+	local m3_tximport="$STRINGTIE_TRINITY_DE_NOVO_ROOT/$fasta_tag/deseq2_input/run_tximport_trinity.R"
+	if [[ -f "$m3_matrix" ]]; then
+		local m3_genes=$(tail -n +2 "$m3_matrix" | wc -l)
+		local m3_samples=$(head -n1 "$m3_matrix" | tr ',' '\n' | tail -n +2 | wc -l)
+		log_info "⚠️  Method 3 (Trinity): $m3_genes genes, $m3_samples samples"
+		log_info "   Status: Uses RSEM expected_count (statistical estimates)"
+		if [[ -f "$m3_tximport" ]]; then
+			log_info "   ✅ tximport script available: $m3_tximport"
+		fi
+	fi
+	
+	# Method 4: Salmon SAF
+	local m4_matrix="$SALMON_SAF_ROOT/$fasta_tag/matrices/deseq2_input/gene_count_matrix.csv"
+	local m4_tximport="$SALMON_SAF_ROOT/$fasta_tag/matrices/deseq2_input/run_tximport_salmon.R"
+	if [[ -f "$m4_matrix" ]]; then
+		local m4_genes=$(tail -n +2 "$m4_matrix" | wc -l)
+		local m4_samples=$(head -n1 "$m4_matrix" | tr ',' '\n' | tail -n +2 | wc -l)
+		log_info "✅ Method 4 (Salmon SAF): $m4_genes genes, $m4_samples samples"
+		log_info "   Status: EXCELLENT for publication (fast, accurate, modern)"
+		if [[ -f "$m4_tximport" ]]; then
+			log_info "   ✅ tximport script available: $m4_tximport"
+		fi
+	fi
+	
+	# Method 5: Bowtie2 + RSEM
+	local m5_matrix="$BOWTIE2_RSEM_ROOT/$fasta_tag/matrices/deseq2_input/gene_count_matrix.csv"
+	local m5_tximport="$BOWTIE2_RSEM_ROOT/$fasta_tag/matrices/deseq2_input/run_tximport_rsem.R"
+	if [[ -f "$m5_matrix" ]]; then
+		local m5_genes=$(tail -n +2 "$m5_matrix" | wc -l)
+		local m5_samples=$(head -n1 "$m5_matrix" | tr ',' '\n' | tail -n +2 | wc -l)
+		log_info "⚠️  Method 5 (Bowtie2+RSEM): $m5_genes genes, $m5_samples samples"
+		log_info "   Status: Uses RSEM expected_count (statistical estimates)"
+		if [[ -f "$m5_tximport" ]]; then
+			log_info "   ✅ tximport script available: $m5_tximport"
+		fi
+	fi
+	
+	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	log_info ""
+	log_info "📊 RECOMMENDED ANALYSIS WORKFLOW:"
+	log_info "   1. PRIMARY: Use Method 4 (Salmon) or Method 1 (HISAT2 Ref-Guided)"
+	log_info "   2. For Methods 3 & 5: Run tximport R scripts for proper statistical handling"
+	log_info "   3. CRITICAL: Configure sample_conditions.txt before differential expression"
+	log_info "   4. Compare results across methods for validation"
+	log_info ""
+	log_info "⚠️  BEFORE RUNNING DESeq2:"
+	log_info "   - Create sample_conditions.txt with proper experimental conditions"
+	log_info "   - Verify metadata files have ≥2 different conditions"
+	log_info "   - Check count matrix quality (no duplicates, <50% zeros)"
+	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+}
+
