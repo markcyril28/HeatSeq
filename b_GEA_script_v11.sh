@@ -19,8 +19,8 @@ eval "$(conda shell.bash hook)"
 # Activate conda environment
 conda activate GEA_ENV
 
-find . -type f \( -name "*.txt" -o -name "*.sh" -o -name "*.fasta" -o -name "*.py" -o -name "*.R" \) -exec dos2unix {} +
-find . -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" \) -exec chmod +x {} +
+find . -type f \( -name "*.txt" -o -name "*.sh" -o -name "*.fasta" -o -name "*.py" -o -name "*.R" \) -exec dos2unix {} + 2>/dev/null || true
+find . -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" \) -exec chmod +x {} + 2>/dev/null || true
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #source "modules/all_functions.sh"
@@ -169,10 +169,11 @@ OTHER_SRR_LIST=(
 
 SRR_COMBINED_LIST=(
 	"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
-	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset to increase replicability. 
-	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset to increase replicability. 
-	#"${SRR_LIST_PRJNA865018[@]}"	# Good Dataset for SmelDMP GEA.
+	"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
+	"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
+	"${SRR_LIST_PRJNA865018[@]}"	# Good Dataset for SmelDMP GEA.
 )
+
 
 # ==============================================================================
 # DIRECTORY STRUCTURE AND OUTPUT PATHS

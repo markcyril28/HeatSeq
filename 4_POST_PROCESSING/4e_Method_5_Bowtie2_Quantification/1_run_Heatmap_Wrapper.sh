@@ -24,11 +24,11 @@ GENE_GROUPS=(
     # Individual Gene Groups
     #"SmelDMPs"
     #"SmelDMPs_with_18s_rRNA"
-    #"SmelDMPs_with_18s_rRNA_PSBMB"
+    "SmelDMPs_with_18s_rRNA_PSBMB"
     #"SmelGIFs"
     #"SmelGRFs"
     #"Selected_GRF_GIF_Genes"
-    "Selected_GRF_GIF_Genes_vAll_GIFs"
+    #"Selected_GRF_GIF_Genes_vAll_GIFs"
     #"Selected_GRF_GIF_Genes_vTwo_GIFs"
 
     # Combined Gene Groups
