@@ -15,7 +15,7 @@
 # ===============================================
 # CONFIGURATION
 # ===============================================
-set -euo pipefail  # Exit on error, undefined vars, pipe failures
+set -uo pipefail  # Exit on error, undefined vars, pipe failures
 
 # Gene groups to process
 Gene_Groups_Boilerplates=(
@@ -104,8 +104,8 @@ SRR_LIST_SAMN28540068=(
 # Combined list of all samples across projects
 SRR_LIST_COMBINED=(
     "${SRR_LIST_PRJNA328564[@]}" 
-    #"${SRR_LIST_SAMN28540077[@]}" 
-    #"${SRR_LIST_SAMN28540068[@]}"
+    "${SRR_LIST_SAMN28540077[@]}" 
+    "${SRR_LIST_SAMN28540068[@]}"
 )
 
 SRR_LIST_COMBINED_OFF=(
@@ -307,6 +307,9 @@ merge_group_counts() {
         
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Creating SRR matrix: $(basename "$output_geneName_SRR_tsv")"
         
+        # Create sample files list for Python script
+        printf "%s\n" "${sample_files[@]}" > "$tmpdir/sample_files_list.txt"
+        
         # Create matrix: gene names + SRR sample columns
         {
             # Print header: GeneName and SRR IDs
@@ -323,7 +326,7 @@ merge_group_counts() {
             printf "\n"
 
             # Build matrix using Python script
-            python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" "${sample_files[@]}"
+            python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" "$tmpdir/sample_files_list.txt"
         } > "$output_geneName_SRR_tsv"
         
         # Generate organ matrix
@@ -351,8 +354,8 @@ merge_group_counts() {
             done
             printf "\n"
 
-            # Build matrix using Python script
-            python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" "${sample_files[@]}"
+            # Build matrix using Python script (reuse same sample_files_list.txt)
+            python3 "$(dirname "$0")/matrix_builder.py" "$tmpdir/gene_names.txt" "$tmpdir/sample_files_list.txt"
         } > "$output_geneName_Organ_tsv"
 
         # Clean up temporary files for this count type
