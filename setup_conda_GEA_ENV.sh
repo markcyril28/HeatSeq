@@ -3,7 +3,8 @@
 # Conda Environment Setup for GEA Pipeline
 set -euo pipefail
 
-ENV_NAME="GEA_ENV"
+#ENV_NAME="GEA_ENV"
+ENV_NAME="geaheat"
 UPDATE_MODE=false
 
 # Parse arguments

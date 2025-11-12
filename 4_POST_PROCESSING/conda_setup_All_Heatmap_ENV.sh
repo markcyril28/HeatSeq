@@ -19,7 +19,8 @@
 set -euo pipefail
 
 # --- Configuration ---
-ENV_NAME="All_Heatmap_ENV"
+#ENV_NAME="All_Heatmap_ENV"
+ENV_NAME="geaheat"
 MAMBA_FLAGS="--quiet --yes"
 
 # List of packages to install
