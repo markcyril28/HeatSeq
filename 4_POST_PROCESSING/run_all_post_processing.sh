@@ -80,6 +80,7 @@ log_info "Threads: $THREADS | Jobs: $JOBS | Parallel: $USE_PARALLEL"
 # Export variables for child processes
 export THREADS
 export JOBS
+export METHODS_TO_RUN
 
 # Helper function to check if method should run
 should_run_method() {
@@ -101,9 +102,18 @@ run_method() {
     # Source logging utilities in subshell
     source "$BASE_DIR/modules/logging_utils.sh"
     
-    if should_run_method "METHOD_$method_num"; then
+    # Check if method should run
+    local should_run=false
+    for m in "${METHODS_TO_RUN[@]}"; do
+        if [ "$m" = "METHOD_$method_num" ]; then
+            should_run=true
+            break
+        fi
+    done
+    
+    if [ "$should_run" = true ]; then
         log_step "RUNNING METHOD $method_num POST-PROCESSING ($method_name)"
-        pushd "$method_dir" > /dev/null
+        pushd "$SCRIPT_DIR/$method_dir" > /dev/null
         run_with_space_time_log bash 1_run_Heatmap_Wrapper.sh
         popd > /dev/null
         log_info "METHOD $method_num POST-PROCESSING COMPLETE"
@@ -123,17 +133,12 @@ if [ "$USE_PARALLEL" = true ] && [ "$JOBS" -gt 1 ] && command -v parallel &> /de
     should_run_method "METHOD_4" && METHODS_LIST+=("4:Salmon_Saf:4d_Method_4_Salmon_Saf_Quantification")
     should_run_method "METHOD_5" && METHODS_LIST+=("5:Bowtie2:4e_Method_5_Bowtie2_Quantification")
     
-    # Export variables and functions for parallel
-    export BASE_DIR
+    # Export variables for parallel
+    export BASE_DIR SCRIPT_DIR
     export LOG_DIR TIME_DIR SPACE_DIR SPACE_TIME_DIR
     export LOG_FILE TIME_FILE TIME_TEMP SPACE_FILE SPACE_TIME_FILE
     export RUN_ID
     export -f run_method
-    export -f should_run_method
-    export -f log_step
-    export -f log_info
-    export -f log_error
-    export -f run_with_space_time_log
     
     # Run in parallel
     printf '%s\n' "${METHODS_LIST[@]}" | parallel -j "$JOBS" --colsep ':' run_method {1} {2} {3}
