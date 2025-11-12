@@ -30,7 +30,8 @@
 # 11. Post-processing Options
 # ==============================================================================
 
-set -euo pipefail
+# Allow pipeline to continue on errors (individual methods handle their own failures)
+set -uo pipefail
 source "modules/logging_utils.sh"
 source "modules/pipeline_utils.sh"
 
