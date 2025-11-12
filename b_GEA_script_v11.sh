@@ -25,6 +25,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "modules/logging_utils.sh"
 source "modules/pipeline_utils.sh"
 source "modules/methods.sh"
+bash init_setup.sh
 
 # ============================================================================== 
 # CONFIGURATION AND RUNTIME SWITCHES
