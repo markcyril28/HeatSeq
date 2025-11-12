@@ -98,6 +98,9 @@ run_method() {
     local method_name=$2
     local method_dir=$3
     
+    # Source logging utilities in subshell
+    source "$BASE_DIR/modules/logging_utils.sh"
+    
     if should_run_method "METHOD_$method_num"; then
         log_step "RUNNING METHOD $method_num POST-PROCESSING ($method_name)"
         pushd "$method_dir" > /dev/null
