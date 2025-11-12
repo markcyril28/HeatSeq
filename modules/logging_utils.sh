@@ -41,6 +41,10 @@ log_step() { log INFO "=============== $* ==============="; }
 
 setup_logging() {
 	# Set up logging and output redirection with dual-format support
+	# Usage: setup_logging [clear_logs_flag]
+	# clear_logs_flag: "true" to clear existing logs, anything else to keep them
+	local clear_logs="${1:-false}"
+	
 	# Skip if already initialized
 	if [[ "${LOGGING_INITIALIZED:-}" == "true" ]]; then
 		log_info "Logging already initialized, skipping setup"
@@ -54,6 +58,15 @@ setup_logging() {
 		echo "ERROR: Failed to create logging directories" >&2
 		return 1
 	}
+	
+	# Clear previous logs if requested
+	if [[ "$clear_logs" == "true" ]]; then
+		rm -f "$LOG_DIR"/*.log 2>/dev/null || true
+		rm -f "$TIME_DIR"/*.csv 2>/dev/null || true
+		rm -f "$SPACE_DIR"/*.csv 2>/dev/null || true
+		rm -f "$SPACE_TIME_DIR"/*.csv 2>/dev/null || true
+		echo "Previous logs cleared"
+	fi
 	
 	# Initialize CSV header for time metrics if file doesn't exist
 	if [[ ! -f "$TIME_FILE" ]]; then

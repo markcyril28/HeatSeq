@@ -3,7 +3,7 @@
 # ==============================================================================
 # GENE EXPRESSION ANALYSIS (GEA) PIPELINE
 # ==============================================================================
-# Description: RNA-seq analysis (Tissue/Organ-specific Expression Profiling) pipeline using 
+# Description: RNA-seq analysis (Tissue/Organ-specific Expression Profiling) pipeline 
 # using various methods. 
 # Author: Mark Cyril R. Mercado
 # Version: v11
@@ -11,7 +11,7 @@
 
 # ==============================================================================
 
-set -euo pipefail
+#set -euo pipefail
 
 # Initialize conda for bash
 eval "$(conda shell.bash hook)"
@@ -32,7 +32,7 @@ bash init_setup.sh
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=96                               # Number of threads to use for parallel operations
+THREADS=32                               # Number of threads to use for parallel operations
 JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
@@ -157,8 +157,8 @@ OTHER_SRR_LIST=(
 	SRR3479277 # Pistil (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3479277&display=metadata)
 	SRR3884597 # Flowers (https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR3884597&display=metadata)
 
-	PRJNA341784 # Flower buds lang (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA341784&o=acc_s%3Aa)
-	PRJNA477924 # Leaf and Root (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA477924&o=acc_s%3Aa)
+	#PRJNA341784 # Flower buds lang (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA341784&o=acc_s%3Aa)
+	#PRJNA477924 # Leaf and Root (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA477924&o=acc_s%3Aa)
 	 # Leaves
 	 # Stems
 	 # Radicles
@@ -267,19 +267,13 @@ run_all() {
 		fi
 	fi
 
-	if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
-			log_step "STEP 01b: Quality Control analysis"
-			for SRR in "${rnaseq_list[@]}"; do
-				run_quality_control "$SRR"
-			done
-	fi
-
-
 	# Method 1: HISAT2 Reference-Guided Pipeline
 	if [[ $RUN_METHOD_1_HISAT2_REF_GUIDED == "TRUE" ]]; then
 		log_step "STEP 02a: HISAT2 Reference-Guided Pipeline"
-		log_warn "HISAT2 Reference-Guided pipeline requires GTF file parameter"
-		if hisat2_ref_guided_pipeline --FASTA "$fasta" --GTF "$gtf_file" --RNASEQ_LIST "${rnaseq_list[@]}"; then
+		if [[ -z "$gtf_file" || ! -f "$gtf_file" ]]; then
+			log_error "GTF file required for reference-guided alignment: $gtf_file"
+			log_error "Skipping Method 1 - configure gtf_file variable"
+		elif hisat2_ref_guided_pipeline --FASTA "$fasta" --GTF "$gtf_file" --RNASEQ_LIST "${rnaseq_list[@]}"; then
 			log_info "Method 1 completed successfully"
 		else
 			log_error "Method 1 failed (exit code: $?) - continuing with remaining methods"

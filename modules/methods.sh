@@ -3,7 +3,7 @@
 # ==============================================================================
 # GENE EXPRESSION ANALYSIS (GEA) PIPELINE: TISSUE
 # ==============================================================================
-# Description: RNA-seq analysis pipeline using HISAT2 de novo assembly approach
+# Description: RNA-seq analysis pipeline using multiple alignment approaches
 # Author: Mark Cyril R. Mercado
 # Version: v10
 # Date: October 2025
@@ -19,15 +19,15 @@
 # 1. Configuration 
 # 2. Pipeline Configuration Examples  
 # 3. Input Files and Data Sources
-# 5. Directory Structure and Output Paths  
-# 6. Cleanup Options and Testing
-# 7. Logging System and Utility Functions
-# 8. Pipeline Functions:
+# 4. Directory Structure and Output Paths  
+# 5. Cleanup Options and Testing
+# 6. Logging System and Utility Functions
+# 7. Pipeline Functions:
 #    	- Data Download and Preprocessing Functions
 #		- Pipelines Functions	 
-# 9. Main Execution Functions
-# 10. Script Execution
-# 11. Post-processing Options
+# 8. Main Execution Functions
+# 9. Script Execution
+# 10. Post-processing Options
 # ==============================================================================
 
 # Allow pipeline to continue on errors (individual methods handle their own failures)
@@ -67,6 +67,13 @@ FASTQC_ROOT="3_FastQC"
 HISAT2_REF_GUIDED_ROOT="4_POST_PROCESSING/4a_Method_1_HISAT2_Ref_Guided/4_HISAT2_WD"
 HISAT2_REF_GUIDED_INDEX_DIR="$HISAT2_REF_GUIDED_ROOT/index"
 STRINGTIE_HISAT2_REF_GUIDED_ROOT="4_POST_PROCESSING/4a_Method_1_HISAT2_Ref_Guided/5_stringtie_WD"
+HISAT2_REF_GUIDED_MATRIX_ROOT="4_POST_PROCESSING/4a_Method_1_HISAT2_Ref_Guided/6_matrices"
+
+# Method 2: HISAT2 De Novo Assembly
+HISAT2_DE_NOVO_ROOT="4_POST_PROCESSING/4b_Method_2_HISAT2_De_Novo/4_HISAT2_WD"
+HISAT2_DE_NOVO_INDEX_DIR="$HISAT2_DE_NOVO_ROOT/index"
+STRINGTIE_HISAT2_DE_NOVO_ROOT="4_POST_PROCESSING/4b_Method_2_HISAT2_De_Novo/5_stringtie_WD"
+HISAT2_DE_NOVO_MATRIX_ROOT="4_POST_PROCESSING/4b_Method_2_HISAT2_De_Novo/6_matrices"
 
 # Method 3: Trinity De Novo Assembly
 TRINITY_DE_NOVO_ROOT="4_POST_PROCESSING/4c_Method_3_Trinity_De_Novo/4_Trinity_WD"
@@ -88,6 +95,7 @@ RSEM_MATRIX_ROOT="$BOWTIE2_RSEM_ROOT/6_matrices_from_RSEM"
 # Create required directories
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 	"$HISAT2_REF_GUIDED_ROOT" "$HISAT2_REF_GUIDED_INDEX_DIR" "$STRINGTIE_HISAT2_REF_GUIDED_ROOT" \
+	"$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT" \
 	"$TRINITY_DE_NOVO_ROOT" "$STRINGTIE_TRINITY_DE_NOVO_ROOT" \
 	"$SALMON_INDEX_ROOT" "$SALMON_QUANT_ROOT" "$SALMON_SAF_MATRIX_ROOT" \
 	"$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT"
@@ -399,9 +407,9 @@ hisat2_ref_guided_pipeline() {
 	# BUILD HISAT2 REFERENCE-GUIDED INDEX
 	mkdir -p "$HISAT2_REF_GUIDED_INDEX_DIR"
 	if ls "${index_prefix}".*.ht2 >/dev/null 2>&1; then
-		log_info "[INDEX] Ref-guided index exists - skipping build"
+		log_info "[INDEX] Ref-Guided index exists - skipping build"
 	else
-		log_step "Building HISAT2 ref-guided index: $fasta_base"
+		log_step "Building HISAT2 Ref-Guided index: $fasta_base"
 		
 		# Extract splice sites and exons from GTF
 		local splice_sites="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_splice_sites.txt"
@@ -475,7 +483,7 @@ hisat2_ref_guided_pipeline() {
 		if [[ -f "$bam" && -f "${bam}.bai" ]]; then
 			log_info "[ALIGN] BAM exists for $SRR/$fasta_tag - skipping"
 		else
-			log_step "Aligning: $SRR -> $fasta_tag (HISAT2 ref-guided)"
+			log_step "Aligning: $SRR -> $fasta_tag (HISAT2 Ref-Guided)"
 			# Check if paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end alignment
@@ -538,9 +546,9 @@ hisat2_ref_guided_pipeline() {
 	done
 	
 	if [[ -f "$merged_gtf" ]]; then
-		log_info "[STRINGTIE MERGE] Merged GTF for $fasta_tag (ref-guided) already exists. Skipping merge."
+		log_info "[STRINGTIE MERGE] Merged GTF for $fasta_tag (Ref-Guided) already exists. Skipping merge."
 	else
-		log_info "[STRINGTIE MERGE] Merging GTF files for $fasta_tag (ref-guided)..."
+		log_info "[STRINGTIE MERGE] Merging GTF files for $fasta_tag (Ref-Guided)..."
 		run_with_space_time_log \
 			stringtie --merge \
 				-p "$THREADS" \
@@ -562,12 +570,12 @@ hisat2_ref_guided_pipeline() {
 		
 		# Skip if BAM was deleted and final quantification already exists
 		if [[ ! -f "$bam" && -f "$final_gtf" ]]; then
-			log_info "[STRINGTIE QUANT] Final quantification for $SRR (ref-guided) already exists. Skipping re-estimation."
+			log_info "[STRINGTIE QUANT] Final quantification for $SRR (Ref-Guided) already exists. Skipping re-estimation."
 			continue
 		fi
 		
 		if [[ -f "$bam" ]]; then
-			log_step "Re-estimating abundances for $SRR with merged GTF (ref-guided)"
+			log_step "Re-estimating abundances for $SRR with merged GTF (Ref-Guided)"
 			run_with_space_time_log \
 				stringtie \
 					-p "$THREADS" \
@@ -579,7 +587,7 @@ hisat2_ref_guided_pipeline() {
 			
 			# Cleanup BAM files after final quantification if specified
 			if [[ "$keep_bam_global" != "y" ]]; then
-				log_info "[CLEANUP] Deleting BAM file for $SRR (ref-guided) after final quantification."
+				log_info "[CLEANUP] Deleting BAM file for $SRR (Ref-Guided) after final quantification."
 				rm -f "$bam" "${bam}.bai"
 			fi
 		else
@@ -620,7 +628,7 @@ hisat2_ref_guided_pipeline() {
 	
 	# Check if count matrices already exist
 	if [[ -f "$gene_count_matrix" && -f "$transcript_count_matrix" ]]; then
-		log_info "[PREPDE] Count matrices for $fasta_tag (ref-guided) already exist. Skipping prepDE.py."
+		log_info "[PREPDE] Count matrices for $fasta_tag (Ref-Guided) already exist. Skipping prepDE.py."
 	else
 		# Auto-detect read length from first available trimmed FASTQ file using improved function
 		local read_length=150  # Default fallback
@@ -784,7 +792,7 @@ hisat2_de_novo_pipeline() {
 		return 1
 	fi
 	if [[ ${#rnaseq_list[@]} -eq 0 ]]; then
-		rnaseq_list=("${SRR_LIST_PRJNA328564[@]}")
+		rnaseq_list=("${SRR_COMBINED_LIST[@]}")
 	fi
 
 	local fasta_base fasta_tag index_prefix
@@ -1969,7 +1977,11 @@ bowtie2_rsem_pipeline() {
 
     [[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa"; return 1; }
     [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
-	dos2unix "$fasta"
+	
+	# Convert line endings if dos2unix is available
+	if command -v dos2unix >/dev/null 2>&1; then
+		dos2unix "$fasta" 2>/dev/null || true
+	fi
 
     local tag="$(basename "${fasta%.*}")"
     local rsem_idx="$RSEM_INDEX_ROOT/${tag}_rsem"
