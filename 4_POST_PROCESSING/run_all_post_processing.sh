@@ -129,23 +129,30 @@ if [ "$USE_PARALLEL" = true ] && [ "$JOBS" -gt 1 ] && command -v parallel &> /de
     # Build list of methods to run
     METHODS_LIST=()
     should_run_method "METHOD_1" && METHODS_LIST+=("1:HISAT2_Ref_Guided:4a_Method_1_HISAT2_Ref_Guided")
+    should_run_method "METHOD_2" && METHODS_LIST+=("2:HISAT2_De_Novo:4b_Method_2_HISAT2_De_Novo")
     should_run_method "METHOD_3" && METHODS_LIST+=("3:Trinity_De_Novo:4c_Method_3_Trinity_De_Novo")
     should_run_method "METHOD_4" && METHODS_LIST+=("4:Salmon_Saf:4d_Method_4_Salmon_Saf_Quantification")
     should_run_method "METHOD_5" && METHODS_LIST+=("5:Bowtie2:4e_Method_5_Bowtie2_Quantification")
     
-    # Export variables for parallel
-    export BASE_DIR SCRIPT_DIR
-    export LOG_DIR TIME_DIR SPACE_DIR SPACE_TIME_DIR
-    export LOG_FILE TIME_FILE TIME_TEMP SPACE_FILE SPACE_TIME_FILE
-    export RUN_ID
-    export -f run_method
-    
-    # Run in parallel
-    printf '%s\n' "${METHODS_LIST[@]}" | parallel -j "$JOBS" --colsep ':' run_method {1} {2} {3}
+    # Check if any methods to run
+    if [ ${#METHODS_LIST[@]} -eq 0 ]; then
+        log_info "No methods selected to run"
+    else
+        # Export variables for parallel
+        export BASE_DIR SCRIPT_DIR
+        export LOG_DIR TIME_DIR SPACE_DIR SPACE_TIME_DIR
+        export LOG_FILE TIME_FILE TIME_TEMP SPACE_FILE SPACE_TIME_FILE
+        export RUN_ID
+        export -f run_method
+        
+        # Run in parallel
+        printf '%s\n' "${METHODS_LIST[@]}" | parallel -j "$JOBS" --colsep ':' run_method {1} {2} {3}
+    fi
 else
     log_info "Running methods sequentially"
     
     run_method 1 "HISAT2_Ref_Guided" "4a_Method_1_HISAT2_Ref_Guided"
+    run_method 2 "HISAT2_De_Novo" "4b_Method_2_HISAT2_De_Novo"
     run_method 3 "Trinity_De_Novo" "4c_Method_3_Trinity_De_Novo"
     run_method 4 "Salmon_Saf" "4d_Method_4_Salmon_Saf_Quantification"
     run_method 5 "Bowtie2" "4e_Method_5_Bowtie2_Quantification"
