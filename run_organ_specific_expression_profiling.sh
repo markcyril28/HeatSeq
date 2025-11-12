@@ -19,6 +19,10 @@ log_info "Preparing pipeline execution environment"
 # Chmod and Converts the file to Unix line endings
 chmod +x ./*.sh
 dos2unix ./*.sh
+find . -type f \( -name "*.fa" -o -name "*.fasta"\) -exec dos2unix {} + 2>/dev/null || true
+find . -type f \( -name "*.txt" -o -name "*.sh" -o -name "*.py" -o -name "*.R" \) -exec dos2unix {} + 2>/dev/null || true
+find . -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" \) -exec chmod +x {} + 2>/dev/null || true
+
 
 # Run the main pipeline script and log resource usage
 log_step "Executing main GEA pipeline script"
