@@ -17,10 +17,10 @@ suppressPackageStartupMessages({
 # CONFIGURATION
 # ===============================================
 
-QUANT_DIR <- "3_quant"
+QUANT_DIR <- "5_RSEM_Quant_WD"
 MASTER_REFERENCE <- "All_Smel_Genes"
 MATRICES_OUTPUT_DIR <- "4_matrices"
-GENE_GROUPS_DIR <- "2_gene_groups"
+GENE_GROUPS_DIR <- "a_gene_groups_input_list"
 
 # Toggle to generate both gene-level and isoform-level matrices
 GENERATE_GENE_LEVEL <- TRUE      # Use .genes.results (aggregated)
@@ -31,6 +31,18 @@ SAMPLE_IDS <- c(
   "SRR3884675", "SRR3884690", "SRR3884689", "SRR3884684",
   "SRR3884686", "SRR3884687", "SRR3884597"
 )
+
+# Read SRR filter from environment variable (set by wrapper script)
+srr_filter_env <- Sys.getenv("SRR_FILTER_LIST", unset = "")
+if (nzchar(srr_filter_env)) {
+  requested_samples <- trimws(strsplit(srr_filter_env, " ")[[1]])
+  # Filter to only include requested samples that exist in SAMPLE_IDS
+  SAMPLE_IDS <- SAMPLE_IDS[SAMPLE_IDS %in% requested_samples]
+  cat("SRR Filter applied:", length(SAMPLE_IDS), "samples selected\n")
+  cat("Selected samples:", paste(SAMPLE_IDS, collapse = ", "), "\n\n")
+} else {
+  cat("Processing all available samples (no filter)\n\n")
+}
 
 SAMPLE_LABELS <- c(
     # Roots

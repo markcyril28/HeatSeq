@@ -74,13 +74,13 @@ read_config_file <- function(file_path, default_value, is_boolean = FALSE) {
 # Load gene groups and overwrite settings
 load_runtime_config <- function() {
   gene_groups <- read_config_file(
-    "modules_method_5_bowtie2/.gene_groups_temp.txt",
+    "b_modules_for_Method_5/.gene_groups_temp.txt",
     default_value = c("Selected_GRF_GIF_Genes_vAll_GIFs", 
                       "Selected_GRF_GIF_Genes_vTwo_GIFs")
   )
   
   overwrite <- read_config_file(
-    "modules_method_5_bowtie2/.overwrite_temp.txt",
+    "b_modules_for_Method_5/.overwrite_temp.txt",
     default_value = TRUE,
     is_boolean = TRUE
   )

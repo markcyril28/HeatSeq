@@ -4,6 +4,13 @@
 # METHOD 5 (BOWTIE2/RSEM) - HEATMAP WRAPPER SCRIPT
 #===============================================================================
 # Processes RSEM quantification data through tximport and generates heatmaps
+# 
+# Features:
+#   - Gene group selection (comment/uncomment in GENE_GROUPS array)
+#   - SRR sample filtering (comment/uncomment in SRR_SAMPLES array)
+#   - Toggle individual analysis types (matrix creation, heatmaps, bar graphs)
+#   - Overwrite control for existing files
+#
 # Usage: bash 1_run_Heatmap_Wrapper.sh
 #===============================================================================
 
@@ -37,8 +44,32 @@ GENE_GROUPS=(
     #"SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
 )
 
+# SRR samples to include (leave empty to use all available samples)
+# Comment out samples to exclude them from analysis
+SRR_SAMPLES=(
+    #"SRR3884675"    # Roots
+    #"SRR3884690"    # Stems
+    #"SRR3884689"    # Leaves
+    #"SRR3884684"    # Senescent_leaves
+    "SRR3884686"    # Buds
+    "SRR3884687"    # Opened_Buds
+    "SRR3884597"    # Flowers
+    "SRR3884631"    # Fruits
+    #"SRR3884608"    # Fruits_1cm
+    #"SRR3884620"    # Fruits_Stage_1
+    #"SRR3884642"    # Fruits_Skin_Stage_2
+    #"SRR3884653"    # Fruits_Flesh_Stage_2
+    #"SRR3884664"    # Fruits_Calyx_Stage_2
+    #"SRR3884680"    # Fruits_Skin_Stage_3
+    #"SRR3884681"    # Fruits_Flesh_Stage_3
+    #"SRR3884678"    # Fruits_peduncles
+    #"SRR3884685"    # Radicles
+    #"SRR3884677"    # Cotyledons
+    #"SRR3884679"    # Pistils
+)
+
 # Analysis toggles
-RUN_MATRIX_CREATION=true
+RUN_MATRIX_CREATION=false
 RUN_BASIC_HEATMAP=true
 RUN_CV_HEATMAP=true
 RUN_BAR_GRAPHS=true
@@ -56,11 +87,26 @@ CLEAR_LOGS_ON_RUN=true  # Set to true to clear all previous logs before each run
 source "b_modules_for_Method_5/0_configurations.sh"
 source "b_modules_for_Method_5/1_logging.sh"
 
-# Setup logging
 setup_logging "$CLEAR_LOGS_ON_RUN"
 
 log_step "METHOD 5 HEATMAP GENERATION PIPELINE"
 log_info "Starting post-processing of Bowtie2/RSEM quantification data"
+
+# Export SRR samples list if specified
+if [ ${#SRR_SAMPLES[@]} -gt 0 ]; then
+    log_info "SRR sample selection enabled: ${#SRR_SAMPLES[@]} samples specified"
+    log_info "Selected samples: ${SRR_SAMPLES[*]}"
+    export SRR_FILTER_LIST="${SRR_SAMPLES[*]}"
+else
+    log_info "Processing all available SRR samples (no filter applied)"
+    export SRR_FILTER_LIST=""
+fi
+
+# Helper function to write config files for R scripts
+write_r_config() {
+    printf "%s\n" "${GENE_GROUPS[@]}" > "b_modules_for_Method_5/.gene_groups_temp.txt"
+    echo "$OVERWRITE_EXISTING" > "b_modules_for_Method_5/.overwrite_temp.txt"
+}
 
 # ===============================================================================
 # STEP 1: Process RSEM data with tximport
@@ -90,25 +136,15 @@ fi
 
 if [ "$RUN_BASIC_HEATMAP" = true ]; then
     log_step "Generating Basic Heatmaps"
-    
-    # Write gene groups to temporary file for R scripts to read
-    GENE_GROUPS_FILE="b_modules_for_Method_5/.gene_groups_temp.txt"
-    printf "%s\n" "${GENE_GROUPS[@]}" > "$GENE_GROUPS_FILE"
-    
-    # Write overwrite setting
-    OVERWRITE_FILE="b_modules_for_Method_5/.overwrite_temp.txt"
-    echo "$OVERWRITE_EXISTING" > "$OVERWRITE_FILE"
+    write_r_config
     
     log_info "Processing gene groups: ${GENE_GROUPS[*]}"
     log_info "Overwrite existing files: $OVERWRITE_EXISTING"
-    log_info "Running b_modules_for_Method_5/3_make_heatmap_of_matrices.R"
 
     Rscript --no-save b_modules_for_Method_5/3_make_heatmap_of_matrices.R
-
-    log_info "Basic heatmap generation complete"
-    log_info "Output: $HEATMAP_OUT_DIR"
+    log_info "Basic heatmap generation complete - Output: $HEATMAP_OUT_DIR"
 else
-    log_info "Basic heatmap generation skipped (toggle RUN_BASIC_HEATMAP in config)"
+    log_info "Basic heatmap generation skipped (toggle RUN_BASIC_HEATMAP)"
 fi
 
 # ===============================================================================
@@ -117,25 +153,15 @@ fi
 
 if [ "$RUN_CV_HEATMAP" = true ]; then
     log_step "Generating Heatmaps with CV"
-    
-    # Write gene groups to temporary file for R scripts to read
-    GENE_GROUPS_FILE="b_modules_for_Method_5/.gene_groups_temp.txt"
-    printf "%s\n" "${GENE_GROUPS[@]}" > "$GENE_GROUPS_FILE"
-    
-    # Write overwrite setting
-    OVERWRITE_FILE="b_modules_for_Method_5/.overwrite_temp.txt"
-    echo "$OVERWRITE_EXISTING" > "$OVERWRITE_FILE"
+    write_r_config
     
     log_info "Processing gene groups: ${GENE_GROUPS[*]}"
     log_info "Overwrite existing files: $OVERWRITE_EXISTING"
-    log_info "Running b_modules_for_Method_5/4_make_heatmap_with_CV_of_matrices.R"
 
     Rscript --no-save b_modules_for_Method_5/4_make_heatmap_with_CV_of_matrices.R
-
-    log_info "CV heatmap generation complete"
-    log_info "Output: $CV_HEATMAP_OUT_DIR"
+    log_info "CV heatmap generation complete - Output: $CV_HEATMAP_OUT_DIR"
 else
-    log_info "CV heatmap generation skipped (toggle RUN_CV_HEATMAP in config)"
+    log_info "CV heatmap generation skipped (toggle RUN_CV_HEATMAP)"
 fi
 
 # ===============================================================================
@@ -144,25 +170,15 @@ fi
 
 if [ "$RUN_BAR_GRAPHS" = true ]; then
     log_step "Generating Bar Graphs"
-    
-    # Write gene groups to temporary file for R scripts to read
-    GENE_GROUPS_FILE="b_modules_for_Method_5/.gene_groups_temp.txt"
-    printf "%s\n" "${GENE_GROUPS[@]}" > "$GENE_GROUPS_FILE"
-    
-    # Write overwrite setting
-    OVERWRITE_FILE="b_modules_for_Method_5/.overwrite_temp.txt"
-    echo "$OVERWRITE_EXISTING" > "$OVERWRITE_FILE"
+    write_r_config
     
     log_info "Processing gene groups: ${GENE_GROUPS[*]}"
     log_info "Overwrite existing files: $OVERWRITE_EXISTING"
-    log_info "Running b_modules_for_Method_5/5_make_BarGraph_of_matrices.R"
 
     Rscript --no-save b_modules_for_Method_5/5_make_BarGraph_of_matrices.R
-
-    log_info "Bar graph generation complete"
-    log_info "Output: $BAR_GRAPH_OUT_DIR"
+    log_info "Bar graph generation complete - Output: $BAR_GRAPH_OUT_DIR"
 else
-    log_info "Bar graph generation skipped (toggle RUN_BAR_GRAPHS in config)"
+    log_info "Bar graph generation skipped (toggle RUN_BAR_GRAPHS)"
 fi
 
 # ===============================================================================

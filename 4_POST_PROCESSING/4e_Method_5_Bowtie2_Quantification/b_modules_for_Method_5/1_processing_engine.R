@@ -3,7 +3,7 @@
 # ===============================================
 # Generic processing loop to avoid repetition across scripts
 
-source("modules_method_5_bowtie2/0_shared_config.R")
+source("b_modules_for_Method_5/0_shared_config.R")
 
 # ===============================================
 # GENERIC PROCESSING FUNCTION

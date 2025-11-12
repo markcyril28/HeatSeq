@@ -7,7 +7,7 @@
 
 # Base directories - sync with modules/methods.sh
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MATRICES_DIR="$BASE_DIR/6_matrices_from_RSEM"
+MATRICES_DIR="$BASE_DIR/4_matrices"
 GENE_GROUPS_DIR="$BASE_DIR/a_gene_groups_input_list"
 
 # Output directories - standardized naming
@@ -18,9 +18,5 @@ BAR_GRAPH_OUT_DIR="$BASE_DIR/7_Heatmap_Outputs/III_Bar_Graphs"
 # Consolidated output directory
 CONSOLIDATED_HEATMAPS_DIR="$BASE_DIR/ALL_HEATMAPS_CONSOLIDATED"
 
-# Create output directories
-#mkdir -p "$HEATMAP_OUT_DIR" "$CV_HEATMAP_OUT_DIR" "$BAR_GRAPH_OUT_DIR" "$CONSOLIDATED_HEATMAPS_DIR"
-
 # Master reference name
 MASTER_REFERENCE="All_Smel_Genes"
-

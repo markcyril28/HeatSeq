@@ -13,8 +13,8 @@ suppressPackageStartupMessages({
   library(grid)
 })
 
-source("modules_method_5_bowtie2/2_utility_functions.R")
-source("modules_method_5_bowtie2/1_processing_engine.R")
+source("b_modules_for_Method_5/2_utility_functions.R")
+source("b_modules_for_Method_5/1_processing_engine.R")
 
 # ===============================================
 # CONFIGURATION
