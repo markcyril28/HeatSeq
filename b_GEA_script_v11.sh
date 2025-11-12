@@ -33,7 +33,7 @@ source "modules/methods.sh"
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=64                               # Number of threads to use for parallel operations
+THREADS=4                               # Number of threads to use for parallel operations
 JOBS=4                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
@@ -48,14 +48,14 @@ PIPELINE_STAGES=(
 	#"QUALITY_CONTROL"
 	
 	## GEA Methods
-	"METHOD_1_HISAT2_REF_GUIDED"
-	"METHOD_2_HISAT2_DE_NOVO"
-	"METHOD_4_SALMON_SAF"
-	"METHOD_5_BOWTIE2_RSEM"
-	"METHOD_3_TRINITY_DE_NOVO"
+	#"METHOD_1_HISAT2_REF_GUIDED"
+	#"METHOD_2_HISAT2_DE_NOVO"
+	#"METHOD_4_SALMON_SAF"
+	#"METHOD_5_BOWTIE2_RSEM"
+	#"METHOD_3_TRINITY_DE_NOVO"
 
-	"HEATMAP_WRAPPER"
-	"ZIP_RESULTS"
+	#"HEATMAP_WRAPPER"
+	#"ZIP_RESULTS"
 )
 
 # ==============================================================================
@@ -413,7 +413,11 @@ if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
 	# Optional: Archive StringTie results for sharing or backup
 	#tar -czvf "stringtie_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
 	#tar -czvf HISAT2_DE_NOVO_ROOT_HPC_$(date +%Y%m%d_%H%M%S).tar.gz $HISAT2_DE_NOVO_ROOT
-	tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo/
+	#tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo/
+	log_step "Creating compressed archive for folders: 4_POST_PROCESSING, 4_OUTPUTS, and logs"
+	TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+	tar -czf "CMSC244_${TIMESTAMP}.tar.gz" 4_POST_PROCESSING 4_OUTPUTS logs
+	log_info "Archive created: CMSC244_${TIMESTAMP}.tar.gz"
 fi
 
 # ==============================================================================
