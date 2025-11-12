@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # ===============================================
-# BAR GRAPH GENERATION FOR METHOD 4 (SALMON SAF)
+# BAR GRAPH GENERATION FOR METHOD 4 - SALMON SAF QUANTIFICATION
 # ===============================================
 # Generates individual bar graphs for each gene
 # from DESeq2/tximport-normalized Salmon data
@@ -11,14 +11,14 @@ suppressPackageStartupMessages({
   library(dplyr)
 })
 
-source("modules_method_4_salmon/2_utility_functions.R")
-source("modules_method_4_salmon/1_processing_engine.R")
+source("b_modules_for_Method_4/2_utility_functions.R")
+source("b_modules_for_Method_4/1_processing_engine.R")
 
 # ===============================================
 # CONFIGURATION
 # ===============================================
 
-BAR_GRAPH_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "Bar_Graphs")
+BAR_GRAPH_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "III_Bar_Graphs")
 
 # Load runtime configuration
 config <- load_runtime_config()
@@ -27,15 +27,17 @@ ensure_output_dir(BAR_GRAPH_OUT_DIR)
 # ===============================================
 # PROCESSING CALLBACK
 # ===============================================
+# Generates individual bar graphs for each gene
 
 process_bar_graphs <- function(gene_group, gene_group_output_dir, processing_level,
                                count_type, gene_type, label_type, norm_scheme,
                                raw_data_matrix, normalized_data, overwrite, extra_options) {
   
+  # Initialize counters
   local_total <- 0
   local_successful <- 0
   
-  # Generate versions with different sorting
+  # Generate bar graphs with different sorting options
   for (sorting in get_sorting_options()) {
     
     # Create output directory structure
@@ -45,7 +47,7 @@ process_bar_graphs <- function(gene_group, gene_group_output_dir, processing_lev
     )
     ensure_output_dir(version_dir)
     
-    # Generate bar graphs
+    # Generate bar graphs (one per gene)
     n_graphs <- generate_gene_bargraphs(
       data_matrix = normalized_data,
       output_dir = version_dir,
@@ -61,7 +63,7 @@ process_bar_graphs <- function(gene_group, gene_group_output_dir, processing_lev
     local_successful <- local_successful + n_graphs
     
     if (n_graphs > 0) {
-      cat("    Generated", n_graphs, "bar graphs for", processing_level, "|", 
+      cat("    ✓ Generated", n_graphs, "bar graphs for", processing_level, "|", 
           norm_scheme, "|", sorting$sort_name, "\n")
     }
   }
@@ -73,7 +75,7 @@ process_bar_graphs <- function(gene_group, gene_group_output_dir, processing_lev
 # MAIN PROCESSING
 # ===============================================
 
-print_config_summary("BAR GRAPH GENERATION - METHOD 5 (BOWTIE2/RSEM)", config)
+print_config_summary("BAR GRAPH GENERATION - METHOD 4 (SALMON SAF)", config)
 
 # Process all combinations (min_rows = 1 for bar graphs)
 results <- process_all_combinations(

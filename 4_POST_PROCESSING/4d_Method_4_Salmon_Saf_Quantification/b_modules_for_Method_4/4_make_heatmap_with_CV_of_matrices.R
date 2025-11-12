@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # ===============================================
-# CV HEATMAP GENERATION FOR METHOD 4 (SALMON SAF)
+# CV HEATMAP GENERATION FOR METHOD 4 - SALMON SAF QUANTIFICATION
 # ===============================================
 # Generates heatmaps with Coefficient of Variation annotations
 # from DESeq2/tximport-normalized Salmon data
@@ -14,15 +14,15 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
-source("modules_method_4_salmon/2_utility_functions.R")
-source("modules_method_4_salmon/1_processing_engine.R")
+source("b_modules_for_Method_4/2_utility_functions.R")
+source("b_modules_for_Method_4/1_processing_engine.R")
 
 # ===============================================
 # CONFIGURATION
 # ===============================================
 
 LEGEND_POSITION <- "top"
-CV_HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "CV_Heatmaps")
+CV_HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "II_Heatmap_with_CV")
 
 # Load runtime configuration
 config <- load_runtime_config()
@@ -31,17 +31,18 @@ ensure_output_dir(CV_HEATMAP_OUT_DIR)
 # ===============================================
 # PROCESSING CALLBACK
 # ===============================================
+# Generates CV-annotated heatmaps showing expression variability
 
 process_cv_heatmap <- function(gene_group, gene_group_output_dir, processing_level,
                                count_type, gene_type, label_type, norm_scheme,
                                raw_data_matrix, normalized_data, overwrite, extra_options) {
   
+  # Initialize counters
   local_total <- 0
   local_successful <- 0
   local_skipped <- 0
   
-  # Generate versions with different sorting
-  # CV heatmaps are only in original orientation (rows=genes, cols=organs)
+  # Generate versions with different sorting (CV heatmaps only in original orientation)
   for (sorting in get_sorting_options()) {
     
     # Create output directory structure
@@ -58,15 +59,14 @@ process_cv_heatmap <- function(gene_group, gene_group_output_dir, processing_lev
     
     local_total <- local_total + 1
     
-    # Check if should skip
+    # Check if should skip existing file
     if (should_skip_existing(output_path, overwrite)) {
       cat("      Skipping (already exists):", basename(output_path), "\n")
       local_skipped <- local_skipped + 1
       next
     }
     
-    # Generate CV heatmap
-    # CV is ALWAYS calculated on raw, untransformed data
+    # Generate CV heatmap (CV calculated on raw data, heatmap shows normalized)
     success <- generate_heatmap_with_cv(
       data_matrix = normalized_data,
       output_path = output_path,
@@ -80,8 +80,9 @@ process_cv_heatmap <- function(gene_group, gene_group_output_dir, processing_lev
     
     if (success) {
       local_successful <- local_successful + 1
+      cat("      ✓ Generated:", basename(output_path), "\n")
     } else {
-      cat("      Failed:", basename(output_path), "\n")
+      cat("      ✗ Failed:", basename(output_path), "\n")
     }
   }
   
@@ -92,7 +93,7 @@ process_cv_heatmap <- function(gene_group, gene_group_output_dir, processing_lev
 # MAIN PROCESSING
 # ===============================================
 
-print_config_summary("CV HEATMAP GENERATION - METHOD 5 (BOWTIE2/RSEM)", config)
+print_config_summary("CV HEATMAP GENERATION - METHOD 4 (SALMON SAF)", config)
 
 # Process all combinations
 results <- process_all_combinations(

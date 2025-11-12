@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # ===============================================
-# HEATMAP GENERATION FOR METHOD 4 (SALMON SAF)
+# HEATMAP GENERATION FOR METHOD 4 - SALMON SAF QUANTIFICATION
 # ===============================================
 # Generates heatmaps from DESeq2/tximport-normalized Salmon data
 # Multiple normalization schemes and output formats
@@ -13,15 +13,15 @@ suppressPackageStartupMessages({
   library(grid)
 })
 
-source("modules_method_4_salmon/2_utility_functions.R")
-source("modules_method_4_salmon/1_processing_engine.R")
+source("b_modules_for_Method_4/2_utility_functions.R")
+source("b_modules_for_Method_4/1_processing_engine.R")
 
 # ===============================================
 # CONFIGURATION
 # ===============================================
 
 LEGEND_POSITION <- "bottom"
-HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "Basic_Heatmaps")
+HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "I_Basic_Heatmap")
 
 # Load runtime configuration
 config <- load_runtime_config()
@@ -30,11 +30,13 @@ ensure_output_dir(HEATMAP_OUT_DIR)
 # ===============================================
 # PROCESSING CALLBACK
 # ===============================================
+# Generates basic heatmaps with various orientations and sorting options
 
 process_basic_heatmap <- function(gene_group, gene_group_output_dir, processing_level,
                                   count_type, gene_type, label_type, norm_scheme,
                                   raw_data_matrix, normalized_data, overwrite, extra_options) {
   
+  # Initialize counters for tracking success/failure
   local_total <- 0
   local_successful <- 0
   local_skipped <- 0
@@ -45,7 +47,7 @@ process_basic_heatmap <- function(gene_group, gene_group_output_dir, processing_
   for (orient in get_orientation_options()) {
     for (sorting in get_sorting_options()) {
       
-      # Create output directory structure
+      # Create hierarchical output directory structure
       version_dir <- file.path(
         gene_group_output_dir, processing_level, count_type, gene_type,
         norm_scheme, orient$orient_name, sorting$sort_name
@@ -59,14 +61,14 @@ process_basic_heatmap <- function(gene_group, gene_group_output_dir, processing_
       
       local_total <- local_total + 1
       
-      # Check if should skip
+      # Check if should skip existing file
       if (should_skip_existing(output_path, overwrite)) {
         cat("      Skipping (already exists):", basename(output_path), "\n")
         local_skipped <- local_skipped + 1
         next
       }
       
-      # Generate heatmap
+      # Generate heatmap with specified parameters
       success <- generate_heatmap_violet(
         data_matrix = normalized_data,
         output_path = output_path,
@@ -80,8 +82,9 @@ process_basic_heatmap <- function(gene_group, gene_group_output_dir, processing_
       
       if (success) {
         local_successful <- local_successful + 1
+        cat("      ✓ Generated:", basename(output_path), "\n")
       } else {
-        cat("      Failed:", basename(output_path), "\n")
+        cat("      ✗ Failed:", basename(output_path), "\n")
       }
     }
   }
@@ -93,7 +96,7 @@ process_basic_heatmap <- function(gene_group, gene_group_output_dir, processing_
 # MAIN PROCESSING
 # ===============================================
 
-print_config_summary("BASIC HEATMAP GENERATION - METHOD 5 (BOWTIE2/RSEM)", config)
+print_config_summary("BASIC HEATMAP GENERATION - METHOD 4 (SALMON SAF)", config)
 
 # Process all combinations
 results <- process_all_combinations(

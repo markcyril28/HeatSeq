@@ -1,5 +1,5 @@
 # ===============================================
-# UTILITY FUNCTIONS FOR METHOD 5 - BOWTIE2/RSEM HEATSEQ
+# UTILITY FUNCTIONS FOR METHOD 4 - SALMON SAF QUANTIFICATION
 # ===============================================
 # Comprehensive utility functions adapted from Method 2
 # Supports: basic heatmaps, CV heatmaps, and bar graphs
@@ -634,7 +634,7 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
     normalization_text <- normalization_scheme
     sorting_text <- ifelse(sort_by_expression, "sorted by expression", "sorted by organ")
 
-            full_title <- paste0(clean_title, " (", count_type_text, " | ",
+    full_title <- paste0(clean_title, " (", count_type_text, " | ",
                          gene_type, " | ", label_type, " labels | ",
                          normalization_text, " | ", sorting_text, ")")
 
@@ -699,125 +699,6 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
     legend_space <- if (exists("LEGEND_POSITION") && LEGEND_POSITION == "bottom") 2 else 3
     final_width <- max(min_width, min(max_width, n_cols * base_cell_size + label_width + legend_space))
     final_height <- max(min_height, min(max_height, n_rows * base_cell_size + label_height + legend_space))
-
-    png(output_path, width = final_width, height = final_height, units = "in", res = 300)
-    draw(ht, 
-         heatmap_legend_side = "top", 
-         annotation_legend_side = "top",
-         merge_legends = TRUE,
-         gap = unit(0.5, "cm"),
-         padding = unit(c(1.5, 0.75, 0.75, 0.75), "inches"))
-
-    # Build the Heatmap object with improved settings
-    ht <- Heatmap(
-      data_matrix,
-      name = legend_title,
-      col = eggplant_colors,
-      
-      # Row (gene) settings
-      show_row_names = show_row_names,
-      row_names_side = row_side,
-      row_names_gp = gpar(fontsize = row_fontsize),
-      row_names_max_width = unit(10, "cm"),
-      row_title = row_label,
-      row_title_gp = gpar(fontsize = 14, fontface = "bold"),
-      row_title_side = "left",
-      cluster_rows = FALSE,
-      
-      # Column (sample) settings
-      show_column_names = show_col_names,
-      column_names_side = col_side,
-      column_names_gp = gpar(fontsize = col_fontsize),
-      column_names_rot = col_rot,
-      column_title_side = "top",
-      cluster_columns = FALSE,
-      
-      # Heatmap body settings
-      rect_gp = gpar(col = "white", lwd = if (max(nrow(data_matrix), ncol(data_matrix)) > 50) 0.3 else 0.5),
-      
-      # Legend settings (dynamic based on LEGEND_POSITION)
-      heatmap_legend_param = list(
-        title = legend_title,
-        legend_direction = legend_direction,
-        legend_height = legend_height,
-        legend_width = legend_width,
-        title_gp = gpar(fontsize = 10, fontface = "bold"),
-        labels_gp = gpar(fontsize = 12),
-        grid_height = grid_height,
-        grid_width = grid_width,
-        at = legend_breaks,
-        just = c("left", "top")
-      ),
-      
-      # Title
-      column_title = paste0(full_title, "\n", col_label),
-      column_title_gp = gpar(fontsize = 10, fontface = "bold")
-    )
-
-    # Calculate dynamic image dimensions based on matrix size
-    n_rows <- nrow(data_matrix)
-    n_cols <- ncol(data_matrix)
-    base_cell_size <- 0.3
-    base_width <- n_cols * base_cell_size
-    base_height <- n_rows * base_cell_size
-    padding <- 1
-    final_width <- max(8, min(20, base_width + 2 * padding))
-    final_height <- max(6, min(16, base_height + 2 * padding))
-
-    # Write PNG using fixed size for consistency
-    png(output_path, width = 14, height = 10.5, units = "in", res = 500)
-    #png(output_path, width = final_width, height = final_height, units = "in", res = 300)
-    draw(ht,
-         heatmap_legend_side = LEGEND_POSITION,
-         annotation_legend_side = LEGEND_POSITION,
-         merge_legends = TRUE,
-         padding = unit(c(padding, padding, padding, padding), "inches"))
-    dev.off()
-
-    ht <- Heatmap(
-      data_scaled,
-      name = legend_title,
-      col = heatmap_colors,
-      show_row_names = show_row_names,
-      row_names_side = "left",
-      row_names_gp = gpar(fontsize = row_fontsize),
-      row_names_max_width = unit(6, "cm"),
-      row_title = row_label,
-      row_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
-      row_title_side = "left",
-      cluster_rows = FALSE,
-      show_column_names = show_col_names,
-      column_names_side = "bottom",
-      column_names_gp = gpar(fontsize = col_fontsize),
-      column_names_rot = col_rot,
-      column_title_side = "top",
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "white", lwd = 0.3),
-      heatmap_legend_param = list(
-        title = legend_title,
-        legend_direction = legend_direction,
-        legend_height = legend_height,
-        legend_width = legend_width,
-        title_gp = gpar(fontsize = TEXT_SIZE * 0.86, fontface = "bold"),
-        labels_gp = gpar(fontsize = TEXT_SIZE * 0.71),
-        grid_height = grid_height,
-        grid_width = grid_width,
-        at = legend_breaks_cv
-      ),
-      column_title = full_title,
-      column_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
-      right_annotation = cv_annotation
-    )
-
-    n_rows <- nrow(data_scaled)
-    n_cols <- ncol(data_scaled)
-    base_cell_size <- 1
-    base_width <- n_cols * base_cell_size
-    base_height <- n_rows * base_cell_size
-    padding <- 0.75
-    padding_bottom <- 1.5
-    final_width <- max(8, min(20, base_width + 2 * padding))
-    final_height <- max(6, min(16, base_height + padding + padding_bottom))
 
     png(output_path, width = final_width, height = final_height, units = "in", res = 300)
     draw(ht, 

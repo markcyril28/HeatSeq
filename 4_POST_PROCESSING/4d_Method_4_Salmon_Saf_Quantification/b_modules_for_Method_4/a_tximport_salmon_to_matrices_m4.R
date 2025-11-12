@@ -17,10 +17,10 @@ suppressPackageStartupMessages({
 # CONFIGURATION
 # ===============================================
 
-QUANT_DIR <- "quant"
+QUANT_DIR <- "5_Salmon_Quant_WD"
 MASTER_REFERENCE <- "All_Smel_Genes"
-MATRICES_OUTPUT_DIR <- "4_matrices"
-GENE_GROUPS_DIR <- "2_gene_groups"
+MATRICES_OUTPUT_DIR <- "6_matrices_from_Salmon"
+GENE_GROUPS_DIR <- "a_gene_groups_input_list"
 
 # Toggle to generate both gene-level and isoform-level matrices
 GENERATE_GENE_LEVEL <- TRUE      # Summarize transcripts to genes
@@ -113,6 +113,7 @@ for (level_name in names(processing_levels)) {
   cat("Step 1: Locating Salmon", level_config$label, "output files...\n")
   
   salmon_quant_dir <- file.path(QUANT_DIR, MASTER_REFERENCE)
+  cat("  Searching in:", salmon_quant_dir, "\n")
   
   # Build paths to Salmon quant.sf files
   files <- file.path(salmon_quant_dir, SAMPLE_IDS, "quant.sf")
@@ -142,10 +143,11 @@ for (level_name in names(processing_levels)) {
   # ===============================================
   
   cat("Step 2: Importing Salmon data with tximport...\n")
+  cat("  Import mode:", ifelse(level_config$tx_out, "Transcript-level", "Gene-level"), "\n")
   
   # For Salmon, we need a tx2gene mapping if summarizing to genes
-  # Check if tx2gene file exists
-  tx2gene_file <- "transcript_to_gene.tsv"
+  # Generate tx2gene mapping from gene_trans_map file
+  tx2gene_file <- "../../0_INPUT_FASTAs/All_Smel_Genes.fasta.gene_trans_map"
   
   if (level_config$tx_out == FALSE) {
     # Gene-level: need tx2gene mapping
@@ -156,14 +158,18 @@ for (level_name in names(processing_levels)) {
       next
     }
     
-    # Read tx2gene mapping
-    tx2gene <- read.table(tx2gene_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+    # Read tx2gene mapping (tab-delimited: gene_id transcript_id)
+    tx2gene <- read.table(tx2gene_file, header = FALSE, sep = "\t", stringsAsFactors = FALSE)
+    colnames(tx2gene) <- c("GENEID", "TXNAME")
+    tx2gene <- tx2gene[, c("TXNAME", "GENEID")]  # tximport expects transcript first
     cat("Loaded tx2gene mapping:", nrow(tx2gene), "entries\n")
     
     # tximport for Salmon with gene-level aggregation
+    cat("  Importing and aggregating to gene level...\n")
     txi <- tximport(files, type = "salmon", txIn = TRUE, txOut = FALSE, tx2gene = tx2gene)
   } else {
     # Isoform-level: no tx2gene needed
+    cat("  Importing at transcript level...\n")
     txi <- tximport(files, type = "salmon", txIn = TRUE, txOut = TRUE)
   }
   
@@ -215,6 +221,7 @@ for (level_name in names(processing_levels)) {
   
   if (has_replicates) {
     cat("Step 5: Running DESeq2 normalization (replicates available)...\n")
+    cat("  Creating DESeqDataSet...\n")
     
     # Create DESeq2 object
     dds <- DESeqDataSetFromTximport(
@@ -224,6 +231,7 @@ for (level_name in names(processing_levels)) {
     )
     
     # Run DESeq2 for normalization
+    cat("  Running DESeq2 pipeline...\n")
     dds <- DESeq(dds)
     
     # Extract normalized counts
@@ -258,6 +266,7 @@ for (level_name in names(processing_levels)) {
   # Create level-specific output directory
   level_output_dir <- file.path(output_dir, level_name)
   dir.create(level_output_dir, recursive = TRUE, showWarnings = FALSE)
+  cat("  Output directory:", level_output_dir, "\n")
   
   # Save with SRR IDs
   output_file_srr <- file.path(level_output_dir,
@@ -300,6 +309,9 @@ for (level_name in names(processing_levels)) {
     cat("No gene group files found in", GENE_GROUPS_DIR, "\n")
   } else {
     cat("Found", length(gene_group_files), "gene group files\n\n")
+    
+    # Initialize counter for successful gene group processing
+    successful_groups <- 0
   
     for (gene_group_file in gene_group_files) {
       gene_group_name <- tools::file_path_sans_ext(basename(gene_group_file))
@@ -356,7 +368,10 @@ for (level_name in names(processing_levels)) {
                   sep = "\t", quote = FALSE, row.names = FALSE)
   
       cat("    Saved subset matrices\n")
+      successful_groups <- successful_groups + 1
     }
+    
+    cat("\n  Summary: Processed", successful_groups, "/", length(gene_group_files), "gene groups successfully\n")
   }
   
   # ===============================================
