@@ -29,7 +29,7 @@ BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Methods to process (comment out methods you want to skip)
 METHODS_TO_RUN=(
     "METHOD_1"  # HISAT2 Reference-Guided
-    #"METHOD_2"  # HISAT2 De Novo
+    "METHOD_2"  # HISAT2 De Novo
     #"METHOD_3"  # Trinity De Novo
     "METHOD_4"  # Salmon SAF Quantification
     "METHOD_5"  # Bowtie2/RSEM Quantification
