@@ -83,9 +83,17 @@ FASTA_GROUPS <- c(
 )
 
 # Analysis configuration
-COUNT_TYPES <- c("coverage", "fpkm", "tpm")
+COUNT_TYPES <- c(
+  #"coverage", 
+  "fpkm", 
+  "tpm"
+)
+
 GENE_TYPES <- c("geneID", "geneName")
-LABEL_TYPES <- c("SRR", "Organ")
+LABEL_TYPES <- c(
+  #"SRR", 
+  "Organ"
+)
 
 # Normalization schemes for gene expression analysis
 # "raw" - No transformation (use for initial exploration)
@@ -93,7 +101,13 @@ LABEL_TYPES <- c("SRR", "Organ")
 # "zscore" - Z-score standardization (count_type_normalized → z-score per gene)
 # "zscore_scaled_to_ten" - Z-score scaled to [0, 10] range for visualization
 # "cpm" - Counts Per Million (coverage only, returns log2(CPM+1))
-NORMALIZATION_SCHEMES <- c("raw", "count_type_normalized", "zscore", "zscore_scaled_to_ten", "cpm")
+NORMALIZATION_SCHEMES <- c(
+  #"raw", 
+  #"count_type_normalized", 
+  #"zscore", 
+  "zscore_scaled_to_ten" 
+  #"cpm"
+)
 
 # Sample label mapping: SRR IDs to developmental stage/organ names
 SAMPLE_LABELS <- c(
@@ -131,13 +145,13 @@ SAMPLE_LABELS <- c(
     #"SRR2072232" = "Fruits_2",      # SAMN28540077
     #"SRR20722387" = "Fruits_3",     # SAMN28540068
     "SRR3884608" = "Fruits_1cm",     # PRJNA328564
-    "SRR3884620" = "Fruits_Stage_1", # PRJNA328564
-    "SRR3884642" = "Fruits_Skin_Stage_2", # PRJNA328564
-    "SRR3884653" = "Fruits_Flesh_Stage_2", # PRJNA328564
-    "SRR3884664" = "Fruits_Calyx_Stage_2", # PRJNA328564
-    "SRR3884680" = "Fruits_Skin_Stage_3", # PRJNA328564
-    "SRR3884681" = "Fruits_Flesh_Stage_3", # PRJNA328564
-    "SRR3884678" = "Fruits_peduncle", # PRJNA328564
+    #"SRR3884620" = "Fruits_Stage_1", # PRJNA328564
+    #"SRR3884642" = "Fruits_Skin_Stage_2", # PRJNA328564
+    #"SRR3884653" = "Fruits_Flesh_Stage_2", # PRJNA328564
+    #"SRR3884664" = "Fruits_Calyx_Stage_2", # PRJNA328564
+    #"SRR3884680" = "Fruits_Skin_Stage_3", # PRJNA328564
+    #"SRR3884681" = "Fruits_Flesh_Stage_3", # PRJNA328564
+    #SRR3884678" = "Fruits_peduncle", # PRJNA328564
 
     # Other organs
     "SRR3884685" = "Radicles",     # PRJNA328564
@@ -253,30 +267,26 @@ for (group in FASTA_GROUPS) {
             processed_data <- apply_normalization(raw_data, normalization_scheme, count_type)
           
             if (!is.null(processed_data)) {
-              # Define version configurations (original orientation only)
+              # Define version configurations for all combinations
               version_configs <- list(
-                list(dir = original_organ_dir, sort_by_expression = FALSE),
-                list(dir = original_expr_dir, sort_by_expression = TRUE)
+                # Original orientation
+                list(dir = original_organ_dir, transpose = FALSE, sort_by_expression = FALSE),
+                list(dir = original_expr_dir, transpose = FALSE, sort_by_expression = TRUE),
+                # Transposed orientation
+                list(dir = transposed_organ_dir, transpose = TRUE, sort_by_expression = FALSE),
+                list(dir = transposed_expr_dir, transpose = TRUE, sort_by_expression = TRUE)
               )
               
-              # Generate versions for both SRR and Organ label types
+              # Generate heatmaps with matching label_type
               for (version in version_configs) {
-                # SRR version
-                cv_output_srr <- file.path(version$dir, paste0(input_basename, "_", normalization_scheme, "_SRR_cv_heatmap.png"))
+                sort_suffix <- ifelse(version$sort_by_expression, "sorted_by_expression", "sorted_by_organ")
+                orientation_suffix <- ifelse(version$transpose, "transposed", "original")
+                cv_output <- file.path(version$dir, paste0(input_basename, "_", normalization_scheme, "_", orientation_suffix, "_", sort_suffix, "_cv_heatmap.png"))
                 total_heatmaps <- total_heatmaps + 1
                 
-                if (generate_heatmap_with_cv(processed_data, cv_output_srr, title, count_type, "SRR", 
-                                            normalization_scheme, sort_by_expression = version$sort_by_expression, 
-                                            raw_data_matrix = raw_data)) {
-                  successful_heatmaps <- successful_heatmaps + 1
-                }
-                
-                # Organ version
-                cv_output_organ <- file.path(version$dir, paste0(input_basename, "_", normalization_scheme, "_Organ_cv_heatmap.png"))
-                total_heatmaps <- total_heatmaps + 1
-                
-                if (generate_heatmap_with_cv(processed_data, cv_output_organ, title, count_type, "Organ", 
-                                            normalization_scheme, sort_by_expression = version$sort_by_expression, 
+                if (generate_heatmap_with_cv(processed_data, cv_output, title, count_type, label_type, 
+                                            normalization_scheme, transpose = version$transpose, 
+                                            sort_by_expression = version$sort_by_expression, 
                                             raw_data_matrix = raw_data)) {
                   successful_heatmaps <- successful_heatmaps + 1
                 }

@@ -16,10 +16,10 @@
 #echo "Generating Basic Heatmaps from Matrices..." && Rscript --no-save b_make_heatmap_of_matrices_v4.R
 
 
-#echo "Generating Heatmaps with CV from Matrices..." && Rscript --no-save c_make_heatmap_with_CV_of_matrices_v4.R
+echo "Generating Heatmaps with CV from Matrices..." && Rscript --no-save c_make_heatmap_with_CV_of_matrices_v4.R
 
 
-echo "Generating Bar Graphs from Matrices..." && Rscript --no-save d_make_BarGraph_of_matrices_v4.R
+#echo "Generating Bar Graphs from Matrices..." && Rscript --no-save d_make_BarGraph_of_matrices_v4.R
 
 
 echo "End of Heatmap Wrapper Script."

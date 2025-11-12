@@ -496,7 +496,7 @@ generate_heatmap_violet <- function(data_matrix, output_path, title, count_type,
 # ===============================================
 
 # Function to generate heatmap with coefficient of variation annotation
-generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type, label_type, normalization_scheme = "count_type_normalized", sort_by_expression = FALSE, raw_data_matrix = NULL) {
+generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type, label_type, normalization_scheme = "count_type_normalized", transpose = FALSE, sort_by_expression = FALSE, raw_data_matrix = NULL) {
   # CONTROL VARIABLE FOR ALL TEXT SIZES
   TEXT_SIZE <- 18  # Adjust this single value to scale all text elements
   
@@ -528,24 +528,37 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
   # Store original gene names
   gene_labels <- rownames(data_matrix)
   
-  # Sort by expression if requested
+  # Sort by expression if requested (BEFORE transpose)
   if (sort_by_expression) {
-    # Sort organs (columns) by mean expression
-    col_means <- colMeans(data_matrix, na.rm = TRUE)
-    col_order <- order(col_means)
-    data_matrix <- data_matrix[, col_order, drop = FALSE]
-    col_labels <- col_labels[col_order]
-    colnames(data_matrix) <- col_labels
-    
-    # Also sort raw data if provided
-    if (!is.null(raw_data_matrix)) {
-      raw_data_matrix <- raw_data_matrix[, col_order, drop = FALSE]
-      colnames(raw_data_matrix) <- col_labels
+    if (transpose) {
+      # For transposed version: sort genes (which will become columns) by mean expression
+      row_means <- rowMeans(data_matrix, na.rm = TRUE)
+      row_order <- order(row_means)
+      data_matrix <- data_matrix[row_order, , drop = FALSE]
+      gene_labels <- gene_labels[row_order]
+      
+      # Also sort raw data if provided
+      if (!is.null(raw_data_matrix)) {
+        raw_data_matrix <- raw_data_matrix[row_order, , drop = FALSE]
+      }
+    } else {
+      # For original version: sort organs (columns) by mean expression
+      col_means <- colMeans(data_matrix, na.rm = TRUE)
+      col_order <- order(col_means)
+      data_matrix <- data_matrix[, col_order, drop = FALSE]
+      col_labels <- col_labels[col_order]
+      colnames(data_matrix) <- col_labels
+      
+      # Also sort raw data if provided
+      if (!is.null(raw_data_matrix)) {
+        raw_data_matrix <- raw_data_matrix[, col_order, drop = FALSE]
+        colnames(raw_data_matrix) <- col_labels
+      }
     }
   }
   
   # Calculate coefficient of variation (CV) for each gene
-  # CRITICAL: CV MUST be calculated on RAW, UNTRANSFORMED data
+  # CRITICAL: CV MUST be calculated on RAW, UNTRANSFORMED data BEFORE transpose
   if (is.null(raw_data_matrix)) {
     stop("ERROR: Cannot calculate CV without raw data.\n",
          "       raw_data_matrix parameter is required for all normalizations.\n",
@@ -553,7 +566,7 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
          "       Current normalization scheme: ", normalization_scheme)
   }
   
-  # Calculate CV on raw, untransformed data
+  # Calculate CV on raw, untransformed data (before transpose)
   # CV across organs (columns) for each gene (row)
   cv_values <- apply(raw_data_matrix, 1, function(x) {
     mean_val <- mean(x, na.rm = TRUE)
@@ -571,9 +584,17 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
   data_scaled <- data_matrix
   data_scaled[is.na(data_scaled)] <- 0
   
-  # Rows are genes, columns are organs
-  row_labels_display <- gene_labels
-  col_labels_display <- col_labels
+  # Apply transpose if requested
+  if (transpose) {
+    data_scaled <- t(data_scaled)
+    # After transpose: rows are now organs, columns are now genes
+    row_labels_display <- col_labels  # Organs become row labels
+    col_labels_display <- gene_labels  # Genes become column labels
+  } else {
+    # Original: rows are genes, columns are organs
+    row_labels_display <- gene_labels
+    col_labels_display <- col_labels
+  }
   
   # Update matrix row and column names
   rownames(data_scaled) <- row_labels_display
@@ -627,22 +648,43 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
   legend_breaks_cv <- pretty(data_range, n = 5)
   
   tryCatch({
-    # Create CV annotation with title
-    cv_annotation <- rowAnnotation(
-      CV = anno_text(
-        sprintf("%.3f", cv_values),
-        gp = gpar(fontsize = TEXT_SIZE, col = "black"),
-        just = "left",
-        width = unit(1.8, "cm")
-      ),
-      annotation_name_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
-      annotation_name_side = "top",
-      annotation_name_rot = 0,
-      gap = unit(0.2, "cm"),
-      simple_anno_size = unit(1.8, "cm"),
-      annotation_label = "Coefficient of Variation",
-      show_annotation_name = TRUE
-    )
+    # Create CV annotation based on orientation
+    if (transpose) {
+      # For transposed: CV as column annotation (bottom)
+      cv_annotation <- columnAnnotation(
+        CV = anno_text(
+          sprintf("%.3f", cv_values),
+          gp = gpar(fontsize = TEXT_SIZE * 0.7, col = "black"),
+          just = "center",
+          height = unit(1.5, "cm"),
+          rot = 45
+        ),
+        annotation_name_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
+        annotation_name_side = "left",
+        annotation_name_rot = 0,
+        gap = unit(0.2, "cm"),
+        simple_anno_size = unit(1.5, "cm"),
+        annotation_label = "CV",
+        show_annotation_name = TRUE
+      )
+    } else {
+      # For original: CV as row annotation (right)
+      cv_annotation <- rowAnnotation(
+        CV = anno_text(
+          sprintf("%.3f", cv_values),
+          gp = gpar(fontsize = TEXT_SIZE, col = "black"),
+          just = "left",
+          width = unit(1.8, "cm")
+        ),
+        annotation_name_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
+        annotation_name_side = "top",
+        annotation_name_rot = 0,
+        gap = unit(0.2, "cm"),
+        simple_anno_size = unit(1.8, "cm"),
+        annotation_label = "Coefficient of Variation",
+        show_annotation_name = TRUE
+      )
+    }
     
     # Set legend title based on normalization scheme
     # Match the legend titles from basic heatmap for consistency
@@ -674,14 +716,28 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
       grid_width <- unit(0.8, "cm")
     }
     
-    # Orientation settings: rows=genes, cols=organs
-    show_row_names <- TRUE
-    show_col_names <- TRUE
-    row_fontsize <- TEXT_SIZE * 0.90  # Proportional to TEXT_SIZE (was 9 when TEXT_SIZE=14)
-    col_fontsize <- TEXT_SIZE * 0.90  # Proportional to TEXT_SIZE (was 10 when TEXT_SIZE=14)
-    col_rot <- 45
-    row_label <- "Genes"
-    col_label <- "Organs"
+    # Determine orientation-specific settings
+    if (transpose) {
+      # Transposed: rows=organs, cols=genes
+      show_row_names <- TRUE
+      show_col_names <- ifelse(ncol(data_scaled) > 50, FALSE, TRUE)
+      row_fontsize <- TEXT_SIZE * 0.90
+      col_fontsize <- if (ncol(data_scaled) > 50) TEXT_SIZE * 0.50 else TEXT_SIZE * 0.90
+      col_rot <- 45
+      row_label <- "Organs"
+      col_label <- "Genes"
+      orientation_text <- "transposed"
+    } else {
+      # Original: rows=genes, cols=organs
+      show_row_names <- TRUE
+      show_col_names <- TRUE
+      row_fontsize <- TEXT_SIZE * 0.90
+      col_fontsize <- TEXT_SIZE * 0.90
+      col_rot <- 30
+      row_label <- "Genes"
+      col_label <- "Organs"
+      orientation_text <- "original"
+    }
     
     # Build comprehensive title with all metadata
     # Clean base title (remove all suffix patterns)
@@ -701,43 +757,82 @@ generate_heatmap_with_cv <- function(data_matrix, output_path, title, count_type
     
     full_title <- paste0(clean_title, " (", count_type_text, " | ", 
                          gene_type, " | ", label_type, " labels | ",
-                         normalization_text, " | ", sorting_text, ")")
+                         normalization_text, " | ", sorting_text, " | ", orientation_text, ")")
     
-    # Create the main heatmap
-    ht <- Heatmap(
-      data_scaled,
-      name = legend_title,
-      col = heatmap_colors,
-      show_row_names = show_row_names,
-      row_names_side = "left",
-      row_names_gp = gpar(fontsize = row_fontsize),
-      row_names_max_width = unit(6, "cm"),
-      row_title = row_label,
-      row_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
-      row_title_side = "left",
-      cluster_rows = FALSE,
-      show_column_names = show_col_names,
-      column_names_side = "bottom",
-      column_names_gp = gpar(fontsize = col_fontsize),
-      column_names_rot = col_rot,
-      column_title_side = "top",
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "white", lwd = 0.3),
-      heatmap_legend_param = list(
-        title = legend_title,
-        legend_direction = legend_direction,
-        legend_height = legend_height,
-        legend_width = legend_width,
-        title_gp = gpar(fontsize = TEXT_SIZE * 0.86, fontface = "bold"),  # Proportional (was 12)
-        labels_gp = gpar(fontsize = TEXT_SIZE * 0.71),  # Proportional (was 10)
-        grid_height = grid_height,
-        grid_width = grid_width,
-        at = legend_breaks_cv
-      ),
-      column_title = full_title,
-      column_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
-      right_annotation = cv_annotation
-    )
+    # Create the main heatmap with conditional CV annotation placement
+    if (transpose) {
+      # Transposed: CV annotation at bottom
+      ht <- Heatmap(
+        data_scaled,
+        name = legend_title,
+        col = heatmap_colors,
+        show_row_names = show_row_names,
+        row_names_side = "left",
+        row_names_gp = gpar(fontsize = row_fontsize),
+        row_names_max_width = unit(6, "cm"),
+        row_title = row_label,
+        row_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
+        row_title_side = "left",
+        cluster_rows = FALSE,
+        show_column_names = show_col_names,
+        column_names_side = "bottom",
+        column_names_gp = gpar(fontsize = col_fontsize),
+        column_names_rot = col_rot,
+        column_title_side = "top",
+        cluster_columns = FALSE,
+        rect_gp = gpar(col = "white", lwd = 0.3),
+        heatmap_legend_param = list(
+          title = legend_title,
+          legend_direction = legend_direction,
+          legend_height = legend_height,
+          legend_width = legend_width,
+          title_gp = gpar(fontsize = TEXT_SIZE * 0.86, fontface = "bold"),
+          labels_gp = gpar(fontsize = TEXT_SIZE * 0.71),
+          grid_height = grid_height,
+          grid_width = grid_width,
+          at = legend_breaks_cv
+        ),
+        column_title = full_title,
+        column_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
+        bottom_annotation = cv_annotation
+      )
+    } else {
+      # Original: CV annotation at right
+      ht <- Heatmap(
+        data_scaled,
+        name = legend_title,
+        col = heatmap_colors,
+        show_row_names = show_row_names,
+        row_names_side = "left",
+        row_names_gp = gpar(fontsize = row_fontsize),
+        row_names_max_width = unit(6, "cm"),
+        row_title = row_label,
+        row_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
+        row_title_side = "left",
+        cluster_rows = FALSE,
+        show_column_names = show_col_names,
+        column_names_side = "bottom",
+        column_names_gp = gpar(fontsize = col_fontsize),
+        column_names_rot = col_rot,
+        column_title_side = "top",
+        cluster_columns = FALSE,
+        rect_gp = gpar(col = "white", lwd = 0.3),
+        heatmap_legend_param = list(
+          title = legend_title,
+          legend_direction = legend_direction,
+          legend_height = legend_height,
+          legend_width = legend_width,
+          title_gp = gpar(fontsize = TEXT_SIZE * 0.86, fontface = "bold"),
+          labels_gp = gpar(fontsize = TEXT_SIZE * 0.71),
+          grid_height = grid_height,
+          grid_width = grid_width,
+          at = legend_breaks_cv
+        ),
+        column_title = full_title,
+        column_title_gp = gpar(fontsize = TEXT_SIZE, fontface = "bold"),
+        right_annotation = cv_annotation
+      )
+    }
     
     # Save the heatmap
     # Calculate dynamic dimensions based on matrix size for square cells
