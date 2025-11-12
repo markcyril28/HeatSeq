@@ -21,7 +21,7 @@ source("b_modules_for_Method_5/1_processing_engine.R")
 # ===============================================
 
 LEGEND_POSITION <- "bottom"
-HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "Basic_Heatmaps")
+HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, HEATMAP_SUBDIR)
 
 # Load runtime configuration
 config <- load_runtime_config()

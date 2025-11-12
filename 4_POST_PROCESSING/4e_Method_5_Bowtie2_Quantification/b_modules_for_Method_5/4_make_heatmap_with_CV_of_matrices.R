@@ -22,7 +22,7 @@ source("b_modules_for_Method_5/1_processing_engine.R")
 # ===============================================
 
 LEGEND_POSITION <- "top"
-CV_HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "CV_Heatmaps")
+CV_HEATMAP_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, CV_HEATMAP_SUBDIR)
 
 # Load runtime configuration
 config <- load_runtime_config()

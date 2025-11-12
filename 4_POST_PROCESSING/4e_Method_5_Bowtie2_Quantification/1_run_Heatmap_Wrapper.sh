@@ -35,7 +35,7 @@ GENE_GROUPS=(
     #"SmelGIFs"
     #"SmelGRFs"
     #"Selected_GRF_GIF_Genes"
-    #"Selected_GRF_GIF_Genes_vAll_GIFs"
+    "Selected_GRF_GIF_Genes_vAll_GIFs"
     #"Selected_GRF_GIF_Genes_vTwo_GIFs"
 
     # Combined Gene Groups
@@ -75,14 +75,13 @@ RUN_CV_HEATMAP=true
 RUN_BAR_GRAPHS=true
 
 # Output control
-OVERWRITE_EXISTING=true  # Set to false to skip files that already exist
+OVERWRITE_EXISTING=false  # Set to false to skip files that already exist
 
 # Log management
 CLEAR_LOGS_ON_RUN=true  # Set to true to clear all previous logs before each run
 
 
 #==================================================================================
-
 
 source "b_modules_for_Method_5/0_configurations.sh"
 source "b_modules_for_Method_5/1_logging.sh"
@@ -193,8 +192,8 @@ log_info "Log file: $LOG_FILE"
 
 # Count total files generated
 TOTAL_FILES=0
-if [ -d "$CONSOLIDATED_HEATMAPS_DIR" ]; then
-    TOTAL_FILES=$(find "$CONSOLIDATED_HEATMAPS_DIR" -type f \( -name "*.png" -o -name "*.pdf" \) 2>/dev/null | wc -l)
+if [ -d "$HEATMAP_OUT_DIR" ] || [ -d "$CV_HEATMAP_OUT_DIR" ] || [ -d "$BAR_GRAPH_OUT_DIR" ]; then
+    TOTAL_FILES=$(find "$HEATMAP_OUT_DIR" "$CV_HEATMAP_OUT_DIR" "$BAR_GRAPH_OUT_DIR" -type f -name "*.png" 2>/dev/null | wc -l)
 fi
 
 echo ""
@@ -202,7 +201,7 @@ echo "==========================================="
 echo "METHOD 5 HEATMAP PIPELINE - COMPLETE"
 echo "==========================================="
 echo "Outputs:"
-echo "  • ALL VISUALIZATIONS: $CONSOLIDATED_HEATMAPS_DIR"
+echo "  • ALL VISUALIZATIONS: 7_Heatmap_Outputs/"
 if [ "$RUN_BASIC_HEATMAP" = true ]; then
     echo "    - Basic Heatmaps"
 fi

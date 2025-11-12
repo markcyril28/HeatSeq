@@ -18,7 +18,7 @@ source("b_modules_for_Method_5/1_processing_engine.R")
 # CONFIGURATION
 # ===============================================
 
-BAR_GRAPH_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, "Bar_Graphs")
+BAR_GRAPH_OUT_DIR <- file.path(CONSOLIDATED_BASE_DIR, BAR_GRAPH_SUBDIR)
 
 # Load runtime configuration
 config <- load_runtime_config()

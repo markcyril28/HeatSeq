@@ -7,18 +7,26 @@
 # CONSTANTS
 # ===============================================
 
-MATRICES_DIR <- file.path("4_matrices")
-CONSOLIDATED_BASE_DIR <- "ALL_HEATMAPS_CONSOLIDATED"
+MATRICES_DIR <- file.path("6_matrices")
+CONSOLIDATED_BASE_DIR <- "7_Heatmap_Outputs"
 MASTER_REFERENCE <- "All_Smel_Genes"
 
+# Output subdirectories - must match bash configuration
+HEATMAP_SUBDIR <- "I_Basic_Heatmap"
+CV_HEATMAP_SUBDIR <- "II_Heatmap_with_CV"
+BAR_GRAPH_SUBDIR <- "III_Bar_Graphs"
+
 COUNT_TYPES <- c("expected_count")
-GENE_TYPES <- c("geneID", "geneName")
+GENE_TYPES <- c(
+  #"geneID", 
+  "geneName"
+)
 LABEL_TYPES <- c("SRR", "Organ")
 PROCESSING_LEVELS <- c("gene_level", "isoform_level")
 
 NORM_SCHEMES <- c(
-  "count_type_normalized",
-  "zscore",
+  #"count_type_normalized",
+  #"zscore",
   "zscore_scaled_to_ten"
 )
 

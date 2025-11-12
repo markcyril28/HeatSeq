@@ -19,7 +19,7 @@ suppressPackageStartupMessages({
 
 QUANT_DIR <- "5_RSEM_Quant_WD"
 MASTER_REFERENCE <- "All_Smel_Genes"
-MATRICES_OUTPUT_DIR <- "4_matrices"
+MATRICES_OUTPUT_DIR <- "6_matrices"
 GENE_GROUPS_DIR <- "a_gene_groups_input_list"
 
 # Toggle to generate both gene-level and isoform-level matrices
