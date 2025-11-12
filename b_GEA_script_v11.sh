@@ -52,10 +52,10 @@ PIPELINE_STAGES=(
 	"METHOD_2_HISAT2_DE_NOVO"
 	"METHOD_4_SALMON_SAF"
 	"METHOD_5_BOWTIE2_RSEM"
-	#"METHOD_3_TRINITY_DE_NOVO"
+	"METHOD_3_TRINITY_DE_NOVO"
 
 	"HEATMAP_WRAPPER"
-	#"ZIP_RESULTS"
+	"ZIP_RESULTS"
 )
 
 # ==============================================================================
@@ -279,33 +279,44 @@ run_all() {
 	# Method 1: HISAT2 Reference-Guided Pipeline
 	if [[ $RUN_METHOD_1_HISAT2_REF_GUIDED == "TRUE" ]]; then
 		log_step "STEP 02a: HISAT2 Reference-Guided Pipeline"
-		# Note: Requires GTF file - add --GTF parameter when calling
 		log_warn "HISAT2 Reference-Guided pipeline requires GTF file parameter"
-		hisat2_ref_guided_pipeline --FASTA "$fasta" --GTF "$gtf_file" --RNASEQ_LIST "${rnaseq_list[@]}"
+		if hisat2_ref_guided_pipeline --FASTA "$fasta" --GTF "$gtf_file" --RNASEQ_LIST "${rnaseq_list[@]}"; then
+			log_info "Method 1 completed successfully"
+		else
+			log_error "Method 1 failed (exit code: $?) - continuing with remaining methods"
+		fi
 	fi
 
 	# Method 2: HISAT2 De Novo Pipeline (Main method)
 	if [[ $RUN_METHOD_2_HISAT2_DE_NOVO == "TRUE" ]]; then
 		log_step "STEP 02b: HISAT2 De Novo Pipeline"
-		hisat2_de_novo_pipeline \
-			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		if hisat2_de_novo_pipeline --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"; then
+			log_info "Method 2 completed successfully"
+		else
+			log_error "Method 2 failed (exit code: $?) - continuing with remaining methods"
+		fi
 	fi
 
 	# Method 3: Trinity De Novo Pipeline
 	if [[ $RUN_METHOD_3_TRINITY_DE_NOVO == "TRUE" ]]; then
 		log_step "STEP 03: Trinity De Novo Assembly and Quantification"
-		trinity_de_novo_alignment_pipeline \
-			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		if trinity_de_novo_alignment_pipeline --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"; then
+			log_info "Method 3 completed successfully"
+		else
+			log_error "Method 3 failed (exit code: $?) - continuing with remaining methods"
+		fi
 	fi
 
 	# Method 4: Salmon SAF Quantification
 	if [[ $RUN_METHOD_4_SALMON_SAF == "TRUE" ]]; then
 		log_step "STEP 04: Salmon SAF Quantification"
-		# Note: Requires genome file for decoy-aware indexing
-		local genome_file="$decoy"  # Assumes genome file exists
+		local genome_file="$decoy"
 		if [[ -f "$genome_file" ]]; then
-			salmon_saf_pipeline \
-				--FASTA "$fasta" --GENOME "$genome_file" --RNASEQ_LIST "${rnaseq_list[@]}"
+			if salmon_saf_pipeline --FASTA "$fasta" --GENOME "$genome_file" --RNASEQ_LIST "${rnaseq_list[@]}"; then
+				log_info "Method 4 completed successfully"
+			else
+				log_error "Method 4 failed (exit code: $?) - continuing with remaining methods"
+			fi
 		else
 			log_warn "Genome file '$genome_file' not found. Skipping Salmon SAF pipeline."
 			log_warn "Please provide genome file for decoy-aware Salmon quantification."
@@ -315,8 +326,11 @@ run_all() {
 	# Method 5: Bowtie2 + RSEM Quantification
 	if [[ $RUN_METHOD_5_BOWTIE2_RSEM == "TRUE" ]]; then
 		log_step "STEP 05: Bowtie2 + RSEM Quantification"
-		bowtie2_rsem_pipeline \
-			--FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"
+		if bowtie2_rsem_pipeline --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"; then
+			log_info "Method 5 completed successfully"
+		else
+			log_error "Method 5 failed (exit code: $?) - continuing with remaining methods"
+		fi
 	fi
 
 	# Generate cross-method validation summary
