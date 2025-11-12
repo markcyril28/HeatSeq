@@ -62,36 +62,35 @@ MASTER_REFERENCE_SUFFIX <- paste0("_from_", MASTER_REFERENCE)
 # Gene groups
 FASTA_GROUPS <- c(
   # Control Gene Groups
-  #"Best_Cell_Cycle_Associated_Control_Genes",
-  #"Best_Control_Genes"
+  "Best_Cell_Cycle_Associated_Control_Genes",
+  "Best_Control_Genes",
   
   # Individual Gene Groups
-  #"SmelDMPs",
-  #"SmelDMPs_with_18s_rRNA",
-  #"SmelDMPs_with_18s_rRNA_PSBMB",
-  #"SmelGIFs",
-  #"SmelGRFs",
-  #"Selected_GRF_GIF_Genes"
-  "Selected_GRF_GIF_Genes_vAll_GIFs"
-  #"Selected_GRF_GIF_Genes_vTwo_GIFs"
-  
-  # Combined Gene Groups with Control Genes
-  #"SmelGIF_with_Cell_Cycle_Control_genes",
-  #"SmelGRF_with_Cell_Cycle_Control_genes",
-  #"SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
+  "SmelDMPs",
+  "SmelDMPs_with_18s_rRNA",
+  "SmelDMPs_with_18s_rRNA_PSBMB",
+  "SmelGIFs",
+  "SmelGRFs",
+  "Selected_GRF_GIF_Genes",
+  "Selected_GRF_GIF_Genes_vAll_GIFs",
+  "Selected_GRF_GIF_Genes_vTwo_GIFs",
 
+  # Combined Gene Groups with Control Genes
+  "SmelGIF_with_Cell_Cycle_Control_genes",
+  "SmelGRF_with_Cell_Cycle_Control_genes",
+  "SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
 )
 
 # Analysis configuration
 COUNT_TYPES <- c(
   #"coverage", 
-  "fpkm", 
-  "tpm"
+  "fpkm"
+  #"tpm"
 )
 
 GENE_TYPES <- c("geneID", "geneName")
 LABEL_TYPES <- c(
-  #"SRR", 
+  "SRR", 
   "Organ"
 )
 
@@ -148,10 +147,10 @@ SAMPLE_LABELS <- c(
     #"SRR3884620" = "Fruits_Stage_1", # PRJNA328564
     #"SRR3884642" = "Fruits_Skin_Stage_2", # PRJNA328564
     #"SRR3884653" = "Fruits_Flesh_Stage_2", # PRJNA328564
-    #"SRR3884664" = "Fruits_Calyx_Stage_2", # PRJNA328564
-    #"SRR3884680" = "Fruits_Skin_Stage_3", # PRJNA328564
-    #"SRR3884681" = "Fruits_Flesh_Stage_3", # PRJNA328564
-    #SRR3884678" = "Fruits_peduncle", # PRJNA328564
+    "SRR3884664" = "Fruits_Calyx_Stage_2", # PRJNA328564
+    "SRR3884680" = "Fruits_Skin_Stage_3", # PRJNA328564
+    "SRR3884681" = "Fruits_Flesh_Stage_3", # PRJNA328564
+    #"SRR3884678" = "Fruits_peduncle", # PRJNA328564
 
     # Other organs
     "SRR3884685" = "Radicles",     # PRJNA328564

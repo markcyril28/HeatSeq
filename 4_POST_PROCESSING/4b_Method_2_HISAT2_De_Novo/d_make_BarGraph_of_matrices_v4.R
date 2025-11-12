@@ -73,32 +73,48 @@ MASTER_REFERENCE_SUFFIX <- paste0("_from_", MASTER_REFERENCE)
 # Gene groups (Boilerplates)
 FASTA_GROUPS <- c(
   # Control Gene Groups
-  #"Best_Cell_Cycle_Associated_Control_Genes",
-  #"Best_Control_Genes",
+  "Best_Cell_Cycle_Associated_Control_Genes",
+  "Best_Control_Genes",
   
   # Individual Gene Groups
-  #"SmelDMPs",
-  #"SmelDMPs_with_18s_rRNA",
-  #"SmelDMPs_with_18s_rRNA_PSBMB",
-  #"SmelGIFs",
-  #"SmelGRFs",
-  #"Selected_GRF_GIF_Genes"
+  "SmelDMPs",
+  "SmelDMPs_with_18s_rRNA",
+  "SmelDMPs_with_18s_rRNA_PSBMB",
+  "SmelGIFs",
+  "SmelGRFs",
+  "Selected_GRF_GIF_Genes",
   "Selected_GRF_GIF_Genes_vAll_GIFs",
-  "Selected_GRF_GIF_Genes_vTwo_GIFs"
+  "Selected_GRF_GIF_Genes_vTwo_GIFs",
   
   # Combined Gene Groups with Control Genes
-  #"SmelGIF_with_Cell_Cycle_Control_genes",
-  #"SmelGRF_with_Cell_Cycle_Control_genes",
-  #"SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
+  "SmelGIF_with_Cell_Cycle_Control_genes",
+  "SmelGRF_with_Cell_Cycle_Control_genes",
+  "SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
 )
 
 # Analysis configuration
-COUNT_TYPES <- c("coverage", "fpkm", "tpm")
-GENE_TYPES <- c("geneID", "geneName")
+COUNT_TYPES <- c(
+  #"coverage", 
+  "fpkm"
+  #"tpm"
+)
+
+GENE_TYPES <- c(
+  #"geneID", 
+  "geneName"
+)
+
 LABEL_TYPES <- c("SRR", "Organ")
 
 # Normalization schemes configuration
-NORMALIZATION_SCHEMES <- c("raw", "raw_normalized", "count_type_normalized", "zscore", "zscore_scaled_to_ten", "cpm")
+NORMALIZATION_SCHEMES <- c(
+  #"raw", 
+  #"raw_normalized", 
+  #"count_type_normalized", 
+  #"zscore", 
+  "zscore_scaled_to_ten"
+  #"cpm"
+)
 
 # Sample label mapping: SRR IDs to developmental stage/organ names
 SAMPLE_LABELS <- c(

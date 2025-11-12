@@ -20,19 +20,19 @@ set -euo pipefail  # Exit on error, undefined vars, pipe failures
 # Gene groups to process
 Gene_Groups_Boilerplates=(
     # Available gene groups based on TSV files
-    #"Best_Cell_Cycle_Associated_Control_Genes"
-    #"Best_Control_Genes"
-    #"SmelDMPs"
-    #"SmelDMPs_with_18s_rRNA"
-    #"SmelDMPs_with_18s_rRNA_PSBMB"
-    #"SmelGIFs"
-    #"SmelGRFs"
-    #"Selected_GRF_GIF_Genes_v1"
+    "Best_Cell_Cycle_Associated_Control_Genes"
+    "Best_Control_Genes"
+    "SmelDMPs"
+    "SmelDMPs_with_18s_rRNA"
+    "SmelDMPs_with_18s_rRNA_PSBMB"
+    "SmelGIFs"
+    "SmelGRFs"
+    "Selected_GRF_GIF_Genes_v1"
     "Selected_GRF_GIF_Genes_vAll_GIFs"
     "Selected_GRF_GIF_Genes_vTwo_GIFs"
-    #"SmelGIF_with_Cell_Cycle_Control_genes"
-    #"SmelGRF_with_Cell_Cycle_Control_genes"
-    #"SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
+    "SmelGIF_with_Cell_Cycle_Control_genes"
+    "SmelGRF_with_Cell_Cycle_Control_genes"
+    "SmelGRF-GIF_with_Best_Cell_Cycle_Control_Genes"
 )
 
 # Directories
