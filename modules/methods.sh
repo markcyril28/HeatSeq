@@ -428,13 +428,15 @@ hisat2_ref_guided_pipeline() {
 		log_info "[INDEX] Extracted $(wc -l < "$splice_sites") splice sites, $(wc -l < "$exons") exons"
 		
 		# Build index with splice sites and exons
-		run_with_space_time_log \
+		log_file_size "$fasta" "Input FASTA for HISAT2 index - $fasta_tag"
+		run_with_space_time_log --input "$fasta" --output "$index_dir" \
 			hisat2-build \
 				-p "${THREADS}" \
 				--ss "$splice_sites" \
 				--exon "$exons" \
 				"$fasta" \
 				"$index_prefix"
+		log_file_size "$index_dir" "HISAT2 index output - $fasta_tag"
 	fi
 
 	# ALIGNMENT, SORTING, AND STRINGTIE ASSEMBLY for each SRR
@@ -487,7 +489,8 @@ hisat2_ref_guided_pipeline() {
 			# Check if paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end alignment
-				run_with_space_time_log \
+				log_input_output_size "$trimmed1" "$HISAT2_DIR" "HISAT2 alignment input - $SRR"
+				run_with_space_time_log --input "$TrimGalore_DIR" --output "$HISAT2_DIR" \
 					hisat2 -p "${THREADS}" --dta \
 						-x "$index_prefix" \
 						-1 "$trimmed1" \
@@ -503,7 +506,9 @@ hisat2_ref_guided_pipeline() {
 			fi
 			
 			log_info "[SAMTOOLS] Converting to sorted BAM..."
-			run_with_space_time_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			log_file_size "$sam" "SAM file before sorting - $SRR"
+			run_with_space_time_log --input "$sam" --output "$bam" samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			log_file_size "$bam" "Sorted BAM file - $SRR"
 			run_with_space_time_log samtools index -@ "${THREADS}" "$bam"
 			rm -f "$sam"
 		fi
@@ -519,13 +524,15 @@ hisat2_ref_guided_pipeline() {
 			log_info "[STRINGTIE] Assembly exists for $SRR/$fasta_tag - skipping"
 		else
 			log_step "Assembling transcripts: $SRR -> $fasta_tag (ref GTF)"
-			run_with_space_time_log \
+			log_input_output_size "$bam" "$out_dir" "StringTie assembly - $SRR"
+			run_with_space_time_log --input "$bam" --output "$out_dir" \
 				stringtie -p "$THREADS" "$bam" \
 					-G "$gtf" \
 					-o "$out_gtf" \
 					-A "$out_gene_abundances_tsv" \
 					-B \
 					-C "$out_dir/${SRR}_${fasta_tag}_ref_guided_cov_refs.gtf"
+			log_file_size "$out_gtf" "StringTie output GTF - $SRR"
 		fi
 	done
 	
@@ -806,7 +813,9 @@ hisat2_de_novo_pipeline() {
 		log_info "[HISAT2 INDEX] De novo index for $fasta_base already exists. Skipping build."
 	else
 		log_step "Building HISAT2 de novo index from $fasta"
-		run_with_space_time_log hisat2-build -p "${THREADS}" "$fasta" "$index_prefix"
+		log_file_size "$fasta" "Input FASTA for HISAT2 de novo index - $fasta_tag"
+		run_with_space_time_log --input "$fasta" --output "$HISAT2_DE_NOVO_INDEX_DIR" hisat2-build -p "${THREADS}" "$fasta" "$index_prefix"
+		log_file_size "$HISAT2_DE_NOVO_INDEX_DIR" "HISAT2 de novo index output - $fasta_tag"
 	fi
 
 	# ALIGNMENT, SORTING, AND STRINGTIE ASSEMBLY for each SRR
@@ -846,7 +855,8 @@ hisat2_de_novo_pipeline() {
 			# Check if paired-end or single-end reads
 			if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 				# Paired-end alignment
-				run_with_space_time_log \
+				log_input_output_size "$trimmed1" "$HISAT2_DIR" "HISAT2 de novo alignment - $SRR"
+				run_with_space_time_log --input "$TrimGalore_DIR" --output "$HISAT2_DIR" \
 					hisat2 -p "${THREADS}" --dta \
 						-x "$index_prefix" \
 						-1 "$trimmed1" \
@@ -862,7 +872,9 @@ hisat2_de_novo_pipeline() {
 			fi
 			
 			log_info "[SAMTOOLS] Converting SAM to sorted BAM for $fasta_tag with $SRR (de novo)..."
-			run_with_space_time_log samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			log_file_size "$sam" "SAM file before sorting (de novo) - $SRR"
+			run_with_space_time_log --input "$sam" --output "$bam" samtools sort -@ "${THREADS}" -o "$bam" "$sam"
+			log_file_size "$bam" "Sorted BAM file (de novo) - $SRR"
 			run_with_space_time_log samtools index -@ "${THREADS}" "$bam"
 			log_info "[CLEANUP] Deleting SAM file."
 			rm -f "$sam"
@@ -879,10 +891,12 @@ hisat2_de_novo_pipeline() {
 			log_info "[STRINGTIE] De novo assembly for $fasta_tag/$SRR already exists. Skipping."
 		else
 			log_step "Assembling transcripts for $fasta_tag with $SRR (de novo)"
-			run_with_space_time_log \
+			log_input_output_size "$bam" "$out_dir" "StringTie de novo assembly - $SRR"
+			run_with_space_time_log --input "$bam" --output "$out_dir" \
 				stringtie -p "$THREADS" "$bam" \
 					-o "$out_gtf" \
 					-A "$out_gene_abundances_tsv"
+			log_file_size "$out_gtf" "StringTie de novo output GTF - $SRR"
 		fi
 		
 		log_info "[CLEANUP] Deleting the BAM file."
@@ -1152,7 +1166,9 @@ trinity_de_novo_alignment_pipeline() {
 				# Note: --normalize_reads removed to preserve biological variation for tissue comparison
 				log_warn "⚠️  In-silico normalization disabled - preserves tissue-specific expression differences"
 				
-				run_with_space_time_log "${trinity_cmd[@]}"
+				log_file_size "$TRIM_DIR_ROOT" "Input trimmed reads directory for Trinity"
+				run_with_space_time_log --input "$TRIM_DIR_ROOT" --output "$trinity_out_dir" "${trinity_cmd[@]}"
+				log_file_size "$trinity_out_dir" "Trinity de novo assembly output"
 			else
 				# Only paired-end reads
 				log_info "[TRINITY] Running Trinity with paired-end reads only"
@@ -1172,7 +1188,9 @@ trinity_de_novo_alignment_pipeline() {
 				
 				[[ -n "$trinity_strand" ]] && trinity_cmd+=(--SS_lib_type "$trinity_strand")
 				
-				run_with_space_time_log "${trinity_cmd[@]}"
+				log_file_size "$TRIM_DIR_ROOT" "Input trimmed reads directory for Trinity"
+				run_with_space_time_log --input "$TRIM_DIR_ROOT" --output "$trinity_out_dir" "${trinity_cmd[@]}"
+				log_file_size "$trinity_out_dir" "Trinity de novo assembly output"
 			fi
 		elif [[ ${#single_reads[@]} -gt 0 ]]; then
 			# Only single-end reads
@@ -1330,7 +1348,9 @@ trinity_de_novo_alignment_pipeline() {
 		log_info "[SALMON INDEX] Trinity Salmon index exists - skipping build"
 	else
 		log_step "Building Salmon index for Trinity assembly"
-		run_with_space_time_log salmon index -t "$trinity_ref" -i "$salmon_idx" -k 31 --threads "$THREADS"
+		log_file_size "$trinity_ref" "Trinity assembly for Salmon indexing"
+		run_with_space_time_log --input "$trinity_ref" --output "$salmon_idx" salmon index -t "$trinity_ref" -i "$salmon_idx" -k 31 --threads "$THREADS"
+		log_file_size "$salmon_idx" "Salmon index for Trinity assembly"
 	fi
 	
 	# Quantify each sample with Salmon using GNU parallel
@@ -1663,11 +1683,14 @@ salmon_saf_pipeline() {
         log_step "Building decoy-aware Salmon index for $tag"
         awk '/^>/{print substr($0,2); next}{next}' "$genome" > "$work/decoys.txt"
         cat "$fasta" "$genome" > "$work/gentrome.fa"
-        run_with_space_time_log salmon index \
+        log_file_size "$work/gentrome.fa" "Gentrome FASTA for Salmon - $tag"
+        log_file_size "$work/decoys.txt" "Decoy list for Salmon - $tag"
+        run_with_space_time_log --input "$work" --output "$idx_dir" salmon index \
             -t "$work/gentrome.fa" \
             -d "$work/decoys.txt" \
             -i "$idx_dir" \
             -k 31 -p "$THREADS"
+        log_file_size "$idx_dir" "Salmon index output - $tag"
         rm -rf "$work"
     fi
 
@@ -1696,7 +1719,8 @@ salmon_saf_pipeline() {
 		if [[ -n "$r2" && -f "$r2" ]]; then
 			# Paired-end reads
 			log_info "[SALMON QUANT] Using paired-end reads for $SRR"
-			run_with_space_time_log salmon quant \
+			log_input_output_size "$r1" "$out_dir" "Salmon quantification input - $SRR"
+			run_with_space_time_log --input "$tdir" --output "$out_dir" salmon quant \
 				-i "$idx_dir" -l A \
 				-1 "$r1" -2 "$r2" \
 				-p "$THREADS" \
@@ -1704,6 +1728,7 @@ salmon_saf_pipeline() {
 				--seqBias --gcBias --posBias \
 				--numBootstraps 30 \
 				-o "$out_dir"
+			log_file_size "$out_dir/quant.sf" "Salmon quantification output - $SRR"
 		else
 			# Single-end reads
 			log_info "[SALMON QUANT] Using single-end reads for $SRR"
@@ -1995,7 +2020,9 @@ bowtie2_rsem_pipeline() {
         log_info "[RSEM INDEX] RSEM reference already exists. Skipping."
     else
         log_step "Building RSEM reference for $tag"
-        run_with_space_time_log rsem-prepare-reference --bowtie2 "$fasta" "$rsem_idx"
+        log_file_size "$fasta" "Input FASTA for RSEM index - $tag"
+        run_with_space_time_log --input "$fasta" --output "$RSEM_INDEX_ROOT" rsem-prepare-reference --bowtie2 "$fasta" "$rsem_idx"
+        log_file_size "$RSEM_INDEX_ROOT" "RSEM index output - $tag"
     fi
 
     # --- Quantify each SRR ---
@@ -2023,12 +2050,14 @@ bowtie2_rsem_pipeline() {
 		if [[ -n "$r2" && -f "$r2" ]]; then
 			# Paired-end reads
 			log_info "[RSEM QUANT] Using paired-end reads for $SRR"
-			run_with_space_time_log \
+			log_input_output_size "$r1" "$out_dir" "RSEM quantification input - $SRR"
+			run_with_space_time_log --input "$tdir" --output "$out_dir" \
 				rsem-calculate-expression \
 					--paired-end \
 					--bowtie2 \
 					--num-threads "$THREADS" \
 					"$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
+			log_file_size "$out_dir/${SRR}.genes.results" "RSEM gene results - $SRR"
 		else
 			# Single-end reads
 			log_info "[RSEM QUANT] Using single-end reads for $SRR"

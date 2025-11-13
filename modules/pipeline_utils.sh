@@ -130,8 +130,10 @@ mamba_install() {
 gzip_trimmed_fastq_files() {
 	# Compress all trimmed FASTQ files in the trimming directory using GNU parallel
 	log_info "Compressing all trimmed FASTQ files in $TRIM_DIR_ROOT using GNU parallel..."
+	log_file_size "$TRIM_DIR_ROOT" "Trimmed directory before compression"
 	find "$TRIM_DIR_ROOT" -type f -name "*.fq" -print0 | \
 		parallel -0 -j "$JOBS" gzip {}
+	log_file_size "$TRIM_DIR_ROOT" "Trimmed directory after compression"
 	log_info "Parallel compression of trimmed FASTQ files completed."
 }
 
@@ -158,10 +160,12 @@ run_quality_control() {
 		if compgen -G "$outdir/*_fastqc.html" >/dev/null; then
 			log_info "FastQC HTML already exists for $SRR in $outdir. Skipping FastQC."
 		else
-			run_with_space_time_log \
+			log_file_size "$TrimGalore_DIR" "Input for FastQC - $SRR"
+			run_with_space_time_log --input "$TrimGalore_DIR" --output "$outdir" \
 				fastqc -t "${THREADS:-1}" -o "$outdir" \
 					"$TrimGalore_DIR"/${SRR}*val*.fq* 2>/dev/null || \
 					log_warn "FastQC failed for $SRR"
+			log_file_size "$outdir" "FastQC output for $SRR"
 		fi
 	else
 		log_warn "FastQC not available. Skipping read quality assessment."
@@ -213,15 +217,20 @@ download_and_trim_srrs() {
         else
             # Download with prefetch + fasterq-dump
             log_info "Downloading $SRR..."
-            run_with_space_time_log prefetch "$SRR" --output-directory "$raw_files_DIR"
+            run_with_space_time_log --output "$raw_files_DIR/$SRR" prefetch "$SRR" --output-directory "$raw_files_DIR"
+            log_file_size "$raw_files_DIR/$SRR/$SRR.sra" "Downloaded SRA file for $SRR"
             
             # Important: include .sra file path explicitly
-            run_with_space_time_log fasterq-dump --split-files --threads "${THREADS}" \
+            run_with_space_time_log --input "$raw_files_DIR/$SRR/$SRR.sra" --output "$raw_files_DIR" fasterq-dump --split-files --threads "${THREADS}" \
                 "$raw_files_DIR/$SRR/$SRR.sra" -O "$raw_files_DIR"
 			# Compress FASTQ files to save space
 			if [[ -f "$raw_files_DIR/${SRR}_1.fastq" && -f "$raw_files_DIR/${SRR}_2.fastq" ]]; then
 				log_info "Compressing FASTQ files for $SRR..."
+				log_file_size "$raw_files_DIR/${SRR}_1.fastq" "Raw FASTQ R1 before compression"
+				log_file_size "$raw_files_DIR/${SRR}_2.fastq" "Raw FASTQ R2 before compression"
 				run_with_space_time_log gzip "$raw_files_DIR/${SRR}_1.fastq" "$raw_files_DIR/${SRR}_2.fastq"
+				log_file_size "$raw_files_DIR/${SRR}_1.fastq.gz" "Compressed FASTQ R1"
+				log_file_size "$raw_files_DIR/${SRR}_2.fastq.gz" "Compressed FASTQ R2"
 			fi
 
             # Set raw file paths after download
@@ -240,8 +249,10 @@ download_and_trim_srrs() {
 
         # Trim reads using Trim Galore
         log_info "Trimming $SRR..."
-        run_with_space_time_log trim_galore --cores "${THREADS}" \
+        log_input_output_size "$raw1" "$TrimGalore_DIR" "Trim Galore input for $SRR"
+        run_with_space_time_log --input "$raw_files_DIR" --output "$TrimGalore_DIR" trim_galore --cores "${THREADS}" \
             --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+        log_file_size "$TrimGalore_DIR" "Trimmed output directory for $SRR"
 
         log_info "Done working on $SRR."
         log_info "--------------------------------------------------"
@@ -268,6 +279,8 @@ download_and_trim_srrs() {
             
             # Delete raw files only if trimming was successful
             log_info "Deleting raw FASTQ files for $SRR after successful trimming..."
+            log_file_size "$raw1" "Raw file R1 before deletion"
+            log_file_size "$raw2" "Raw file R2 before deletion"
             rm -f "$raw1" "$raw2"
             log_info "Raw files deleted for $SRR"
         else
