@@ -47,14 +47,14 @@ PIPELINE_STAGES=(
 	#"QUALITY_CONTROL"
 	
 	## GEA Methods
-	#"METHOD_1_HISAT2_REF_GUIDED"
+	"METHOD_1_HISAT2_REF_GUIDED"
+	"METHOD_4_SALMON_SAF"
+	"METHOD_5_BOWTIE2_RSEM"
 	#"METHOD_2_HISAT2_DE_NOVO"
-	#"METHOD_4_SALMON_SAF"
-	#"METHOD_5_BOWTIE2_RSEM"
 	#"METHOD_3_TRINITY_DE_NOVO"
 
 	#"HEATMAP_WRAPPER"
-	"ZIP_RESULTS"
+	#"ZIP_RESULTS"
 )
 
 # ==============================================================================
@@ -115,12 +115,12 @@ SRR_LIST_PRJNA328564=(
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	SRR2072232	# mature_fruits #SRR20722226	# young_fruits
+	#SRR2072232	# mature_fruits #SRR20722226	# young_fruits
 	SRR20722234	# flowers #SRR20722228	# sepals
 	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018 
 	SRR20722233	# leaf_buds #SRR20722230	# mature_leaves
-	SRR20722227	# stems
-	SRR20722229	# roots
+	#SRR20722227	# stems
+	#SRR20722229	# roots
 )
 
 SRR_LIST_SAMN28540068=(
@@ -169,7 +169,7 @@ OTHER_SRR_LIST=(
 SRR_COMBINED_LIST=(
 	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
 	"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
-	"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
+	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
 	#"${SRR_LIST_PRJNA865018[@]}"	# Good Dataset for SmelDMP GEA.
 )
 
