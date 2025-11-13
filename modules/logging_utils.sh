@@ -137,7 +137,7 @@ run_with_space_time_log() {
 	done
 	
 	local cmd_string="$*"
-	local cmd_short="${cmd_string:0:100}"  # Truncate command for CSV
+	local cmd_short="$cmd_string"  # Full command without truncation
 	local start_ts="$(timestamp)"
 	
 	# Measure input size before running command

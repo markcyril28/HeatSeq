@@ -1421,7 +1421,7 @@ trinity_de_novo_alignment_pipeline() {
 		[[ $threads_per_sample -lt 1 ]] && threads_per_sample=1
 		
 		# Build Salmon command
-		local salmon_cmd="salmon quant -i $salmon_idx -o $quant_dir -p $threads_per_sample --validateMappings"
+		local salmon_cmd="salmon quant -p $threads_per_sample -i $salmon_idx -o $quant_dir  --validateMappings"
 		
 		if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 			salmon_cmd="$salmon_cmd -l A -1 $trimmed1 -2 $trimmed2"
