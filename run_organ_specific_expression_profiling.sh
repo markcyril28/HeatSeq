@@ -28,6 +28,10 @@ find . -type f \( -name "*.sh" -o -name "*.py" -o -name "*.pl" \) -exec chmod +x
 log_step "Executing main GEA pipeline script"
 run_with_space_time_log ./b_GEA_script_v11.sh
 
+run_with_space_time_log ./b_GEA_script_v12.sh
+
+run_with_space_time_log ./b_GEA_script_v13.sh
+
 log_step "Creating compressed archive for folders: 4_POST_PROCESSING, 4_OUTPUTS, and logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 tar -czf "CMSC244_${TIMESTAMP}.tar.gz" 4_POST_PROCESSING 4_OUTPUTS logs
