@@ -407,11 +407,11 @@ if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
 	#tar -czvf "stringtie_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
 	#tar -czvf HISAT2_DE_NOVO_ROOT_HPC_$(date +%Y%m%d_%H%M%S).tar.gz $HISAT2_DE_NOVO_ROOT
 	#tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo/
-	log_step "Creating compressed archive for folders: 4_POST_PROCESSING, 4_OUTPUTS, and logs"
+	log_step "Creating compressed archive for folders: 4_POST_PROCESSING and logs"
 	TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 	tar -c \
 		--exclude='4_POST_PROCESSING/4c_Method_3_Trinity_De_Novo' \
-		4_POST_PROCESSING 4_OUTPUTS logs | pigz -p "$THREADS" > "CMSC244_${TIMESTAMP}.tar.gz"
+		4_POST_PROCESSING logs | pigz -p "$THREADS" > "CMSC244_${TIMESTAMP}.tar.gz"
 	log_info "Archive created: CMSC244_${TIMESTAMP}.tar.gz"
 fi
 
