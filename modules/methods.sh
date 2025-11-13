@@ -429,14 +429,14 @@ hisat2_ref_guided_pipeline() {
 		
 		# Build index with splice sites and exons
 		log_file_size "$fasta" "Input FASTA for HISAT2 index - $fasta_tag"
-		run_with_space_time_log --input "$fasta" --output "$index_dir" \
+		run_with_space_time_log --input "$fasta" --output "$HISAT2_REF_GUIDED_INDEX_DIR" \
 			hisat2-build \
 				-p "${THREADS}" \
 				--ss "$splice_sites" \
 				--exon "$exons" \
 				"$fasta" \
 				"$index_prefix"
-		log_file_size "$index_dir" "HISAT2 index output - $fasta_tag"
+		log_file_size "$HISAT2_REF_GUIDED_INDEX_DIR" "HISAT2 index output - $fasta_tag"
 	fi
 
 	# ALIGNMENT, SORTING, AND STRINGTIE ASSEMBLY for each SRR
@@ -510,6 +510,7 @@ hisat2_ref_guided_pipeline() {
 			run_with_space_time_log --input "$sam" --output "$bam" samtools sort -@ "${THREADS}" -o "$bam" "$sam"
 			log_file_size "$bam" "Sorted BAM file - $SRR"
 			run_with_space_time_log samtools index -@ "${THREADS}" "$bam"
+			log_info "[CLEANUP] Deleting SAM file to save space"
 			rm -f "$sam"
 		fi
 
@@ -544,7 +545,7 @@ hisat2_ref_guided_pipeline() {
 	mkdir -p "$merge_dir"
 	
 	# Create list of GTF files for merging
-	> "$gtf_list"
+	true > "$gtf_list"
 	for SRR in "${rnaseq_list[@]}"; do
 		local out_gtf="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/${SRR}_${fasta_tag}_ref_guided_stringtie_assembled.gtf"
 		if [[ -f "$out_gtf" ]]; then
@@ -605,21 +606,21 @@ hisat2_ref_guided_pipeline() {
 	# PREPARE COUNT MATRICES FOR DESEQ2 USING prepDE.py
 	log_step "Preparing count matrices for DESeq2 using prepDE.py"
 	local deseq2_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/deseq2_input"
-	local sample_list="$deseq2_dir/sample_list.txt"
+	local prepde_sample_list="$deseq2_dir/sample_list.txt"
 	local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
 	local transcript_count_matrix="$deseq2_dir/transcript_count_matrix.csv"
 	
 	mkdir -p "$deseq2_dir"
 	
 	# Create sample list file for prepDE.py
-	> "$sample_list"
+	true > "$prepde_sample_list"
 	local samples_found=0
 	for SRR in "${rnaseq_list[@]}"; do
 		local final_dir="$STRINGTIE_HISAT2_REF_GUIDED_ROOT/$fasta_tag/$SRR/final"
 		local final_gtf="$final_dir/${SRR}_${fasta_tag}_ref_guided_final.gtf"
 		
 		if [[ -f "$final_gtf" ]]; then
-			echo "$SRR $final_gtf" >> "$sample_list"
+			echo "$SRR $final_gtf" >> "$prepde_sample_list"
 			((samples_found++))
 		else
 			log_warn "Final GTF not found for $SRR. Skipping from count matrix preparation."
@@ -674,7 +675,7 @@ hisat2_ref_guided_pipeline() {
 			log_info "[PREPDE] Running prepDE.py to generate count matrices (read length: $read_length bp)..."
 			run_with_space_time_log \
 				prepDE.py \
-					-i "$sample_list" \
+					-i "$prepde_sample_list" \
 					-g "$gene_count_matrix" \
 					-t "$transcript_count_matrix" \
 					-l "$read_length"
@@ -682,7 +683,7 @@ hisat2_ref_guided_pipeline() {
 			log_info "[PREPDE] Running prepDE.py via python to generate count matrices (read length: $read_length bp)..."
 			run_with_space_time_log \
 				python -m prepDE \
-					-i "$sample_list" \
+					-i "$prepde_sample_list" \
 					-g "$gene_count_matrix" \
 					-t "$transcript_count_matrix" \
 					-l "$read_length"
@@ -697,7 +698,7 @@ hisat2_ref_guided_pipeline() {
 		# Verify prepDE.py generated output files
 		if [[ ! -f "$gene_count_matrix" || ! -f "$transcript_count_matrix" ]]; then
 			log_error "prepDE.py failed to generate count matrices"
-			log_error "Check sample_list file: $sample_list"
+			log_error "Check sample_list file: $prepde_sample_list"
 			return 1
 		fi
 	fi
@@ -876,7 +877,7 @@ hisat2_de_novo_pipeline() {
 			run_with_space_time_log --input "$sam" --output "$bam" samtools sort -@ "${THREADS}" -o "$bam" "$sam"
 			log_file_size "$bam" "Sorted BAM file (de novo) - $SRR"
 			run_with_space_time_log samtools index -@ "${THREADS}" "$bam"
-			log_info "[CLEANUP] Deleting SAM file."
+			log_info "[CLEANUP] Deleting SAM file to save disk space"
 			rm -f "$sam"
 			log_info "[HISAT2 ALIGN] Done aligning $fasta_tag with $SRR (de novo)."
 		fi
@@ -899,8 +900,13 @@ hisat2_de_novo_pipeline() {
 			log_file_size "$out_gtf" "StringTie de novo output GTF - $SRR"
 		fi
 		
-		log_info "[CLEANUP] Deleting the BAM file."
-		rm -f "$bam" "${bam}.bai"
+		# Cleanup BAM and SAM files after quantification (unless explicitly kept)
+		if [[ "$keep_bam_global" != "y" ]]; then
+			log_info "[CLEANUP] Deleting BAM/SAM files to save disk space"
+			rm -f "$bam" "${bam}.bai" "$sam"
+		else
+			log_info "[KEEP_BAM] Preserving BAM file for further analysis"
+		fi
 		log_info "[STRINGTIE] Done processing $fasta_tag with $SRR (de novo)."
 		log_info "--------------------------------------------------"
 	done
@@ -1314,10 +1320,17 @@ trinity_de_novo_alignment_pipeline() {
 			echo "Generated: $(date)"
 		} > "$trinity_out_dir/assembly_summary.txt"
 		
-		# Optional: Clean up intermediate files
-		log_info "[TRINITY] Cleaning up intermediate files"
+		# Clean up Trinity intermediate files to save disk space
+		log_info "[TRINITY CLEANUP] Removing large intermediate assembly files"
+		log_info "[TRINITY CLEANUP] Removing chrysalis directories..."
 		find "$trinity_out_dir" -name "chrysalis" -type d -exec rm -rf {} + 2>/dev/null || true
+		log_info "[TRINITY CLEANUP] Removing jellyfish kmer files..."
 		find "$trinity_out_dir" -name "jellyfish.kmers*" -delete 2>/dev/null || true
+		log_info "[TRINITY CLEANUP] Removing inchworm kmer files..."
+		find "$trinity_out_dir" -name "inchworm.kmer*" -delete 2>/dev/null || true
+		log_info "[TRINITY CLEANUP] Removing recursive_trinity.cmds files..."
+		find "$trinity_out_dir" -name "recursive_trinity.cmds*" -delete 2>/dev/null || true
+		log_info "[TRINITY CLEANUP] Trinity intermediate file cleanup complete"
 	fi
 
 	# Use Trinity assembly directly (keep uncompressed during pipeline for efficiency)
@@ -1338,7 +1351,7 @@ trinity_de_novo_alignment_pipeline() {
 	# STEP 2: BUILD SALMON INDEX AND QUANTIFY TRANSCRIPTS
 	# Use tissue-aware tags to avoid collisions when running per tissue
 	local tag_suffix=""
-	[[ -n "$tissue_tag" ]] && tag_suffix="_${tissue_tag}"
+	[[ -n "${tissue_tag:-}" ]] && tag_suffix="_${tissue_tag}"
 	local salmon_idx="$TRINITY_DE_NOVO_ROOT/${fasta_tag}${tag_suffix}_salmon_index"
 	local quant_root="$TRINITY_DE_NOVO_ROOT/${fasta_tag}${tag_suffix}_salmon_quant"
 	mkdir -p "$quant_root"
@@ -1483,6 +1496,8 @@ trinity_de_novo_alignment_pipeline() {
 	local tx2gene_file="$matrix_dir/tx2gene_${fasta_tag}${tag_suffix}.tsv"
 	
 	# Create tx2gene mapping from Trinity FASTA (TRINITY_*: gene == transcript ID without final _i[0-9]+)
+	# Validate tissue_tag is set properly to avoid filename issues
+	[[ -z "${tissue_tag+x}" ]] && tissue_tag=""
 	if [[ ! -f "$tx2gene_file" ]]; then
 		log_info "[TXIMPORT] Creating transcript-to-gene mapping"
 		awk '/^>/{
@@ -1691,6 +1706,7 @@ salmon_saf_pipeline() {
             -i "$idx_dir" \
             -k 31 -p "$THREADS"
         log_file_size "$idx_dir" "Salmon index output - $tag"
+        log_info "[CLEANUP] Removing temporary gentrome work directory"
         rm -rf "$work"
     fi
 
@@ -1859,7 +1875,8 @@ salmon_saf_pipeline() {
             echo "" >> "$matrix_dir/genes.counts.matrix"
             cat "$temp_counts" >> "$matrix_dir/genes.counts.matrix"
             
-            # Cleanup
+            # Cleanup temporary files created during matrix generation
+            log_info "[CLEANUP] Removing temporary matrix generation files"
             rm -f "$temp_gene_ids" "$temp_counts" "$matrix_dir"/*_counts.tmp
         fi
     fi
@@ -2058,6 +2075,15 @@ bowtie2_rsem_pipeline() {
 					--num-threads "$THREADS" \
 					"$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
 			log_file_size "$out_dir/${SRR}.genes.results" "RSEM gene results - $SRR"
+			
+			# Cleanup BAM files after RSEM quantification (unless explicitly kept)
+			if [[ "$keep_bam_global" != "y" ]]; then
+				log_info "[CLEANUP] Deleting RSEM BAM files to save disk space"
+				rm -f "$out_dir/${SRR}.transcript.bam" "$out_dir/${SRR}.genome.bam" \
+					  "$out_dir/${SRR}.transcript.sorted.bam" "$out_dir/${SRR}.transcript.sorted.bam.bai"
+			else
+				log_info "[KEEP_BAM] Preserving RSEM BAM files for further analysis"
+			fi
 		else
 			# Single-end reads
 			log_info "[RSEM QUANT] Using single-end reads for $SRR"
@@ -2066,6 +2092,15 @@ bowtie2_rsem_pipeline() {
 					--bowtie2 \
 					--num-threads "$THREADS" \
 					"$r1" "$rsem_idx" "$out_dir/$SRR"
+			
+			# Cleanup BAM files after RSEM quantification (unless explicitly kept)
+			if [[ "$keep_bam_global" != "y" ]]; then
+				log_info "[CLEANUP] Deleting RSEM BAM files to save disk space"
+				rm -f "$out_dir/${SRR}.transcript.bam" "$out_dir/${SRR}.genome.bam" \
+					  "$out_dir/${SRR}.transcript.sorted.bam" "$out_dir/${SRR}.transcript.sorted.bam.bai"
+			else
+				log_info "[KEEP_BAM] Preserving RSEM BAM files for further analysis"
+			fi
 		fi
     done
 
@@ -2203,7 +2238,8 @@ bowtie2_rsem_pipeline() {
 			echo "" >> "$matrix_dir/genes.FPKM.not_cross_norm"
 			cat "$temp_fpkm" >> "$matrix_dir/genes.FPKM.not_cross_norm"
 			
-			# Cleanup
+			# Cleanup temporary files created during matrix generation
+			log_info "[CLEANUP] Removing temporary RSEM matrix generation files"
 			rm -f "$temp_gene_ids" "$temp_counts" "$temp_tpm" "$temp_fpkm" \
 				  "$matrix_dir"/*_counts.tmp "$matrix_dir"/*_tpm.tmp "$matrix_dir"/*_fpkm.tmp
 		fi
@@ -2438,18 +2474,6 @@ compare_methods_summary() {
 		fi
 	fi
 	
-	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	log_info ""
-	log_info "📊 RECOMMENDED ANALYSIS WORKFLOW:"
-	log_info "   1. PRIMARY: Use Method 4 (Salmon) or Method 1 (HISAT2 Ref-Guided)"
-	log_info "   2. For Methods 3 & 5: Run tximport R scripts for proper statistical handling"
-	log_info "   3. CRITICAL: Configure sample_conditions.txt before differential expression"
-	log_info "   4. Compare results across methods for validation"
-	log_info ""
-	log_info "⚠️  BEFORE RUNNING DESeq2:"
-	log_info "   - Create sample_conditions.txt with proper experimental conditions"
-	log_info "   - Verify metadata files have ≥2 different conditions"
-	log_info "   - Check count matrix quality (no duplicates, <50% zeros)"
 	log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 
