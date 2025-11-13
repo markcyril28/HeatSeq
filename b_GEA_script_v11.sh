@@ -409,7 +409,9 @@ if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
 	#tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo/
 	log_step "Creating compressed archive for folders: 4_POST_PROCESSING, 4_OUTPUTS, and logs"
 	TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-	tar -czf "CMSC244_${TIMESTAMP}.tar.gz" 4_POST_PROCESSING 4_OUTPUTS logs
+	tar -czf "CMSC244_${TIMESTAMP}.tar.gz" \
+		--exclude='4_POST_PROCESSING/4c_Method_3_Trinity_De_Novo' \
+		4_POST_PROCESSING 4_OUTPUTS logs
 	log_info "Archive created: CMSC244_${TIMESTAMP}.tar.gz"
 fi
 
