@@ -52,10 +52,57 @@ RUN_CV_HEATMAP=true       # Generate heatmaps with coefficient of variation
 RUN_BAR_GRAPHS=false       # Generate individual gene expression bar graphs
 
 # File handling options
-OVERWRITE_EXISTING=false    # true: Regenerate all files | false: Skip existing files
+OVERWRITE_EXISTING=true    # true: Regenerate all files | false: Skip existing files
 
 # Log file management
-CLEAR_LOGS_ON_RUN=false     # true: Fresh logs each run | false: Append to existing logs
+CLEAR_LOGS_ON_RUN=true     # true: Fresh logs each run | false: Append to existing logs
+
+# Sample IDs for matrix creation (must match Salmon output directories)
+# These samples will be used by tximport to create expression matrices
+SRR_SAMPLES=(
+    # Roots
+    "SRR3884675"   # Roots_1 (PRJNA328564)
+    #"SRR20722229"  # Roots_2 (SAMN28540077)
+    #"SRR31755282"  # Roots_3 (SAMN28540068)
+    # Stems
+    "SRR3884690"   # Stems_1 (PRJNA328564)
+    #"SRR20722227"  # Stems_2 (SAMN28540077)
+    #"SRR20722384"  # Stems_3 (SAMN28540068)
+    # Leaves
+    "SRR3884689"   # Leaves_1 (PRJNA328564)
+    #"SRR20722230"  # Leaves_2 (SAMN28540077)
+    #"SRR20722386"  # Leaves_3 (SAMN28540068)
+    #"SRR3884684"   # Senescent_leaves (PRJNA328564)
+    # Buds
+    "SRR3884686"   # Buds_1 (PRJNA328564)
+    #"SRR21010466"  # Buds_2 (SAMN28540077)
+    #"SRR20722297"  # Buds_3 (SAMN28540068)
+    # Opened Buds
+    "SRR3884687"   # Opened_Buds_1 (PRJNA328564)
+    # Flowers
+    "SRR3884597"   # Flowers_1 (PRJNA328564)
+    #"SRR20722234"  # Flowers_2 (SAMN28540077)
+    #"SRR23909863"  # Flowers_3 (SAMN28540068)
+    # Fruits
+    "SRR3884608"   # Fruits_1cm (PRJNA328564)
+    "SRR3884631"   # Fruits_1 (PRJNA328564)
+    #"SRR2072232"   # Fruits_2 (SAMN28540077)
+    "SRR20722387"  # Fruits_3 (SAMN28540068)
+    #"SRR3884620"   # Fruits_Stage_1 (PRJNA328564)
+    #"SRR3884642"   # Fruits_Skin_Stage_2 (PRJNA328564)
+    #"SRR3884653"   # Fruits_Flesh_Stage_2 (PRJNA328564)
+    #"SRR3884664"   # Fruits_Calyx_Stage_2 (PRJNA328564)
+    #"SRR3884680"   # Fruits_Skin_Stage_3 (PRJNA328564)
+    #"SRR3884681"   # Fruits_Flesh_Stage_3 (PRJNA328564)
+    "SRR3884678"   # Fruits_peduncle (PRJNA328564)
+    # Other organs
+    "SRR3884685"   # Radicles (PRJNA328564)
+    "SRR3884677"   # Cotyledons (PRJNA328564)
+    "SRR3884679"   # Pistils (PRJNA328564)
+)
+
+# Export for use by R scripts
+export SRR_SAMPLES
 
 #===============================================================================
 # INTERNAL CONFIGURATION (Do not modify)
