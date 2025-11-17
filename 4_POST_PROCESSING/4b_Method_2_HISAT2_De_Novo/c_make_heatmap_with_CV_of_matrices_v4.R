@@ -29,7 +29,7 @@
 #                 : 7_Heatmap_with_Covariability_Visualizations/{gene_group}/{normalization_scheme}/sorted_by_expression/{file}_cv_heatmap.png
 #
 # Required packages: ComplexHeatmap, circlize, RColorBrewer, dplyr, tibble, grid
-# Run test_heatmap_libraries.R first to install missing packages
+
 # ===============================================
 
 # Load required libraries
@@ -108,7 +108,7 @@ NORMALIZATION_SCHEMES <- c(
   #"cpm"
 )
 
-# Sample label mapping: SRR IDs to developmental stage/organ names
+# Sample label mapping: SRR IDs to developmental staCoege/organ names
 SAMPLE_LABELS <- c(
     # Roots
     "SRR3884675" = "Roots",      # PRJNA328564

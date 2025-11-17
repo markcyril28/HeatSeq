@@ -8,18 +8,19 @@
 #===============================================================================
 
 # Activate the Heatmap_ENV conda environment
-eval "$(conda shell.bash hook)"
+#eval "$(conda shell.bash hook)"
 #conda activate Heatmap_ENV
-conda activate geaheat
+#conda activate geaheat
 
-#bash a_stringtie_matrix_builder_m2_v4.sh
+bash a_stringtie_matrix_builder_m2_v4.sh
 
 
-echo "Generating Basic Heatmaps from Matrices..." && Rscript --no-save b_make_heatmap_of_matrices_v4.R
+echo "Generating Basic Heatmaps from Matrices..."
+Rscript --no-save b_make_heatmap_of_matrices_v4.R
 
-echo "Generating Heatmaps with CV from Matrices..." && Rscript --no-save c_make_heatmap_with_CV_of_matrices_v4.R
+#echo "Generating Heatmaps with CV from Matrices..." && Rscript --no-save c_make_heatmap_with_CV_of_matrices_v4.R
 
-echo "Generating Bar Graphs from Matrices..." && Rscript --no-save d_make_BarGraph_of_matrices_v4.R
+#echo "Generating Bar Graphs from Matrices..." && Rscript --no-save d_make_BarGraph_of_matrices_v4.R
 
 
 echo "End of Heatmap Wrapper Script."

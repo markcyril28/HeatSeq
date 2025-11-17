@@ -29,18 +29,17 @@ read_count_matrix <- function(file_path) {
 
     for (i in seq_len(ncol(data))) {
       if (!is.numeric(data[, i])) {
-        data[, i] <- as.numeric(as.character(data[, i]))
+        data[, i] <- suppressWarnings(as.numeric(as.character(data[, i])))
       }
     }
 
-    data_matrix <- as.matrix(data)
-    data_matrix[is.na(data_matrix)] <- 0
+  data_matrix <- as.matrix(data)
+  data_matrix[is.na(data_matrix)] <- 0
 
     if (!is.numeric(data_matrix)) {
-      data_matrix <- apply(data_matrix, 2, as.numeric)
+      data_matrix <- suppressWarnings(apply(data_matrix, 2, as.numeric))
       data_matrix[is.na(data_matrix)] <- 0
     }
-
     return(data_matrix)
   }, error = function(e) {
     cat("Error reading file:", file_path, "\n")
@@ -915,7 +914,7 @@ generate_gene_bargraphs <- function(data_matrix, output_dir, title_prefix, count
   # Create individual bar plots for each gene
   for (i in seq_len(nrow(data_matrix))) {
     gene_name <- rownames(data_matrix)[i]
-    gene_values <- as.numeric(data_matrix[i, ])
+    gene_values <- suppressWarnings(as.numeric(data_matrix[i, ]))
     
     # Skip genes with all zeros
     if (all(gene_values == 0)) next
