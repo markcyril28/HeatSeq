@@ -14,11 +14,16 @@ suppressPackageStartupMessages({
 })
 
 # ===============================================
+# LOAD SHARED CONFIGURATION
+# ===============================================
+
+source("b_modules_for_Method_5/0_shared_config.R")
+
+# ===============================================
 # CONFIGURATION
 # ===============================================
 
 QUANT_DIR <- "5_RSEM_Quant_WD"
-MASTER_REFERENCE <- "All_Smel_Genes"
 MATRICES_OUTPUT_DIR <- "6_matrices"
 GENE_GROUPS_DIR <- "a_gene_groups_input_list"
 
@@ -28,10 +33,46 @@ GENERATE_ISOFORM_LEVEL <- TRUE   # Use .isoforms.results (transcript-specific)
 
 # Sample information
 SAMPLE_IDS <- c(
-  "SRR3884675", "SRR3884690", "SRR3884689", "SRR3884684",
-  "SRR3884686", "SRR3884687", "SRR3884597"
+  # Roots
+  "SRR3884675",   # Roots_1 (PRJNA328564)
+  "SRR20722229",  # Roots_2 (SAMN28540077)
+  "SRR31755282",  # Roots_3 (SAMN28540068)
+  # Stems
+  "SRR3884690",   # Stems_1 (PRJNA328564)
+  "SRR20722227",  # Stems_2 (SAMN28540077)
+  "SRR20722384",  # Stems_3 (SAMN28540068)
+  # Leaves
+  "SRR3884689",   # Leaves_1 (PRJNA328564)
+  "SRR20722230",  # Leaves_2 (SAMN28540077)
+  "SRR20722386",  # Leaves_3 (SAMN28540068)
+  "SRR3884684",   # Senescent_leaves (PRJNA328564)
+  # Buds
+  "SRR3884686",   # Buds_1 (PRJNA328564)
+  "SRR21010466",  # Buds_2 (SAMN28540077)
+  "SRR20722297",  # Buds_3 (SAMN28540068)
+  # Opened Buds
+  "SRR3884687",   # Opened_Buds_1 (PRJNA328564)
+  # Flowers
+  "SRR3884597",   # Flowers_1 (PRJNA328564)
+  "SRR20722234",  # Flowers_2 (SAMN28540077)
+  "SRR23909863",  # Flowers_3 (SAMN28540068)
+  # Fruits
+  "SRR3884631",   # Fruits_1 (PRJNA328564)
+  "SRR2072232",   # Fruits_2 (SAMN28540077)
+  "SRR20722387",  # Fruits_3 (SAMN28540068)
+  "SRR3884608",   # Fruits_1cm (PRJNA328564)
+  #"SRR3884620",   # Fruits_Stage_1 (PRJNA328564)
+  #"SRR3884642",   # Fruits_Skin_Stage_2 (PRJNA328564)
+  #"SRR3884653",   # Fruits_Flesh_Stage_2 (PRJNA328564)
+  #"SRR3884664",   # Fruits_Calyx_Stage_2 (PRJNA328564)
+  #"SRR3884680",   # Fruits_Skin_Stage_3 (PRJNA328564)
+  #"SRR3884681",   # Fruits_Flesh_Stage_3 (PRJNA328564)
+  "SRR3884678",   # Fruits_peduncle (PRJNA328564)
+  # Other organs
+  "SRR3884685",   # Radicles (PRJNA328564)
+  "SRR3884677",   # Cotyledons (PRJNA328564)
+  "SRR3884679"    # Pistils (PRJNA328564)
 )
-
 # Read SRR filter from environment variable (set by wrapper script)
 srr_filter_env <- Sys.getenv("SRR_FILTER_LIST", unset = "")
 if (nzchar(srr_filter_env)) {
@@ -43,55 +84,6 @@ if (nzchar(srr_filter_env)) {
 } else {
   cat("Processing all available samples (no filter)\n\n")
 }
-
-SAMPLE_LABELS <- c(
-    # Roots
-    "SRR3884675" = "Roots",      # PRJNA328564
-    #"SRR20722229" = "Roots_2",     # SAMN28540077
-    #"SRR31755282" = "Roots_3",     # SAMN28540068
-
-    # Stems
-    "SRR3884690" = "Stems",      # PRJNA328564
-    #"SRR20722227" = "Stems_2",     # SAMN28540077
-    #"SRR20722384" = "Stems_3",     # SAMN28540068
-
-    # Leaves
-    "SRR3884689" = "Leaves",     # PRJNA328564
-    #"SRR20722230" = "Leaves_2",    # SAMN28540077
-    #"SRR20722386" = "Leaves_3",    # SAMN28540068
-    "SRR3884684" = "Senescent_leaves", # PRJNA328564
-
-    # Buds
-    "SRR3884686" = "Buds",       # PRJNA328564
-    #"SRR21010466" = "Buds_2",      # SAMN28540077
-    #"SRR20722297" = "Buds_3",      # SAMN28540068
-
-    # Opened Buds
-    "SRR3884687" = "Opened_Buds", # PRJNA328564
-
-    # Flowers
-    "SRR3884597" = "Flowers",    # PRJNA328564
-    #"SRR20722234" = "Flowers_2",   # SAMN28540077
-    #"SRR23909863" = "Flowers_3",   # SAMN28540068
-
-    # Fruits
-    "SRR3884631" = "Fruits",     # PRJNA328564
-    #"SRR2072232" = "Fruits_2",     # SAMN28540077
-    #"SRR20722387" = "Fruits_3",    # SAMN28540068
-    "SRR3884608" = "Fruits_1cm",   # PRJNA328564
-    "SRR3884620" = "Fruits_Stage_1", # PRJNA328564
-    "SRR3884642" = "Fruits_Skin_Stage_2", # PRJNA328564
-    "SRR3884653" = "Fruits_Flesh_Stage_2", # PRJNA328564
-    "SRR3884664" = "Fruits_Calyx_Stage_2", # PRJNA328564
-    "SRR3884680" = "Fruits_Skin_Stage_3", # PRJNA328564
-    "SRR3884681" = "Fruits_Flesh_Stage_3", # PRJNA328564
-    "SRR3884678" = "Fruits_peduncle", # PRJNA328564
-
-    # Other organs
-    "SRR3884685" = "Radicles",     # PRJNA328564
-    "SRR3884677" = "Cotyledons",   # PRJNA328564
-    "SRR3884679" = "Pistils"       # PRJNA328564
-)
 
 # Create output directories
 output_dir <- file.path(MATRICES_OUTPUT_DIR, MASTER_REFERENCE)
@@ -287,6 +279,7 @@ for (level_name in names(processing_levels)) {
   
   # Save with Organ labels
   colnames_organ <- SAMPLE_LABELS[colnames(normalized_counts)]
+  colnames_organ[is.na(colnames_organ)] <- colnames(normalized_counts)[is.na(colnames_organ)]
   normalized_counts_organ <- normalized_counts
   colnames(normalized_counts_organ) <- colnames_organ
   
@@ -357,8 +350,10 @@ for (level_name in names(processing_levels)) {
                   sep = "\t", quote = FALSE, row.names = FALSE)
   
       # Save with Organ labels
+      subset_colnames_organ <- SAMPLE_LABELS[colnames(subset_counts)]
+      subset_colnames_organ[is.na(subset_colnames_organ)] <- colnames(subset_counts)[is.na(subset_colnames_organ)]
       subset_counts_organ <- subset_counts
-      colnames(subset_counts_organ) <- SAMPLE_LABELS[colnames(subset_counts)]
+      colnames(subset_counts_organ) <- subset_colnames_organ
   
       subset_file_organ <- file.path(gene_group_dir,
         paste0(gene_group_name, "_expected_count_geneName_from_", MASTER_REFERENCE, level_config$output_suffix, ".tsv"))
