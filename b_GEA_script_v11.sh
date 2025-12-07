@@ -55,7 +55,7 @@ PIPELINE_STAGES=(
 
 	#"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
-	"DELETE_TRIMMED_FASTQ_FILES"
+	#"DELETE_TRIMMED_FASTQ_FILES"
 )
 
 # ==============================================================================
@@ -188,7 +188,7 @@ OTHER_SRR_LIST=(
 
 SRR_COMBINED_LIST=(
 	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
-	"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
+	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
 	"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
 	#"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
 	#"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
