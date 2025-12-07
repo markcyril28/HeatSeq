@@ -50,7 +50,7 @@ PIPELINE_STAGES=(
 	#"METHOD_1_HISAT2_REF_GUIDED"
 	"METHOD_4_SALMON_SAF"
 	"METHOD_5_BOWTIE2_RSEM"
-	"METHOD_2_HISAT2_DE_NOVO"
+	#"METHOD_2_HISAT2_DE_NOVO"
 	#"METHOD_3_TRINITY_DE_NOVO"
 
 	#"HEATMAP_WRAPPER"
@@ -187,9 +187,9 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
+	"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
 	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
-	"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
+	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
 	#"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
 	#"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
 )
