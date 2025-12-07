@@ -36,8 +36,8 @@ from salmon_saf_alignment import salmon_quantify
 # =============================================================================
 
 # Input files
-FASTQ_R1 = "test_inputs/SRR3884686/SRR3884686_1_val_1.fq.gz"
-FASTQ_R2 = "test_inputs/SRR3884686/SRR3884686_2_val_2.fq.gz"
+FASTQ_R1 = "test_inputs/SRR3884686_1_val_1.fq.gz"
+FASTQ_R2 = "test_inputs/SRR3884686_2_val_2.fq.gz"
 
 # Reference options (change as needed)
 REFERENCE_FASTA = "test_inputs/All_Smel_Genes.fasta"

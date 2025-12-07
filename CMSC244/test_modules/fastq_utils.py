@@ -301,8 +301,8 @@ if __name__ == "__main__":
     print("=" * 50)
     
     # Test paths
-    test_fastq1 = "test_inputs/SRR3884686/SRR3884686_1_val_1.fq.gz"
-    test_fastq2 = "test_inputs/SRR3884686/SRR3884686_2_val_2.fq.gz"
+    test_fastq1 = "test_inputs/SRR3884686_1_val_1.fq.gz"
+    test_fastq2 = "test_inputs/SRR3884686_2_val_2.fq.gz"
     test_fasta = "test_inputs/All_Smel_Genes.fasta"
     
     # Test FASTQ reading
