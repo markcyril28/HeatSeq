@@ -42,15 +42,15 @@ export THREADS JOBS
 # Pipeline Control Switches - Enable/disable pipeline stages
 PIPELINE_STAGES=(
 	#"MAMBA_INSTALLATION"
-	#"DOWNLOAD_and_TRIM_SRR"
-	#"GZIP_TRIMMED_FILES"
-	#"QUALITY_CONTROL"
+	"DOWNLOAD_and_TRIM_SRR"
+	"GZIP_TRIMMED_FILES"
+	"QUALITY_CONTROL"
 	
 	## GEA Methods
-	"METHOD_1_HISAT2_REF_GUIDED"
+	#"METHOD_1_HISAT2_REF_GUIDED"
 	"METHOD_4_SALMON_SAF"
 	"METHOD_5_BOWTIE2_RSEM"
-	#"METHOD_2_HISAT2_DE_NOVO"
+	"METHOD_2_HISAT2_DE_NOVO"
 	#"METHOD_3_TRINITY_DE_NOVO"
 
 	#"HEATMAP_WRAPPER"
@@ -71,8 +71,8 @@ gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 # FASTA Files for Analysis
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	"0_INPUT_FASTAs/All_Smel_Genes.fasta"
-	#"0_INPUT_FASTAs/Eggplant_V4.1_transcripts.function.fa"
+	#"0_INPUT_FASTAs/All_Smel_Genes.fasta"
+	"0_INPUT_FASTAs/Eggplant_V4.1_transcripts.function.fa"
 	#"0_INPUT_FASTAs/TEST.fasta"
 	#"0_INPUT_FASTAs/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/SmelDMP_CDS_Control_Best.fasta"
@@ -114,11 +114,14 @@ SRR_LIST_PRJNA328564=(
 )
 
 SRR_LIST_SAMN28540077=(
-	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa&s=SRR20722234,SRR20722233,SRR20722232,SRR20722230,SRR20722225,SRR20722226,SRR20722227,SRR20722228,SRR20722229
-	#SRR2072232	# mature_fruits #SRR20722226	# young_fruits
-	SRR20722234	# flowers #SRR20722228	# sepals
-	SRR21010466 # Buds, Nonparthenocarpy ID: PRJNA865018 
-	SRR20722233	# leaf_buds #SRR20722230	# mature_leaves
+	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa
+	SRR20722232	# mature_fruits (10 GB file); corrected.
+	#SRR20722226 	# young_fruits
+	#SRR20722234	# flowers 
+	#SRR20722228	# sepals (too large; not included)
+	#SRR21010466 	# Buds, Nonparthenocarpy, Adopted Dataset from ID: PRJNA865018 
+	#SRR20722233	# leaf_buds 
+	#SRR20722230	# mature_leaves (14 GB file; not included)
 	#SRR20722227	# stems
 	#SRR20722229	# roots
 )
@@ -127,8 +130,11 @@ SRR_LIST_SAMN28540068=(
 	#Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540068&o=acc_s%3Aa
 	SRR20722387 # mature_fruits
 	SRR23909863 # Fully Develop (FD) Flower ID: PRJNA941250
-	SRR20722297 # flower_buds #SRR20722385 # sepals
-	SRR20722296 # leaf_buds #SRR20722386 # mature_leaves #SRR20722383 # young_leaves
+	SRR20722297 # flower_buds 
+	#SRR20722385 # sepals (not included)
+	SRR20722296 # leaf_buds 
+	#SRR20722386 # mature_leaves (not included)
+	#SRR20722383 # young_leaves (not included)
 	SRR20722384 # stems
 	SRR31755282 # Roots (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP552204&o=acc_s%3Aa)
 )
@@ -137,14 +143,14 @@ SRR_LIST_PRJNA865018=(
 # A Good Dataset for SmelDMP GEA: 
 # 	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa PRJNA865018
 #	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
-	SRR21010454	# buds_3
-	SRR21010456	# buds_2
 	SRR21010466	# buds_1
-	SRR21010458	# flowers_3
-	SRR21010460	# flowers_2
+	SRR21010456	# buds_2
+	SRR21010454	# buds_3
 	SRR21010462	# flowers_1
-	SRR21010450	# fruits_2
+	SRR21010460	# flowers_2
+	SRR21010458	# flowers_3
 	SRR21010452	# fruits_1
+	SRR21010450	# fruits_2
 	SRR21010464	# fruits_3
 )
 

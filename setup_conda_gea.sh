@@ -4,7 +4,7 @@
 set -euo pipefail
 
 #ENV_NAME="GEA_ENV"
-ENV_NAME="geaheat"
+ENV_NAME="gea"
 UPDATE_MODE=false
 
 # Parse arguments
