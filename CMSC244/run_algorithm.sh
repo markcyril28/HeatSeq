@@ -15,7 +15,7 @@ CLEAR_LOGS=true       # Clear logs folder before running
 CLEAR_OUTPUTS=true    # Clear output folders before running
 RUN_TEST=true         # Run test mode (small subset for algorithm analysis)
 RUN_FULL=true         # Run full mode (all reads in input file)
-NUM_THREADS=4         # Number of threads for alignment
+NUM_THREADS=32         # Number of threads for alignment
 
 # ==============================================================================
 # INPUT/OUTPUT PATHS
