@@ -25,6 +25,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "modules/logging_utils.sh"
 source "modules/pipeline_utils.sh"
 source "modules/methods.sh"
+source "modules/cleanup_utils.sh"
 bash init_setup.sh
 
 # ============================================================================== 
@@ -39,7 +40,6 @@ JOBS=4                                  # Number of parallel jobs for GNU Parall
 export THREADS JOBS
 
 # Pipeline Control Switches, Quality Control and Analysis Options
-# Pipeline Control Switches - Enable/disable pipeline stages
 PIPELINE_STAGES=(
 	#"MAMBA_INSTALLATION"
 	"DOWNLOAD_and_TRIM_SRR"
@@ -55,6 +55,7 @@ PIPELINE_STAGES=(
 
 	#"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
+	"DELETE_TRIMMED_FASTQ_FILES"
 )
 
 # ==============================================================================
@@ -116,14 +117,14 @@ SRR_LIST_PRJNA328564=(
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa
 	SRR20722232	# mature_fruits (10 GB file); corrected.
-	#SRR20722226 	# young_fruits
-	#SRR20722234	# flowers 
+	SRR20722226 	# young_fruits
+	SRR20722234	# flowers 
 	#SRR20722228	# sepals (too large; not included)
-	#SRR21010466 	# Buds, Nonparthenocarpy, Adopted Dataset from ID: PRJNA865018 
-	#SRR20722233	# leaf_buds 
+	SRR21010466 	# Buds, Nonparthenocarpy, Adopted Dataset from ID: PRJNA865018 
+	SRR20722233	# leaf_buds 
 	#SRR20722230	# mature_leaves (14 GB file; not included)
-	#SRR20722227	# stems
-	#SRR20722229	# roots
+	SRR20722227	# stems
+	SRR20722229	# roots
 )
 
 SRR_LIST_SAMN28540068=(
@@ -140,9 +141,8 @@ SRR_LIST_SAMN28540068=(
 )
 
 SRR_LIST_PRJNA865018=(
-# A Good Dataset for SmelDMP GEA: 
+# Set_1: A Good Dataset for SmelDMP GEA: 
 # 	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa PRJNA865018
-#	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
 	SRR21010466	# buds_1
 	SRR21010456	# buds_2
 	SRR21010454	# buds_3
@@ -152,6 +152,20 @@ SRR_LIST_PRJNA865018=(
 	SRR21010452	# fruits_1
 	SRR21010450	# fruits_2
 	SRR21010464	# fruits_3
+)
+
+SRR_LIST_PRJNA941250=(
+# Set_2: A Good Dataset for SmelDMP GEA:
+#	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
+	SRR23909869 # 8DBF_1
+	SRR23909870 # 8DBF_2
+	SRR23909871 # 8DBF_3
+	SRR23909866 # 5DBF_1
+	SRR23909867 # 5DBF_2
+	SRR23909868 # 5DBF_3
+	SRR23909863 # Fully Develop (FD) 1
+	SRR23909864 # Fully Develop (FD) 2
+	SRR23909865 # Fully Develop (FD) 3
 )
 
 OTHER_SRR_LIST=(
@@ -175,8 +189,9 @@ OTHER_SRR_LIST=(
 SRR_COMBINED_LIST=(
 	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
 	"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
-	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
-	#"${SRR_LIST_PRJNA865018[@]}"	# Good Dataset for SmelDMP GEA.
+	"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
+	#"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
+	#"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
 )
 
 
@@ -219,6 +234,7 @@ RUN_METHOD_4_SALMON_SAF=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METH
 RUN_METHOD_5_BOWTIE2_RSEM=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_5_BOWTIE2_RSEM$" && echo "TRUE" || echo "FALSE")
 RUN_HEATMAP_WRAPPER=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^HEATMAP_WRAPPER$" && echo "TRUE" || echo "FALSE")
 RUN_ZIP_RESULTS=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^ZIP_RESULTS$" && echo "TRUE" || echo "FALSE")
+RUN_DELETE_TRIMMED_FASTQ_FILES=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DELETE_TRIMMED_FASTQ_FILES$" && echo "TRUE" || echo "FALSE")
 
 
 
@@ -421,6 +437,14 @@ if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
 	log_info "Archive created: CMSC244_${TIMESTAMP}.tar.gz"
 fi
 
+# ==============================================================================
+# CLEANUP: DELETE TRIMMED FASTQ FILES
+# ==============================================================================
+
+if [[ $RUN_DELETE_TRIMMED_FASTQ_FILES == "TRUE" ]]; then
+	log_step "Deleting trimmed FASTQ files for SRR_COMBINED_LIST"
+	delete_trimmed_fastq_by_srr_list "${SRR_COMBINED_LIST[@]}"
+fi
 
 # ==============================================================================
 # END OF SCRIPT
