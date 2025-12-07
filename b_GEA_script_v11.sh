@@ -116,11 +116,11 @@ SRR_LIST_PRJNA328564=(
 
 SRR_LIST_SAMN28540077=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540077&o=acc_s%3Aa
-	SRR20722232	# mature_fruits (10 GB file); corrected.
-	SRR20722226 	# young_fruits
-	SRR20722234	# flowers 
+	SRR20722232	# Mature_fruits (10 GB file); corrected.
+	SRR20722226 # Young_fruits
+	SRR20722234	# Flowers 
 	#SRR20722228	# sepals (too large; not included)
-	SRR21010466 	# Buds, Nonparthenocarpy, Adopted Dataset from ID: PRJNA865018 
+	SRR4243802 # Buds, Adopted Dataset from ID: PRJNA341784 
 	SRR20722233	# leaf_buds 
 	#SRR20722230	# mature_leaves (14 GB file; not included)
 	SRR20722227	# stems
@@ -130,7 +130,7 @@ SRR_LIST_SAMN28540077=(
 SRR_LIST_SAMN28540068=(
 	#Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540068&o=acc_s%3Aa
 	SRR20722387 # mature_fruits
-	SRR3884597 # Flower
+	SRR3884597 	# Flower
 	SRR20722297 # flower_buds 
 	#SRR20722385 # sepals (not included)
 	SRR20722296 # leaf_buds 
