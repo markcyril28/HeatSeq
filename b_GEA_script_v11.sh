@@ -18,7 +18,7 @@ eval "$(conda shell.bash hook)"
 
 # Activate conda environment
 #conda activate GEA_ENV
-conda activate geaheat
+conda activate gea
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #source "modules/all_functions.sh"

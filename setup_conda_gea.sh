@@ -37,16 +37,20 @@ fi
 
 echo "Installing packages into '${ENV_NAME}'..."
 ${CONDA_CMD} install -n ${ENV_NAME} -c conda-forge -c bioconda \
-	aria2 parallel-fastq-dump sra-tools \
+	aria2 parallel-fastq-dump "sra-tools>=3.0" entrez-direct \
 	hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
 	fastqc multiqc \
 	parallel -y || {
     echo "Mamba installation failed, falling back to conda..."
     conda install -n ${ENV_NAME} -c conda-forge -c bioconda \
-        aria2 parallel-fastq-dump sra-tools \
+        aria2 parallel-fastq-dump "sra-tools>=3.0" entrez-direct \
         hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
         fastqc multiqc \
         parallel -y
 }
+
+# Configure SRA tools
+echo "Configuring SRA tools..."
+conda run -n ${ENV_NAME} vdb-config --prefetch-to-cwd
 
 echo "Installation complete. Activate with: conda activate ${ENV_NAME}"
