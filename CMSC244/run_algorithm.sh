@@ -21,8 +21,8 @@ NUM_THREADS=4         # Number of threads for alignment
 # INPUT/OUTPUT PATHS
 # ==============================================================================
 
-FASTQ_R1="test_inputs/SRR3884686/SRR3884686_1_val_1.fq.gz"
-FASTQ_R2="test_inputs/SRR3884686/SRR3884686_2_val_2.fq.gz"
+FASTQ_R1="test_inputs/SRR3884686_1_val_1.fq.gz"
+FASTQ_R2="test_inputs/SRR3884686_2_val_2.fq.gz"
 REFERENCE="test_inputs/Eggplant_V4.1_transcripts.function.fa"
 #REFERENCE="test_inputs/All_Smel_Genes.fasta"
 
