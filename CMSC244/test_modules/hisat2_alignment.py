@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """
-HISAT2 Alignment Algorithm Implementation (Refactored)
+HISAT2 Alignment Algorithm Implementation 
 ======================================================
-Uses Hierarchical Graph FM Index (HGFM) built on Burrows-Wheeler Transform (BWT).
-Implements: BWT, FM-Index, backward search, and splice-aware alignment.
-
-Only basic Python: variables, loops, conditionals, functions.
-Uses shared_utils for common BWT/FM-Index operations.
 """
 
 from shared_utils import (
@@ -85,7 +80,7 @@ def seed_and_extend(read, reference, suffix_array, c_table, occ, max_mismatches)
 
 
 # =============================================================================
-# SPLICE-AWARE ALIGNMENT (HISAT2 SPECIFIC)
+# Splice-Aware Alignment
 # =============================================================================
 
 def check_canonical_splice_site(reference, donor_pos, acceptor_pos):

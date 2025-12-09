@@ -2,14 +2,11 @@
 """
 Alignment Test Runner
 =====================
-Runs all three alignment algorithms (HISAT2, Bowtie2, Salmon) with actual FASTQ input
-and generates complexity reports.
 
 Modes:
-  - test: Small subset of reads for algorithm analysis (default)
+  - test: Small subset of reads for algorithm analysis
   - full: Process all reads in the input file
 
-Only basic Python: variables, loops, conditionals, functions.
 """
 
 import os

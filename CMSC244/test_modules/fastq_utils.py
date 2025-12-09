@@ -3,7 +3,6 @@
 FASTQ Utilities for Alignment Testing
 =====================================
 Provides functions to read FASTQ files (gzipped or plain) and FASTA reference files.
-Only basic Python: variables, loops, conditionals, functions.
 """
 
 import gzip

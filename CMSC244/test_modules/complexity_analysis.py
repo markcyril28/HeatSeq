@@ -303,7 +303,7 @@ def export_to_csv(tracker, output_file):
 
 
 # =============================================================================
-# STEP 6: MATPLOTLIB GRAPH GENERATION (IF AVAILABLE)
+# STEP 6: MATPLOTLIB GRAPH GENERATION 
 # =============================================================================
 
 def generate_matplotlib_graphs(tracker, output_dir):

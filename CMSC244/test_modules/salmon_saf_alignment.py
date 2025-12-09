@@ -5,8 +5,6 @@ Salmon Selective Alignment (SAF) Algorithm Implementation (Refactored)
 Uses quasi-mapping with minimizers, selective alignment validation,
 and EM algorithm for transcript quantification.
 
-Only basic Python: variables, loops, conditionals, functions.
-Uses shared_utils for common sequence operations.
 """
 
 import math
@@ -62,7 +60,7 @@ def add_decoys_to_index(index, decoy_sequences, k=31):
 
 def quasi_map(read, index, transcript_lengths, k=31, min_hits=3):
     """
-    Perform quasi-mapping of a read to transcripts.
+    Perform quasi-mapping of a read to transcripts, then
     Returns list of candidate mappings based on minimizer hits.
     """
     minimizers = get_minimizers(read, k, 10)

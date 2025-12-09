@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 """
-Bowtie2 Alignment Algorithm Implementation (Refactored)
-======================================================
-Uses FM-Index (Burrows-Wheeler Transform) with dynamic programming for gapped alignment.
-Implements: BWT, FM-Index, Smith-Waterman local alignment, Needleman-Wunsch global alignment.
+Bowtie2 Alignment Algorithm Implementation 
 
-Only basic Python: variables, loops, conditionals, functions.
-Uses shared_utils for common BWT/FM-Index operations.
 """
 
 from shared_utils import (

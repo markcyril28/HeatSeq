@@ -3,9 +3,7 @@
 Shared Utilities for Alignment Algorithms
 ==========================================
 Common functions used by HISAT2, Bowtie2, and Salmon aligners.
-Implements: BWT, FM-Index construction, sequence utilities.
 
-Only basic Python: variables, loops, conditionals, functions.
 """
 
 # =============================================================================
