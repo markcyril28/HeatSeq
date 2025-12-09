@@ -108,7 +108,7 @@ setup_logging() {
 
 # Error handling and cleanup traps
 trap 'log_error "Command failed (rc=$?) at line $LINENO: ${BASH_COMMAND:-unknown}"; exit 1' ERR
-trap 'log_info "Script finished. See log: $LOG_FILE"; log_info "Time metrics: $TIME_FILE"' EXIT
+trap 'log_software_catalog; log_info "Script finished. See log: $LOG_FILE"; log_info "Time metrics: $TIME_FILE"' EXIT
 
 run_with_space_time_log() {
 	# Run a command and log resource usage (tracks time and memory)
@@ -250,3 +250,103 @@ log_disk_usage() {
 	log_file_size "$workspace_path" "$description"
 }
 
+# ==============================================================================
+# SOFTWARE CATALOG FUNCTION
+# ==============================================================================
+
+log_software_catalog() {
+	# Log all software versions used during pipeline execution
+	log_step "SOFTWARE CATALOG"
+	echo ""
+	echo "================================================================================"
+	echo "SOFTWARE VERSIONS AND ENVIRONMENT INFORMATION"
+	echo "Generated: $(timestamp)"
+	echo "================================================================================"
+	echo ""
+
+	# System info
+	echo "--- SYSTEM ---"
+	echo "OS: $(uname -s -r -m 2>/dev/null || echo 'N/A')"
+	echo "Hostname: $(hostname 2>/dev/null || echo 'N/A')"
+	echo "User: $(whoami 2>/dev/null || echo 'N/A')"
+	echo ""
+
+	# Conda environment
+	echo "--- CONDA ENVIRONMENT ---"
+	if command -v conda &>/dev/null; then
+		echo "Conda: $(conda --version 2>/dev/null || echo 'N/A')"
+		echo "Active env: ${CONDA_DEFAULT_ENV:-N/A}"
+	else
+		echo "Conda: Not available"
+	fi
+	echo ""
+
+	# Core bioinformatics tools
+	echo "--- ALIGNMENT & ASSEMBLY ---"
+	command -v hisat2 &>/dev/null && echo "HISAT2: $(hisat2 --version 2>&1 | head -1)" || echo "HISAT2: Not installed"
+	command -v bowtie2 &>/dev/null && echo "Bowtie2: $(bowtie2 --version 2>&1 | head -1)" || echo "Bowtie2: Not installed"
+	command -v salmon &>/dev/null && echo "Salmon: $(salmon --version 2>&1 | head -1)" || echo "Salmon: Not installed"
+	command -v Trinity &>/dev/null && echo "Trinity: $(Trinity --version 2>&1 | head -1)" || echo "Trinity: Not installed"
+	echo ""
+
+	# Quantification tools
+	echo "--- QUANTIFICATION ---"
+	command -v stringtie &>/dev/null && echo "StringTie: $(stringtie --version 2>&1)" || echo "StringTie: Not installed"
+	command -v rsem-calculate-expression &>/dev/null && echo "RSEM: $(rsem-calculate-expression --version 2>&1 | head -1)" || echo "RSEM: Not installed"
+	echo ""
+
+	# Trimming tools
+	echo "--- READ PROCESSING ---"
+	command -v trim_galore &>/dev/null && echo "Trim Galore: $(trim_galore --version 2>&1 | grep -i version | head -1)" || echo "Trim Galore: Not installed"
+	command -v trimmomatic &>/dev/null && echo "Trimmomatic: $(trimmomatic -version 2>&1 | head -1)" || echo "Trimmomatic: Not installed"
+	command -v cutadapt &>/dev/null && echo "Cutadapt: $(cutadapt --version 2>&1)" || echo "Cutadapt: Not installed"
+	echo ""
+
+	# QC tools
+	echo "--- QUALITY CONTROL ---"
+	command -v fastqc &>/dev/null && echo "FastQC: $(fastqc --version 2>&1)" || echo "FastQC: Not installed"
+	command -v multiqc &>/dev/null && echo "MultiQC: $(multiqc --version 2>&1)" || echo "MultiQC: Not installed"
+	echo ""
+
+	# SAM/BAM tools
+	echo "--- SAM/BAM UTILITIES ---"
+	command -v samtools &>/dev/null && echo "SAMtools: $(samtools --version 2>&1 | head -1)" || echo "SAMtools: Not installed"
+	echo ""
+
+	# SRA tools
+	echo "--- SRA TOOLS ---"
+	command -v prefetch &>/dev/null && echo "SRA-tools (prefetch): $(prefetch --version 2>&1 | head -2 | tail -1)" || echo "SRA-tools: Not installed"
+	command -v fasterq-dump &>/dev/null && echo "fasterq-dump: available" || echo "fasterq-dump: Not installed"
+	echo ""
+
+	# Utilities
+	echo "--- UTILITIES ---"
+	command -v parallel &>/dev/null && echo "GNU Parallel: $(parallel --version 2>&1 | head -1)" || echo "GNU Parallel: Not installed"
+	command -v pigz &>/dev/null && echo "pigz: $(pigz --version 2>&1)" || echo "pigz: Not installed"
+	command -v gzip &>/dev/null && echo "gzip: $(gzip --version 2>&1 | head -1)" || echo "gzip: Not installed"
+	echo ""
+
+	# R if available
+	echo "--- R ENVIRONMENT ---"
+	if command -v R &>/dev/null; then
+		echo "R: $(R --version 2>&1 | head -1)"
+	else
+		echo "R: Not installed"
+	fi
+	echo ""
+
+	# Python if available
+	echo "--- PYTHON ENVIRONMENT ---"
+	if command -v python &>/dev/null; then
+		echo "Python: $(python --version 2>&1)"
+	elif command -v python3 &>/dev/null; then
+		echo "Python: $(python3 --version 2>&1)"
+	else
+		echo "Python: Not installed"
+	fi
+	echo ""
+
+	echo "================================================================================"
+	echo "END OF SOFTWARE CATALOG"
+	echo "================================================================================"
+}
