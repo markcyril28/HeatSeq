@@ -236,8 +236,6 @@ RUN_HEATMAP_WRAPPER=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^HEATMAP_
 RUN_ZIP_RESULTS=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^ZIP_RESULTS$" && echo "TRUE" || echo "FALSE")
 RUN_DELETE_TRIMMED_FASTQ_FILES=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DELETE_TRIMMED_FASTQ_FILES$" && echo "TRUE" || echo "FALSE")
 
-
-
 run_all() {
 	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
 	# Steps: Logging, Download and  Trim, HISAT2 alignment to Stringtie, and Cleanup. 
@@ -275,8 +273,8 @@ run_all() {
 
 	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01: Download and trim RNA-seq data"
-		#download_and_trim_srrs "${rnaseq_list[@]}"
-		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
+		download_and_trim_srrs "${rnaseq_list[@]}"
+		#download_and_trim_srrs_parallel "${rnaseq_list[@]}"
 		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
 		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
 		#download_kingfisher_and_trim_srrs "${rnaseq_list[@]}"

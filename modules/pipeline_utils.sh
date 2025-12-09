@@ -116,7 +116,7 @@ mamba_install() {
 	# Install packages
 	mamba install -c conda-forge -c bioconda \
 		aria2 parallel-fastq-dump sra-tools \
-		hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore \
+		hisat2 stringtie samtools bowtie2 rsem salmon trinity trim-galore trimmomatic \
 		fastqc multiqc \
 		parallel -y
 	
@@ -248,11 +248,28 @@ download_and_trim_srrs() {
         fi
 
         # Trim reads using Trim Galore
-        log_info "Trimming $SRR..."
+        log_info "Trimming $SRR with TrimGalore..."
         log_input_output_size "$raw1" "$TrimGalore_DIR" "Trim Galore input for $SRR"
         run_with_space_time_log --input "$raw_files_DIR" --output "$TrimGalore_DIR" trim_galore --cores "${THREADS}" \
             --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
-        log_file_size "$TrimGalore_DIR" "Trimmed output directory for $SRR"
+        log_file_size "$TrimGalore_DIR" "TrimGalore output for $SRR"
+
+        # Trimmomatic: Remove first 12 bases (HEADCROP)
+        log_info "Trimming first 13 bases with Trimmomatic for $SRR..."
+        local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+        local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+        [[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
+        [[ -f "${tg_r2}.gz" ]] && gunzip "${tg_r2}.gz"
+        local trim_r1="$TrimGalore_DIR/${SRR}_1_val_1_headcrop.fq"
+        local trim_r2="$TrimGalore_DIR/${SRR}_2_val_2_headcrop.fq"
+        run_with_space_time_log trimmomatic PE -threads "${THREADS}" \
+            "$tg_r1" "$tg_r2" \
+            "$trim_r1" /dev/null "$trim_r2" /dev/null \
+            HEADCROP:12
+        # Replace TrimGalore output with Trimmomatic output
+        mv "$trim_r1" "$tg_r1"
+        mv "$trim_r2" "$tg_r2"
+        log_file_size "$TrimGalore_DIR" "Trimmed output after Trimmomatic for $SRR"
 
         log_info "Done working on $SRR."
         log_info "--------------------------------------------------"
@@ -360,13 +377,27 @@ download_kingfisher_and_trim_srrs() {
 		fi
 
 		# Trim reads using fewer cores per job
-		log_info "Trimming $SRR..."
+		log_info "Trimming $SRR with TrimGalore..."
 		local trim_cores=$((THREADS / JOBS))
-		# Add safety check to prevent division by zero
 		[[ $trim_cores -lt 1 ]] && trim_cores=1
 		
 		run_with_space_time_log trim_galore --cores "$trim_cores" \
 			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+
+		# Trimmomatic: Remove first 13 bases (HEADCROP)
+		log_info "Trimming first 13 bases with Trimmomatic for $SRR..."
+		local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+		local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+		[[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
+		[[ -f "${tg_r2}.gz" ]] && gunzip "${tg_r2}.gz"
+		local trim_r1="$TrimGalore_DIR/${SRR}_1_val_1_headcrop.fq"
+		local trim_r2="$TrimGalore_DIR/${SRR}_2_val_2_headcrop.fq"
+		run_with_space_time_log trimmomatic PE -threads "$trim_cores" \
+			"$tg_r1" "$tg_r2" \
+			"$trim_r1" /dev/null "$trim_r2" /dev/null \
+			HEADCROP:13
+		mv "$trim_r1" "$tg_r1"
+		mv "$trim_r2" "$tg_r2"
 
 		# Verify trimming success and cleanup
 		local trimming_success=false
@@ -483,9 +514,24 @@ download_and_trim_srrs_parallel() {
 		fi
 
 		# Trim reads
-		log_info "Trimming $SRR..."
+		log_info "Trimming $SRR with TrimGalore..."
 		run_with_space_time_log trim_galore --cores "${THREADS}" \
 			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
+
+		# Trimmomatic: Remove first 13 bases (HEADCROP)
+		log_info "Trimming first 13 bases with Trimmomatic for $SRR..."
+		local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+		local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+		[[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
+		[[ -f "${tg_r2}.gz" ]] && gunzip "${tg_r2}.gz"
+		local trim_r1="$TrimGalore_DIR/${SRR}_1_val_1_headcrop.fq"
+		local trim_r2="$TrimGalore_DIR/${SRR}_2_val_2_headcrop.fq"
+		run_with_space_time_log trimmomatic PE -threads "${THREADS}" \
+			"$tg_r1" "$tg_r2" \
+			"$trim_r1" /dev/null "$trim_r2" /dev/null \
+			HEADCROP:13
+		mv "$trim_r1" "$tg_r1"
+		mv "$trim_r2" "$tg_r2"
 
 		# Verify trimming success and cleanup
 		local trimming_success=false
@@ -583,10 +629,25 @@ download_and_trim_srrs_wget_parallel() {
         fi
 
         # Trim Galore (low RAM, single-thread)
-        log_info "TRIMMING: Adapters for $SRR..."
+        log_info "TRIMMING: Adapters for $SRR with TrimGalore..."
         run_with_space_time_log trim_galore --cores 1 \
             --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
             --output_dir "$TrimGalore_DIR"
+
+        # Trimmomatic: Remove first 13 bases (HEADCROP)
+        log_info "TRIMMING: First 13 bases with Trimmomatic for $SRR..."
+        local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
+        local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
+        [[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
+        [[ -f "${tg_r2}.gz" ]] && gunzip "${tg_r2}.gz"
+        local trim_r1="$TrimGalore_DIR/${SRR}_1_val_1_headcrop.fq"
+        local trim_r2="$TrimGalore_DIR/${SRR}_2_val_2_headcrop.fq"
+        run_with_space_time_log trimmomatic PE -threads 1 \
+            "$tg_r1" "$tg_r2" \
+            "$trim_r1" /dev/null "$trim_r2" /dev/null \
+            HEADCROP:13
+        mv "$trim_r1" "$tg_r1"
+        mv "$trim_r2" "$tg_r2"
 
         # Cleanup if trimming successful
         if { [[ -f "$trimmed1" && -f "$trimmed2" ]] || [[ -f "${trimmed1}.gz" && -f "${trimmed2}.gz" ]]; }; then
