@@ -12,6 +12,9 @@ set -euo pipefail
 # DIRECTORY STRUCTURE AND OUTPUT PATHS
 # ==============================================================================
 
+# Trimming Configuration
+HEADCROP_BASES=12  # Number of bases to trim from start of reads (Trimmomatic HEADCROP)
+
 # Raw and Processed Data Directories
 RAW_DIR_ROOT="1_RAW_SRR"
 TRIM_DIR_ROOT="2_TRIMMED_SRR"
@@ -254,8 +257,8 @@ download_and_trim_srrs() {
             --paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
         log_file_size "$TrimGalore_DIR" "TrimGalore output for $SRR"
 
-        # Trimmomatic: Remove first 12 bases (HEADCROP)
-        log_info "Trimming first 13 bases with Trimmomatic for $SRR..."
+        # Trimmomatic: Remove first N bases (HEADCROP)
+        log_info "Trimming first ${HEADCROP_BASES} bases with Trimmomatic for $SRR..."
         local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
         local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
         [[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
@@ -265,7 +268,7 @@ download_and_trim_srrs() {
         run_with_space_time_log trimmomatic PE -threads "${THREADS}" \
             "$tg_r1" "$tg_r2" \
             "$trim_r1" /dev/null "$trim_r2" /dev/null \
-            HEADCROP:12
+            HEADCROP:${HEADCROP_BASES}
         # Replace TrimGalore output with Trimmomatic output
         mv "$trim_r1" "$tg_r1"
         mv "$trim_r2" "$tg_r2"
@@ -384,8 +387,8 @@ download_kingfisher_and_trim_srrs() {
 		run_with_space_time_log trim_galore --cores "$trim_cores" \
 			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
 
-		# Trimmomatic: Remove first 13 bases (HEADCROP)
-		log_info "Trimming first 13 bases with Trimmomatic for $SRR..."
+		# Trimmomatic: Remove first N bases (HEADCROP)
+		log_info "Trimming first ${HEADCROP_BASES} bases with Trimmomatic for $SRR..."
 		local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
 		local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
 		[[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
@@ -395,7 +398,7 @@ download_kingfisher_and_trim_srrs() {
 		run_with_space_time_log trimmomatic PE -threads "$trim_cores" \
 			"$tg_r1" "$tg_r2" \
 			"$trim_r1" /dev/null "$trim_r2" /dev/null \
-			HEADCROP:13
+			HEADCROP:${HEADCROP_BASES}
 		mv "$trim_r1" "$tg_r1"
 		mv "$trim_r2" "$tg_r2"
 
@@ -518,8 +521,8 @@ download_and_trim_srrs_parallel() {
 		run_with_space_time_log trim_galore --cores "${THREADS}" \
 			--paired "$raw1" "$raw2" --output_dir "$TrimGalore_DIR"
 
-		# Trimmomatic: Remove first 13 bases (HEADCROP)
-		log_info "Trimming first 13 bases with Trimmomatic for $SRR..."
+		# Trimmomatic: Remove first N bases (HEADCROP)
+		log_info "Trimming first ${HEADCROP_BASES} bases with Trimmomatic for $SRR..."
 		local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
 		local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
 		[[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
@@ -529,7 +532,7 @@ download_and_trim_srrs_parallel() {
 		run_with_space_time_log trimmomatic PE -threads "${THREADS}" \
 			"$tg_r1" "$tg_r2" \
 			"$trim_r1" /dev/null "$trim_r2" /dev/null \
-			HEADCROP:13
+			HEADCROP:${HEADCROP_BASES}
 		mv "$trim_r1" "$tg_r1"
 		mv "$trim_r2" "$tg_r2"
 
@@ -634,8 +637,8 @@ download_and_trim_srrs_wget_parallel() {
             --paired "$raw_files_DIR/${SRR}_1.fastq.gz" "$raw_files_DIR/${SRR}_2.fastq.gz" \
             --output_dir "$TrimGalore_DIR"
 
-        # Trimmomatic: Remove first 13 bases (HEADCROP)
-        log_info "TRIMMING: First 13 bases with Trimmomatic for $SRR..."
+        # Trimmomatic: Remove first N bases (HEADCROP)
+        log_info "TRIMMING: First ${HEADCROP_BASES} bases with Trimmomatic for $SRR..."
         local tg_r1="$TrimGalore_DIR/${SRR}_1_val_1.fq"
         local tg_r2="$TrimGalore_DIR/${SRR}_2_val_2.fq"
         [[ -f "${tg_r1}.gz" ]] && gunzip "${tg_r1}.gz"
@@ -645,7 +648,7 @@ download_and_trim_srrs_wget_parallel() {
         run_with_space_time_log trimmomatic PE -threads 1 \
             "$tg_r1" "$tg_r2" \
             "$trim_r1" /dev/null "$trim_r2" /dev/null \
-            HEADCROP:13
+            HEADCROP:${HEADCROP_BASES}
         mv "$trim_r1" "$tg_r1"
         mv "$trim_r2" "$tg_r2"
 
