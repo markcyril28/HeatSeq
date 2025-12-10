@@ -67,3 +67,5 @@ fi
 
 
 scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/CMSC244_{}.tar.gz $PWD
+
+scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/CMSC244_last.zip $PWD

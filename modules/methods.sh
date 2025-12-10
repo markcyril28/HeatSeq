@@ -43,6 +43,11 @@ source "modules/pipeline_utils.sh"
 THREADS="${THREADS:-4}"
 keep_bam_global="${keep_bam_global:-n}"
 
+# Bowtie2 alignment mode (for Method 5: Bowtie2 + RSEM)
+# Options: very-sensitive-local (for RNA-seq), sensitive-local, fast-local, very-fast-local,
+#          very-sensitive, sensitive, fast, very-fast
+BOWTIE2_MODE="${BOWTIE2_MODE:-very-sensitive-local}"
+
 # Ensure SRR arrays exist (some pipelines fall back to these lists)
 if ! declare -p SRR_COMBINED_LIST >/dev/null 2>&1; then
 	declare -a SRR_COMBINED_LIST=()
@@ -2003,66 +2008,80 @@ salmon_saf_pipeline() {
     normalize_expression_data "$matrix_dir" "salmon"
 }
 
+# To Do List: Ability to choose between default, fast, sensitive, very-sensitive modes for Bowtie2 index and alignment	
 # Quantify expression using Bowtie2 + RSEM
 # Reviewer Preferred Method
 bowtie2_rsem_pipeline() {
-    local fasta="" rnaseq_list=()
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --FASTA) fasta="$2"; shift 2;;
-            --RNASEQ_LIST)
-                shift
-                while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do rnaseq_list+=("$1"); shift; done;;
-            *) log_error "Unknown arg: $1"; return 1;;
-        esac
-    done
+	local fasta="" rnaseq_list=() bowtie2_mode="${BOWTIE2_MODE:-very-sensitive-local}"
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--FASTA) fasta="$2"; shift 2;;
+			--BOWTIE2_MODE) bowtie2_mode="$2"; shift 2;;
+			--RNASEQ_LIST)
+				shift
+				while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do rnaseq_list+=("$1"); shift; done;;
+			*) log_error "Unknown arg: $1"; return 1;;
+		esac
+	done
 
-    [[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa"; return 1; }
-    [[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
+	[[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa [--BOWTIE2_MODE very-sensitive-local]"; return 1; }
+	[[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
+	
+	# Validate bowtie2 mode
+	case "$bowtie2_mode" in
+		very-sensitive-local|sensitive-local|fast-local|very-fast-local|\
+		very-sensitive|sensitive|fast|very-fast)
+			log_info "[BOWTIE2] Using alignment mode: --$bowtie2_mode"
+			;;
+		*)
+			log_warn "[BOWTIE2] Unknown mode '$bowtie2_mode', defaulting to --very-sensitive-local"
+			bowtie2_mode="very-sensitive-local"
+			;;
+	esac
 	
 	# Convert line endings if dos2unix is available
 	if command -v dos2unix >/dev/null 2>&1; then
 		dos2unix "$fasta" 2>/dev/null || true
 	fi
 
-    local tag="$(basename "${fasta%.*}")"
-    local rsem_idx="$RSEM_INDEX_ROOT/${tag}_rsem"
-    local quant_root="$RSEM_QUANT_ROOT/$tag"
-    local matrix_dir="$RSEM_MATRIX_ROOT/$tag"
+	local tag="$(basename "${fasta%.*}")"
+	local rsem_idx="$RSEM_INDEX_ROOT/${tag}_rsem"
+	local quant_root="$RSEM_QUANT_ROOT/$tag"
+	local matrix_dir="$RSEM_MATRIX_ROOT/$tag"
 
-    mkdir -p "$RSEM_INDEX_ROOT" "$quant_root" "$matrix_dir"
+	mkdir -p "$RSEM_INDEX_ROOT" "$quant_root" "$matrix_dir"
 
-    # --- Prepare reference ---
-    if [[ -f "${rsem_idx}.grp" ]]; then
-        log_info "[RSEM INDEX] RSEM reference already exists. Skipping."
-    else
-        log_step "Building RSEM reference for $tag"
-        log_file_size "$fasta" "Input FASTA for RSEM index - $tag"
-        run_with_space_time_log --input "$fasta" --output "$RSEM_INDEX_ROOT" rsem-prepare-reference --bowtie2 "$fasta" "$rsem_idx"
-        log_file_size "$RSEM_INDEX_ROOT" "RSEM index output - $tag"
-    fi
+	# Prepare reference
+	if [[ -f "${rsem_idx}.grp" ]]; then
+		log_info "[RSEM INDEX] RSEM reference already exists. Skipping."
+	else
+		log_step "Building RSEM reference for $tag"
+		log_file_size "$fasta" "Input FASTA for RSEM index - $tag"
+		run_with_space_time_log --input "$fasta" --output "$RSEM_INDEX_ROOT" rsem-prepare-reference --bowtie2 "$fasta" "$rsem_idx"
+		log_file_size "$RSEM_INDEX_ROOT" "RSEM index output - $tag"
+	fi
 
-    # --- Quantify each SRR ---
-    for SRR in "${rnaseq_list[@]}"; do
-        local tdir="$TRIM_DIR_ROOT/$SRR"
-        local r1=$(ls "$tdir"/${SRR}*val_1.* 2>/dev/null | head -n1)
-        local r2=$(ls "$tdir"/${SRR}*val_2.* 2>/dev/null | head -n1)
-        
-        # Check for single-end reads if paired-end not found
-        if [[ -z "$r1" ]]; then
-            r1=$(ls "$tdir"/${SRR}*trimmed.* 2>/dev/null | head -n1)
-        fi
-        
-        [[ -z "$r1" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
+	# --- Quantify each SRR ---
+	for SRR in "${rnaseq_list[@]}"; do
+		local tdir="$TRIM_DIR_ROOT/$SRR"
+		local r1=$(ls "$tdir"/${SRR}*val_1.* 2>/dev/null | head -n1)
+		local r2=$(ls "$tdir"/${SRR}*val_2.* 2>/dev/null | head -n1)
+		
+		# Check for single-end reads if paired-end not found
+		if [[ -z "$r1" ]]; then
+			r1=$(ls "$tdir"/${SRR}*trimmed.* 2>/dev/null | head -n1)
+		fi
+		
+		[[ -z "$r1" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
 
-        local out_dir="$quant_root/$SRR"
-        mkdir -p "$out_dir"
-        if [[ -f "$out_dir/${SRR}.genes.results" ]]; then
-            log_info "[RSEM QUANT] RSEM results for $SRR already exist. Skipping."
-            continue
-        fi
+		local out_dir="$quant_root/$SRR"
+		mkdir -p "$out_dir"
+		if [[ -f "$out_dir/${SRR}.genes.results" ]]; then
+			log_info "[RSEM QUANT] RSEM results for $SRR already exist. Skipping."
+			continue
+		fi
 
-        log_step "Running Bowtie2 + RSEM for $SRR"
+		log_step "Running Bowtie2 (--$bowtie2_mode) + RSEM for $SRR"
 		# Determine if we have paired-end or single-end reads
 		if [[ -n "$r2" && -f "$r2" ]]; then
 			# Paired-end reads
@@ -2072,6 +2091,7 @@ bowtie2_rsem_pipeline() {
 				rsem-calculate-expression \
 					--paired-end \
 					--bowtie2 \
+					--bowtie2-sensitivity-level "$bowtie2_mode" \
 					--num-threads "$THREADS" \
 					"$r1" "$r2" "$rsem_idx" "$out_dir/$SRR"
 			log_file_size "$out_dir/${SRR}.genes.results" "RSEM gene results - $SRR"
@@ -2090,6 +2110,7 @@ bowtie2_rsem_pipeline() {
 			run_with_space_time_log \
 				rsem-calculate-expression \
 					--bowtie2 \
+					--bowtie2-sensitivity-level "$bowtie2_mode" \
 					--num-threads "$THREADS" \
 					"$r1" "$rsem_idx" "$out_dir/$SRR"
 			
@@ -2102,71 +2123,71 @@ bowtie2_rsem_pipeline() {
 				log_info "[KEEP_BAM] Preserving RSEM BAM files for further analysis"
 			fi
 		fi
-    done
+	done
 
-    # --- Merge matrices for RSEM ---
-    log_step "Generating gene and transcript matrices (RSEM)"
-    
-    # Check if gene_trans_map exists, create if needed
-    local gene_trans_map="${fasta}.gene_trans_map"
-    if [[ ! -f "$gene_trans_map" ]]; then
-        log_info "[RSEM MATRIX] Creating gene-transcript mapping file..."
-        
-        # Detect if this is a Trinity assembly by checking header format
-        local is_trinity=false
-        if grep -q "^>TRINITY_" "$fasta" 2>/dev/null; then
-            is_trinity=true
-            log_info "[RSEM MATRIX] Detected Trinity assembly format"
-        fi
-        
-        # Extract gene info from FASTA headers with format-specific handling
-        if [[ "$is_trinity" == "true" ]]; then
-            # Trinity format: >TRINITY_DN1000_c0_g1_i1 [additional_info]
-            # Gene ID: TRINITY_DN1000_c0_g1
-            # Transcript ID: TRINITY_DN1000_c0_g1_i1
-            awk '/^>/ {
-                # Extract full transcript ID
-                trans = $1
-                gsub(/^>/, "", trans)
-                
-                # Extract gene ID by removing isoform suffix (_i[0-9]+)
-                gene = trans
-                if (match(gene, /^(.+)_i[0-9]+$/, arr)) {
-                    gene = arr[1]
-                }
-                
-                print gene "\t" trans
-            }' "$fasta" > "$gene_trans_map"
-        else
-            # Generic format handling for non-Trinity assemblies
-            grep "^>" "$fasta" | sed 's/^>//' | awk '{
-                trans=$1
-                # Try to extract gene ID from different header formats
-                if (match($0, /gene=([^ ]+)/, arr)) {
-                    gene=arr[1]
-                } else if (match($0, /gene_id[=:]([^ ]+)/, arr)) {
-                    gene=arr[1]
-                } else if (match(trans, /^([^|]+)\|/, arr)) {
-                    gene=arr[1]  # Format: gene|transcript
-                } else {
-                    gene=trans  # Fallback: use transcript as gene
-                }
-                print gene "\t" trans
-            }' > "$gene_trans_map"
-        fi
-        
-        local unique_genes=$(cut -f1 "$gene_trans_map" | sort -u | wc -l)
-        local total_transcripts=$(wc -l < "$gene_trans_map")
-        log_info "[RSEM MATRIX] Created gene-transcript map: $unique_genes genes, $total_transcripts transcripts"
-        
-        # Validate mapping
-        if [[ $total_transcripts -eq 0 ]]; then
-            log_error "Failed to create gene-transcript mapping!"
-            return 1
-        fi
-    fi
-    
-    run_with_space_time_log \
+	# --- Merge matrices for RSEM ---
+	log_step "Generating gene and transcript matrices (RSEM)"
+	
+	# Check if gene_trans_map exists, create if needed
+	local gene_trans_map="${fasta}.gene_trans_map"
+	if [[ ! -f "$gene_trans_map" ]]; then
+		log_info "[RSEM MATRIX] Creating gene-transcript mapping file..."
+		
+		# Detect if this is a Trinity assembly by checking header format
+		local is_trinity=false
+		if grep -q "^>TRINITY_" "$fasta" 2>/dev/null; then
+			is_trinity=true
+			log_info "[RSEM MATRIX] Detected Trinity assembly format"
+		fi
+		
+		# Extract gene info from FASTA headers with format-specific handling
+		if [[ "$is_trinity" == "true" ]]; then
+			# Trinity format: >TRINITY_DN1000_c0_g1_i1 [additional_info]
+			# Gene ID: TRINITY_DN1000_c0_g1
+			# Transcript ID: TRINITY_DN1000_c0_g1_i1
+			awk '/^>/ {
+				# Extract full transcript ID
+				trans = $1
+				gsub(/^>/, "", trans)
+				
+				# Extract gene ID by removing isoform suffix (_i[0-9]+)
+				gene = trans
+				if (match(gene, /^(.+)_i[0-9]+$/, arr)) {
+					gene = arr[1]
+				}
+				
+				print gene "\t" trans
+			}' "$fasta" > "$gene_trans_map"
+		else
+			# Generic format handling for non-Trinity assemblies
+			grep "^>" "$fasta" | sed 's/^>//' | awk '{
+				trans=$1
+				# Try to extract gene ID from different header formats
+				if (match($0, /gene=([^ ]+)/, arr)) {
+					gene=arr[1]
+				} else if (match($0, /gene_id[=:]([^ ]+)/, arr)) {
+					gene=arr[1]
+				} else if (match(trans, /^([^|]+)\|/, arr)) {
+					gene=arr[1]  # Format: gene|transcript
+				} else {
+					gene=trans  # Fallback: use transcript as gene
+				}
+				print gene "\t" trans
+			}' > "$gene_trans_map"
+		fi
+		
+		local unique_genes=$(cut -f1 "$gene_trans_map" | sort -u | wc -l)
+		local total_transcripts=$(wc -l < "$gene_trans_map")
+		log_info "[RSEM MATRIX] Created gene-transcript map: $unique_genes genes, $total_transcripts transcripts"
+		
+		# Validate mapping
+		if [[ $total_transcripts -eq 0 ]]; then
+			log_error "Failed to create gene-transcript mapping!"
+			return 1
+		fi
+	fi
+	
+	run_with_space_time_log \
 		abundance_estimates_to_matrix.pl \
 			--est_method RSEM \
 			--gene_trans_map "$gene_trans_map" \
@@ -2244,136 +2265,142 @@ bowtie2_rsem_pipeline() {
 				  "$matrix_dir"/*_counts.tmp "$matrix_dir"/*_tpm.tmp "$matrix_dir"/*_fpkm.tmp
 		fi
 	}
-    
-    # --- Prepare DESeq2-compatible outputs ---
+	
+	# --- Prepare DESeq2-compatible outputs ---
 	log_step "Preparing DESeq2-compatible count matrix for RSEM pipeline"
 	# Concise note: prefer tximport for DESeq2; a script will be generated below
 	log_info "[NOTE] RSEM reports expected counts; for DESeq2, prefer tximport (script will be generated)."
-    local deseq2_dir="$matrix_dir/deseq2_input"
-    local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
-    local sample_metadata="$deseq2_dir/sample_metadata.csv"
-    mkdir -p "$deseq2_dir"
-    
-    # Verify we have quantifications
-    local quant_count=0
-    for SRR in "${rnaseq_list[@]}"; do
-        [[ -f "$quant_root/$SRR/${SRR}.genes.results" ]] && ((quant_count++))
-    done
-    
-    if [[ $quant_count -lt 2 ]]; then
-        log_error "Insufficient RSEM quantifications (found: $quant_count, need: ≥2)"
-        return 1
-    fi
-    log_info "[RSEM] Found $quant_count samples with successful quantifications"
-    
-    # Convert tab-delimited matrix to CSV for DESeq2
-    if [[ -f "$matrix_dir/genes.counts.matrix" ]]; then
-        if [[ ! -f "$gene_count_matrix" ]]; then
-            log_info "[RSEM MATRIX] Converting count matrix to CSV format for DESeq2..."
-            # Convert tabs to commas and rename first column
-            sed 's/\t/,/g' "$matrix_dir/genes.counts.matrix" | \
-                sed '1s/gene_id/Gene_ID/' > "$gene_count_matrix"
-        fi
-    else
-        log_warn "Count matrix not found. Cannot create DESeq2 input."
-    fi
-    
-    # Create sample metadata file using improved function
-    if [[ ! -f "$sample_metadata" ]]; then
-        create_sample_metadata "$sample_metadata" rnaseq_list[@]
-    fi
-    
-    # Generate tximport R script for RSEM (RECOMMENDED for publication)
-    local tximport_script="$deseq2_dir/run_tximport_rsem.R"
-    if [[ ! -f "$tximport_script" ]]; then
-        generate_tximport_script "rsem" "$quant_root" "$tximport_script" "$sample_metadata"
-        log_info "[TXIMPORT] Script generated: $tximport_script (recommended for DESeq2)"
-    fi
-    
-    # Create TPM and FPKM matrices for exploratory analysis
-    if [[ -f "$matrix_dir/genes.TPM.not_cross_norm" ]]; then
-        local tpm_matrix="$deseq2_dir/gene_tpm_matrix.csv"
-        if [[ ! -f "$tpm_matrix" ]]; then
-            log_info "[RSEM MATRIX] Converting TPM matrix to CSV format..."
-            sed 's/\t/,/g' "$matrix_dir/genes.TPM.not_cross_norm" | \
-                sed '1s/gene_id/Gene_ID/' > "$tpm_matrix"
-        fi
-    fi
-    
-    if [[ -f "$matrix_dir/genes.FPKM.not_cross_norm" ]]; then
-        local fpkm_matrix="$deseq2_dir/gene_fpkm_matrix.csv"
-        if [[ ! -f "$fpkm_matrix" ]]; then
-            log_info "[RSEM MATRIX] Converting FPKM matrix to CSV format..."
-            sed 's/\t/,/g' "$matrix_dir/genes.FPKM.not_cross_norm" | \
-                sed '1s/gene_id/Gene_ID/' > "$fpkm_matrix"
-        fi
-    fi
-    
-    # Create aggregated summary statistics
-    local summary_file="$deseq2_dir/rsem_summary.txt"
-    if [[ ! -f "$summary_file" ]]; then
-        log_info "[RSEM SUMMARY] Creating RSEM quantification summary..."
-        {
-            echo "==================================================================="
-            echo "RSEM Quantification Summary for $tag"
-            echo "==================================================================="
-            echo "Date: $(date)"
-            echo ""
-            echo "Samples processed: ${#rnaseq_list[@]}"
-            echo "Quantification method: RSEM with Bowtie2 alignment"
-            echo ""
-            echo "Per-sample statistics:"
-            echo "-------------------------------------------------------------------"
-            
-            for SRR in "${rnaseq_list[@]}"; do
-                if [[ -f "$quant_root/$SRR/${SRR}.genes.results" ]]; then
-                    local total_genes=$(awk 'NR>1' "$quant_root/$SRR/${SRR}.genes.results" | wc -l)
-                    local expressed_genes=$(awk 'NR>1 && $5>0' "$quant_root/$SRR/${SRR}.genes.results" | wc -l)
-                    local total_counts=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$quant_root/$SRR/${SRR}.genes.results")
-                    
-                    echo "$SRR:"
-                    echo "  Total genes: $total_genes"
-                    echo "  Expressed genes (count > 0): $expressed_genes"
-                    echo "  Total expected counts: $total_counts"
-                fi
-            done
-            
-            echo ""
-            echo "Output files:"
-            echo "  - Count matrix: $gene_count_matrix"
-            echo "  - Sample metadata: $sample_metadata"
-            if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
-                echo "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
-            fi
-            if [[ -f "$deseq2_dir/gene_fpkm_matrix.csv" ]]; then
-                echo "  - FPKM matrix: $deseq2_dir/gene_fpkm_matrix.csv"
-            fi
-            echo "==================================================================="
-        } > "$summary_file"
-        
-        log_info "[RSEM SUMMARY] Summary saved to: $summary_file"
-    fi
+	local deseq2_dir="$matrix_dir/deseq2_input"
+	local gene_count_matrix="$deseq2_dir/gene_count_matrix.csv"
+	local sample_metadata="$deseq2_dir/sample_metadata.csv"
+	mkdir -p "$deseq2_dir"
+	
+	# Verify we have quantifications
+	local quant_count=0
+	for SRR in "${rnaseq_list[@]}"; do
+		[[ -f "$quant_root/$SRR/${SRR}.genes.results" ]] && ((quant_count++))
+	done
+	
+	if [[ $quant_count -lt 2 ]]; then
+		log_error "Insufficient RSEM quantifications (found: $quant_count, need: ≥2)"
+		return 1
+	fi
+	log_info "[RSEM] Found $quant_count samples with successful quantifications"
+	
+	# Convert tab-delimited matrix to CSV for DESeq2
+	if [[ -f "$matrix_dir/genes.counts.matrix" ]]; then
+		if [[ ! -f "$gene_count_matrix" ]]; then
+			log_info "[RSEM MATRIX] Converting count matrix to CSV format for DESeq2..."
+			# Convert tabs to commas and rename first column
+			sed 's/\t/,/g' "$matrix_dir/genes.counts.matrix" | \
+				sed '1s/gene_id/Gene_ID/' > "$gene_count_matrix"
+		fi
+	else
+		log_warn "Count matrix not found. Cannot create DESeq2 input."
+	fi
+	
+	# Create sample metadata file using improved function
+	if [[ ! -f "$sample_metadata" ]]; then
+		create_sample_metadata "$sample_metadata" rnaseq_list[@]
+	fi
+	
+	# Generate tximport R script for RSEM (RECOMMENDED for publication)
+	local tximport_script="$deseq2_dir/run_tximport_rsem.R"
+	if [[ ! -f "$tximport_script" ]]; then
+		generate_tximport_script "rsem" "$quant_root" "$tximport_script" "$sample_metadata"
+		log_info "[TXIMPORT] Script generated: $tximport_script (recommended for DESeq2)"
+	fi
+	
+	# Create TPM and FPKM matrices for exploratory analysis
+	if [[ -f "$matrix_dir/genes.TPM.not_cross_norm" ]]; then
+		local tpm_matrix="$deseq2_dir/gene_tpm_matrix.csv"
+		if [[ ! -f "$tpm_matrix" ]]; then
+			log_info "[RSEM MATRIX] Converting TPM matrix to CSV format..."
+			sed 's/\t/,/g' "$matrix_dir/genes.TPM.not_cross_norm" | \
+				sed '1s/gene_id/Gene_ID/' > "$tpm_matrix"
+		fi
+	fi
+	
+	if [[ -f "$matrix_dir/genes.FPKM.not_cross_norm" ]]; then
+		local fpkm_matrix="$deseq2_dir/gene_fpkm_matrix.csv"
+		if [[ ! -f "$fpkm_matrix" ]]; then
+			log_info "[RSEM MATRIX] Converting FPKM matrix to CSV format..."
+			sed 's/\t/,/g' "$matrix_dir/genes.FPKM.not_cross_norm" | \
+				sed '1s/gene_id/Gene_ID/' > "$fpkm_matrix"
+		fi
+	fi
+	
+	# Create aggregated summary statistics
+	local summary_file="$deseq2_dir/rsem_summary.txt"
+	if [[ ! -f "$summary_file" ]]; then
+		log_info "[RSEM SUMMARY] Creating RSEM quantification summary..."
+		{
+			echo "==================================================================="
+			echo "RSEM Quantification Summary for $tag"
+			echo "==================================================================="
+			echo "Date: $(date)"
+			echo ""
+			echo "Samples processed: ${#rnaseq_list[@]}"
+			echo "Quantification method: RSEM with Bowtie2 alignment (--$bowtie2_mode)"
+			echo ""
+			echo "Bowtie2 mode explanation:"
+			echo "  --very-sensitive-local: Most thorough local alignment (slower, best accuracy)"
+			echo "  --sensitive-local: Balanced local alignment"
+			echo "  --fast-local: Faster local alignment"
+			echo "  --very-fast-local: Fastest local alignment (less accurate)"
+			echo ""
+			echo "Per-sample statistics:"
+			echo "-------------------------------------------------------------------"
+			
+			for SRR in "${rnaseq_list[@]}"; do
+				if [[ -f "$quant_root/$SRR/${SRR}.genes.results" ]]; then
+					local total_genes=$(awk 'NR>1' "$quant_root/$SRR/${SRR}.genes.results" | wc -l)
+					local expressed_genes=$(awk 'NR>1 && $5>0' "$quant_root/$SRR/${SRR}.genes.results" | wc -l)
+					local total_counts=$(awk 'NR>1 {sum+=$5} END {print int(sum)}' "$quant_root/$SRR/${SRR}.genes.results")
+					
+					echo "$SRR:"
+					echo "  Total genes: $total_genes"
+					echo "  Expressed genes (count > 0): $expressed_genes"
+					echo "  Total expected counts: $total_counts"
+				fi
+			done
+			
+			echo ""
+			echo "Output files:"
+			echo "  - Count matrix: $gene_count_matrix"
+			echo "  - Sample metadata: $sample_metadata"
+			if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
+				echo "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
+			fi
+			if [[ -f "$deseq2_dir/gene_fpkm_matrix.csv" ]]; then
+				echo "  - FPKM matrix: $deseq2_dir/gene_fpkm_matrix.csv"
+			fi
+			echo "==================================================================="
+		} > "$summary_file"
+		
+		log_info "[RSEM SUMMARY] Summary saved to: $summary_file"
+	fi
 
-    # Validate count matrix quality using validation function
-    if [[ -f "$gene_count_matrix" ]]; then
-        validate_count_matrix "$gene_count_matrix" "gene" 2
-    fi
+	# Validate count matrix quality using validation function
+	if [[ -f "$gene_count_matrix" ]]; then
+		validate_count_matrix "$gene_count_matrix" "gene" 2
+	fi
 
-    log_step "COMPLETED: Bowtie2-RSEM pipeline for $tag"
-    log_info "Count matrices: $matrix_dir/"
-    log_info "DESeq2 input files:"
-    log_info "  - Gene count matrix: $gene_count_matrix"
-    log_info "  - Sample metadata: $sample_metadata"
-    if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
-        log_info "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
-    fi
-    if [[ -f "$deseq2_dir/gene_fpkm_matrix.csv" ]]; then
-        log_info "  - FPKM matrix: $deseq2_dir/gene_fpkm_matrix.csv"
-    fi
-    log_info "  - Summary: $summary_file"
-    
-    # Apply normalization to expression matrices
-    normalize_expression_data "$matrix_dir" "RSEM"
+	log_step "COMPLETED: Bowtie2-RSEM pipeline for $tag (mode: --$bowtie2_mode)"
+	log_info "Count matrices: $matrix_dir/"
+	log_info "DESeq2 input files:"
+	log_info "  - Gene count matrix: $gene_count_matrix"
+	log_info "  - Sample metadata: $sample_metadata"
+	if [[ -f "$deseq2_dir/gene_tpm_matrix.csv" ]]; then
+		log_info "  - TPM matrix: $deseq2_dir/gene_tpm_matrix.csv"
+	fi
+	if [[ -f "$deseq2_dir/gene_fpkm_matrix.csv" ]]; then
+		log_info "  - FPKM matrix: $deseq2_dir/gene_fpkm_matrix.csv"
+	fi
+	log_info "  - Summary: $summary_file"
+	
+	# Apply normalization to expression matrices
+	normalize_expression_data "$matrix_dir" "RSEM"
 }
 
 # ------------------------------------------------------------------------------
