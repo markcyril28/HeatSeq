@@ -108,7 +108,7 @@ setup_logging() {
 
 # Error handling and cleanup traps
 trap 'log_error "Command failed (rc=$?) at line $LINENO: ${BASH_COMMAND:-unknown}"; exit 1' ERR
-trap 'log_software_catalog; log_info "Script finished. See log: $LOG_FILE"; log_info "Time metrics: $TIME_FILE"' EXIT
+trap 'log_info "Script finished. See log: $LOG_FILE"; log_info "Time metrics: $TIME_FILE"' EXIT
 
 run_with_space_time_log() {
 	# Run a command and log resource usage (tracks time and memory)
@@ -256,6 +256,9 @@ log_disk_usage() {
 
 log_software_catalog() {
 	# Log all software versions used during pipeline execution
+	# Temporarily disable strict error handling for version checks
+	set +e
+	
 	log_step "SOFTWARE CATALOG"
 	echo ""
 	echo "================================================================================"
@@ -283,47 +286,47 @@ log_software_catalog() {
 
 	# Core bioinformatics tools
 	echo "--- ALIGNMENT & ASSEMBLY ---"
-	command -v hisat2 &>/dev/null && echo "HISAT2: $(hisat2 --version 2>&1 | head -1)" || echo "HISAT2: Not installed"
-	command -v bowtie2 &>/dev/null && echo "Bowtie2: $(bowtie2 --version 2>&1 | head -1)" || echo "Bowtie2: Not installed"
-	command -v salmon &>/dev/null && echo "Salmon: $(salmon --version 2>&1 | head -1)" || echo "Salmon: Not installed"
-	command -v Trinity &>/dev/null && echo "Trinity: $(Trinity --version 2>&1 | head -1)" || echo "Trinity: Not installed"
+	if command -v hisat2 &>/dev/null; then echo "HISAT2: $(hisat2 --version 2>&1 | head -1)"; else echo "HISAT2: Not installed"; fi
+	if command -v bowtie2 &>/dev/null; then echo "Bowtie2: $(bowtie2 --version 2>&1 | head -1)"; else echo "Bowtie2: Not installed"; fi
+	if command -v salmon &>/dev/null; then echo "Salmon: $(salmon --version 2>&1 | head -1)"; else echo "Salmon: Not installed"; fi
+	if command -v Trinity &>/dev/null; then echo "Trinity: $(Trinity --version 2>&1 | head -1)"; else echo "Trinity: Not installed"; fi
 	echo ""
 
 	# Quantification tools
 	echo "--- QUANTIFICATION ---"
-	command -v stringtie &>/dev/null && echo "StringTie: $(stringtie --version 2>&1)" || echo "StringTie: Not installed"
-	command -v rsem-calculate-expression &>/dev/null && echo "RSEM: $(rsem-calculate-expression --version 2>&1 | head -1)" || echo "RSEM: Not installed"
+	if command -v stringtie &>/dev/null; then echo "StringTie: $(stringtie --version 2>&1)"; else echo "StringTie: Not installed"; fi
+	if command -v rsem-calculate-expression &>/dev/null; then echo "RSEM: $(rsem-calculate-expression --version 2>&1 | head -1)"; else echo "RSEM: Not installed"; fi
 	echo ""
 
 	# Trimming tools
 	echo "--- READ PROCESSING ---"
-	command -v trim_galore &>/dev/null && echo "Trim Galore: $(trim_galore --version 2>&1 | grep -i version | head -1)" || echo "Trim Galore: Not installed"
-	command -v trimmomatic &>/dev/null && echo "Trimmomatic: $(trimmomatic -version 2>&1 | head -1)" || echo "Trimmomatic: Not installed"
-	command -v cutadapt &>/dev/null && echo "Cutadapt: $(cutadapt --version 2>&1)" || echo "Cutadapt: Not installed"
+	if command -v trim_galore &>/dev/null; then echo "Trim Galore: $(trim_galore --version 2>&1 | grep -i version | head -1)"; else echo "Trim Galore: Not installed"; fi
+	if command -v trimmomatic &>/dev/null; then echo "Trimmomatic: $(trimmomatic -version 2>&1 | head -1)"; else echo "Trimmomatic: Not installed"; fi
+	if command -v cutadapt &>/dev/null; then echo "Cutadapt: $(cutadapt --version 2>&1)"; else echo "Cutadapt: Not installed"; fi
 	echo ""
 
 	# QC tools
 	echo "--- QUALITY CONTROL ---"
-	command -v fastqc &>/dev/null && echo "FastQC: $(fastqc --version 2>&1)" || echo "FastQC: Not installed"
-	command -v multiqc &>/dev/null && echo "MultiQC: $(multiqc --version 2>&1)" || echo "MultiQC: Not installed"
+	if command -v fastqc &>/dev/null; then echo "FastQC: $(fastqc --version 2>&1)"; else echo "FastQC: Not installed"; fi
+	if command -v multiqc &>/dev/null; then echo "MultiQC: $(multiqc --version 2>&1)"; else echo "MultiQC: Not installed"; fi
 	echo ""
 
 	# SAM/BAM tools
 	echo "--- SAM/BAM UTILITIES ---"
-	command -v samtools &>/dev/null && echo "SAMtools: $(samtools --version 2>&1 | head -1)" || echo "SAMtools: Not installed"
+	if command -v samtools &>/dev/null; then echo "SAMtools: $(samtools --version 2>&1 | head -1)"; else echo "SAMtools: Not installed"; fi
 	echo ""
 
 	# SRA tools
 	echo "--- SRA TOOLS ---"
-	command -v prefetch &>/dev/null && echo "SRA-tools (prefetch): $(prefetch --version 2>&1 | head -2 | tail -1)" || echo "SRA-tools: Not installed"
-	command -v fasterq-dump &>/dev/null && echo "fasterq-dump: available" || echo "fasterq-dump: Not installed"
+	if command -v prefetch &>/dev/null; then echo "SRA-tools (prefetch): $(prefetch --version 2>&1 | head -2 | tail -1)"; else echo "SRA-tools: Not installed"; fi
+	if command -v fasterq-dump &>/dev/null; then echo "fasterq-dump: available"; else echo "fasterq-dump: Not installed"; fi
 	echo ""
 
 	# Utilities
 	echo "--- UTILITIES ---"
-	command -v parallel &>/dev/null && echo "GNU Parallel: $(parallel --version 2>&1 | head -1)" || echo "GNU Parallel: Not installed"
-	command -v pigz &>/dev/null && echo "pigz: $(pigz --version 2>&1)" || echo "pigz: Not installed"
-	command -v gzip &>/dev/null && echo "gzip: $(gzip --version 2>&1 | head -1)" || echo "gzip: Not installed"
+	if command -v parallel &>/dev/null; then echo "GNU Parallel: $(parallel --version 2>&1 | head -1)"; else echo "GNU Parallel: Not installed"; fi
+	if command -v pigz &>/dev/null; then echo "pigz: $(pigz --version 2>&1)"; else echo "pigz: Not installed"; fi
+	if command -v gzip &>/dev/null; then echo "gzip: $(gzip --version 2>&1 | head -1)"; else echo "gzip: Not installed"; fi
 	echo ""
 
 	# R if available
@@ -349,4 +352,7 @@ log_software_catalog() {
 	echo "================================================================================"
 	echo "END OF SOFTWARE CATALOG"
 	echo "================================================================================"
+	
+	# Re-enable strict error handling
+	set -e
 }
