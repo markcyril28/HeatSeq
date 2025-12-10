@@ -42,7 +42,8 @@ export THREADS JOBS
 # Pipeline Control Switches, Quality Control and Analysis Options
 PIPELINE_STAGES=(
 	#"MAMBA_INSTALLATION"
-	"DOWNLOAD_and_TRIM_SRR"
+	#"DOWNLOAD_SRR"
+	"TRIM_SRR"
 	"GZIP_TRIMMED_FILES"
 	"QUALITY_CONTROL"
 	
@@ -223,7 +224,8 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 
 # Convert array to boolean flags for backward compatibility
 RUN_MAMBA_INSTALLATION=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^MAMBA_INSTALLATION$" && echo "TRUE" || echo "FALSE")
-RUN_DOWNLOAD_and_TRIM_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DOWNLOAD_and_TRIM_SRR$" && echo "TRUE" || echo "FALSE")
+RUN_DOWNLOAD_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DOWNLOAD_SRR$" && echo "TRUE" || echo "FALSE")
+RUN_TRIM_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^TRIM_SRR$" && echo "TRUE" || echo "FALSE")
 RUN_GZIP_TRIMMED_FILES=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^GZIP_TRIMMED_FILES$" && echo "TRUE" || echo "FALSE")
 RUN_QUALITY_CONTROL=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^QUALITY_CONTROL$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_1_HISAT2_REF_GUIDED=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_1_HISAT2_REF_GUIDED$" && echo "TRUE" || echo "FALSE")
@@ -270,20 +272,21 @@ run_all() {
 		log_info "$SRR"
 	done
 
-	if [[ $RUN_DOWNLOAD_and_TRIM_SRR == "TRUE" ]]; then
-		log_step "STEP 01: Download and trim RNA-seq data"
-		download_and_trim_srrs "${rnaseq_list[@]}"
-		#download_and_trim_srrs_parallel "${rnaseq_list[@]}"
-		#download_and_trim_srrs_parallel_fastqdump "${rnaseq_list[@]}"
-		#download_and_trim_srrs_wget_parallel "${rnaseq_list[@]}"
-		#download_kingfisher_and_trim_srrs "${rnaseq_list[@]}"
-		
-		if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
-			log_step "STEP 01b: Quality Control analysis"
-			for SRR in "${rnaseq_list[@]}"; do
-				run_quality_control "$SRR"
-			done
-		fi
+	if [[ $RUN_DOWNLOAD_SRR == "TRUE" ]]; then
+		log_step "STEP 01a: Download RNA-seq data"
+		download_srrs "${rnaseq_list[@]}"
+	fi
+
+	if [[ $RUN_TRIM_SRR == "TRUE" ]]; then
+		log_step "STEP 01b: Trim RNA-seq data"
+		trim_srrs "${rnaseq_list[@]}"
+	fi
+
+	if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
+		log_step "STEP 01c: Quality Control analysis"
+		for SRR in "${rnaseq_list[@]}"; do
+			run_quality_control "$SRR"
+		done
 	fi
 
 	# Method 1: HISAT2 Reference-Guided Pipeline
