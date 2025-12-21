@@ -69,3 +69,7 @@ fi
 scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/CMSC244_{}.tar.gz $PWD
 
 scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/CMSC244_last.zip $PWD
+
+7z a -t7z -mx=9 last_transfer.7z 3_FastQC/ 4_POST_PROCESSING/ logs/ logs_archive/
+
+scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/last_transfer.7z $PWD 

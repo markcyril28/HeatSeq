@@ -21,11 +21,15 @@ eval "$(conda shell.bash hook)"
 conda activate gea
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-#source "modules/all_functions.sh"
+
+# Source modules in correct dependency order
 source "modules/logging_utils.sh"
+source "modules/config.sh"
+source "modules/shared_utils.sh"
 source "modules/pipeline_utils.sh"
-source "modules/methods.sh"
 source "modules/cleanup_utils.sh"
+source "modules/methods/methods.sh"
+
 bash init_setup.sh
 
 # ============================================================================== 
@@ -33,8 +37,8 @@ bash init_setup.sh
 # ============================================================================== 
 
 # Runtime Configuration
-THREADS=32                               # Number of threads to use for parallel operations
-JOBS=4                                  # Number of parallel jobs for GNU Parallel 
+THREADS=4                               # Number of threads to use for parallel operations
+JOBS=2                                  # Number of parallel jobs for GNU Parallel 
 
 # Export variables for function access
 export THREADS JOBS
@@ -49,10 +53,10 @@ PIPELINE_STAGES=(
 	
 	## GEA Methods
 	#"METHOD_1_HISAT2_REF_GUIDED"
-	"METHOD_4_SALMON_SAF"
-	"METHOD_5_BOWTIE2_RSEM"
-	"METHOD_2_HISAT2_DE_NOVO"
-	#"METHOD_3_TRINITY_DE_NOVO"
+	#"METHOD_4_SALMON_SAF"
+	#"METHOD_5_BOWTIE2_RSEM"
+	#"METHOD_2_HISAT2_DE_NOVO"
+	#"METHOD_3_STAR_ALIGNMENT"
 
 	#"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
@@ -120,23 +124,23 @@ SRR_LIST_SAMN28540077=(
 	SRR20722232	# Mature_fruits (10 GB file); corrected.
 	#SRR20722226 # Young_fruits
 	#SRR20722234	# Flowers 
-	SRR20722228	# sepals (too large; not included)
+	#SRR20722228	# sepals (too large; not included)
 	#SRR4243802 # Buds, Adopted Dataset from ID: PRJNA341784 
 	#SRR20722233	# leaf_buds 
-	SRR20722230	# mature_leaves (14 GB file; not included)
-	SRR20722227	# stems
-	SRR20722229	# roots
+	#SRR20722230	# mature_leaves (14 GB file; not included)
+	#SRR20722227	# stems
+	#SRR20722229	# roots
 )
 
 SRR_LIST_SAMN28540068=(
 	#Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540068&o=acc_s%3Aa
-	#SRR20722387 # mature_fruits
+	SRR20722387 # mature_fruits
 	#SRR3884597 	# Flower
 	#SRR20722297 # flower_buds 
-	SRR20722385 # sepals (not included)
+	#SRR20722385 # sepals (not included)
 	#SRR20722296 # leaf_buds 
-	SRR20722386 # mature_leaves (not included)
-	SRR20722383 # young_leaves (not included)
+	#SRR20722386 # mature_leaves (not included)
+	#SRR20722383 # young_leaves (not included)
 	#SRR20722384 # stems
 	#SRR31755282 # Roots (https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SRP552204&o=acc_s%3Aa)
 )
@@ -147,10 +151,10 @@ SRR_LIST_PRJNA865018=(
 	SRR21010466	# buds_1
 	#SRR21010456	# buds_2
 	#SRR21010454	# buds_3
-	SRR21010462	# flowers_1
+	#SRR21010462	# flowers_1
 	#SRR21010460	# flowers_2
 	#SRR21010458	# flowers_3
-	SRR21010452	# fruits_1
+	#SRR21010452	# fruits_1
 	#SRR21010450	# fruits_2
 	#SRR21010464	# fruits_3
 )
@@ -161,10 +165,10 @@ SRR_LIST_PRJNA941250=(
 	SRR23909869 # 8DBF_1
 	#SRR23909870 # 8DBF_2
 	#SRR23909871 # 8DBF_3
-	SRR23909866 # 5DBF_1
+	#SRR23909866 # 5DBF_1
 	#SRR23909867 # 5DBF_2
 	#SRR23909868 # 5DBF_3
-	SRR23909863 # Fully Develop (FD) 1
+	#SRR23909863 # Fully Develop (FD) 1
 	#SRR23909864 # Fully Develop (FD) 2
 	#SRR23909865 # Fully Develop (FD) 3
 )
@@ -203,7 +207,7 @@ SRR_COMBINED_LIST=(
 mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 	"$HISAT2_REF_GUIDED_ROOT" "$HISAT2_REF_GUIDED_INDEX_DIR" "$STRINGTIE_HISAT2_REF_GUIDED_ROOT" \
 	"$HISAT2_DE_NOVO_ROOT" "$HISAT2_DE_NOVO_INDEX_DIR" "$STRINGTIE_HISAT2_DE_NOVO_ROOT" \
-	"$TRINITY_DE_NOVO_ROOT" "$STRINGTIE_TRINITY_DE_NOVO_ROOT" \
+	"$STAR_ALIGN_ROOT" "$STAR_INDEX_ROOT" "$STAR_GENOME_DIR" \
 	"$SALMON_SAF_ROOT" "$SALMON_INDEX_ROOT" "$SALMON_QUANT_ROOT" "$SALMON_SAF_MATRIX_ROOT" \
 	"$BOWTIE2_RSEM_ROOT" "$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT" \
 	"logs/log_files" "logs/time_files"
@@ -230,7 +234,7 @@ RUN_GZIP_TRIMMED_FILES=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^GZIP_
 RUN_QUALITY_CONTROL=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^QUALITY_CONTROL$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_1_HISAT2_REF_GUIDED=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_1_HISAT2_REF_GUIDED$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_2_HISAT2_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_2_HISAT2_DE_NOVO$" && echo "TRUE" || echo "FALSE")
-RUN_METHOD_3_TRINITY_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_3_TRINITY_DE_NOVO$" && echo "TRUE" || echo "FALSE")
+RUN_METHOD_3_STAR_ALIGNMENT=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_3_STAR_ALIGNMENT$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_4_SALMON_SAF=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_4_SALMON_SAF$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_5_BOWTIE2_RSEM=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_5_BOWTIE2_RSEM$" && echo "TRUE" || echo "FALSE")
 RUN_HEATMAP_WRAPPER=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^HEATMAP_WRAPPER$" && echo "TRUE" || echo "FALSE")
@@ -279,7 +283,7 @@ run_all() {
 
 	if [[ $RUN_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01b: Trim RNA-seq data"
-		trim_srrs "${rnaseq_list[@]}"
+		trim_srrs_trimmomatic "${rnaseq_list[@]}"
 	fi
 
 	if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
@@ -312,10 +316,10 @@ run_all() {
 		fi
 	fi
 
-	# Method 3: Trinity De Novo Pipeline
-	if [[ $RUN_METHOD_3_TRINITY_DE_NOVO == "TRUE" ]]; then
-		log_step "STEP 03: Trinity De Novo Assembly and Quantification"
-		if trinity_de_novo_alignment_pipeline --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"; then
+	# Method 3: STAR Alignment Pipeline
+	if [[ $RUN_METHOD_3_STAR_ALIGNMENT == "TRUE" ]]; then
+		log_step "STEP 03: STAR Splice-Aware Alignment"
+		if star_alignment_pipeline --FASTA "$fasta" --RNASEQ_LIST "${rnaseq_list[@]}"; then
 			log_info "Method 3 completed successfully"
 		else
 			log_error "Method 3 failed (exit code: $?) - continuing with remaining methods"
@@ -432,7 +436,7 @@ if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
 	log_step "Creating compressed archive for folders: 4_POST_PROCESSING and logs"
 	TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 	tar -c \
-		--exclude='4_POST_PROCESSING/4c_Method_3_Trinity_De_Novo' \
+		--exclude='4_POST_PROCESSING/4c_M3_STAR_Alignment' \
 		4_POST_PROCESSING logs | pigz -p "$THREADS" > "CMSC244_${TIMESTAMP}.tar.gz"
 	log_info "Archive created: CMSC244_${TIMESTAMP}.tar.gz"
 fi
