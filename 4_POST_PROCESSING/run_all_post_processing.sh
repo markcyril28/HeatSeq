@@ -9,10 +9,10 @@
 # NOTE: This script coordinates running multiple method post-processing scripts.
 #       To configure gene groups and analysis options for each method individually,
 #       edit the respective 1_run_Heatmap_Wrapper.sh in each method folder:
-#         - 4a_Method_1_HISAT2_Ref_Guided/1_run_Heatmap_Wrapper.sh
-#         - 4c_Method_3_Trinity_De_Novo/1_run_Heatmap_Wrapper.sh
-#         - 4d_Method_4_Salmon_Saf_Quantification/1_run_Heatmap_Wrapper.sh
-#         - 4e_Method_5_Bowtie2_Quantification/1_run_Heatmap_Wrapper.sh
+#         - 4a_M1_HISAT2_Ref_Guided/1_run_Heatmap_Wrapper.sh
+#         - 4c_M3_STAR_Alignment/1_run_Heatmap_Wrapper.sh
+#         - 4d_M4_Salmon_Saf_Quantification/1_run_Heatmap_Wrapper.sh
+#         - 4e_M5_RSEM_Bowtie2_Quant/1_run_Heatmap_Wrapper.sh
 #
 #       Each wrapper script can be run independently within its own folder.
 #===============================================================================
@@ -30,7 +30,7 @@ BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 METHODS_TO_RUN=(
     "METHOD_1"  # HISAT2 Reference-Guided
     "METHOD_2"  # HISAT2 De Novo
-    #"METHOD_3"  # Trinity De Novo
+    #"METHOD_3"  # STAR Alignment
     "METHOD_4"  # Salmon SAF Quantification
     "METHOD_5"  # Bowtie2/RSEM Quantification
 )
@@ -59,6 +59,8 @@ eval "$(conda shell.bash hook)"
 conda activate GEA_ENV
 
 source "$BASE_DIR/modules/logging_utils.sh"
+source "$BASE_DIR/modules/config.sh"
+source "$BASE_DIR/modules/shared_utils.sh"
 
 # Override log directories
 LOG_DIR="$SCRIPT_DIR/logs/log_files"
@@ -101,6 +103,8 @@ run_method() {
     
     # Source logging utilities in subshell
     source "$BASE_DIR/modules/logging_utils.sh"
+    source "$BASE_DIR/modules/config.sh"
+    source "$BASE_DIR/modules/shared_utils.sh"
     
     # Check if method should run
     local should_run=false
@@ -128,11 +132,11 @@ if [ "$USE_PARALLEL" = true ] && [ "$JOBS" -gt 1 ] && command -v parallel &> /de
     
     # Build list of methods to run
     METHODS_LIST=()
-    should_run_method "METHOD_1" && METHODS_LIST+=("1:HISAT2_Ref_Guided:4a_Method_1_HISAT2_Ref_Guided")
-    should_run_method "METHOD_2" && METHODS_LIST+=("2:HISAT2_De_Novo:4b_Method_2_HISAT2_De_Novo")
-    should_run_method "METHOD_3" && METHODS_LIST+=("3:Trinity_De_Novo:4c_Method_3_Trinity_De_Novo")
-    should_run_method "METHOD_4" && METHODS_LIST+=("4:Salmon_Saf:4d_Method_4_Salmon_Saf_Quantification")
-    should_run_method "METHOD_5" && METHODS_LIST+=("5:Bowtie2:4e_Method_5_Bowtie2_Quantification")
+    should_run_method "METHOD_1" && METHODS_LIST+=("1:HISAT2_Ref_Guided:4a_M1_HISAT2_Ref_Guided")
+    should_run_method "METHOD_2" && METHODS_LIST+=("2:HISAT2_De_Novo:4b_M2_HISAT2_De_Novo")
+    should_run_method "METHOD_3" && METHODS_LIST+=("3:STAR_Alignment:4c_M3_STAR_Alignment")
+    should_run_method "METHOD_4" && METHODS_LIST+=("4:Salmon_Saf:4d_M4_Salmon_Saf_Quantification")
+    should_run_method "METHOD_5" && METHODS_LIST+=("5:Bowtie2:4e_M5_RSEM_Bowtie2_Quant")
     
     # Check if any methods to run
     if [ ${#METHODS_LIST[@]} -eq 0 ]; then
@@ -151,11 +155,11 @@ if [ "$USE_PARALLEL" = true ] && [ "$JOBS" -gt 1 ] && command -v parallel &> /de
 else
     log_info "Running methods sequentially"
     
-    run_method 1 "HISAT2_Ref_Guided" "4a_Method_1_HISAT2_Ref_Guided"
-    run_method 2 "HISAT2_De_Novo" "4b_Method_2_HISAT2_De_Novo"
-    run_method 3 "Trinity_De_Novo" "4c_Method_3_Trinity_De_Novo"
-    run_method 4 "Salmon_Saf" "4d_Method_4_Salmon_Saf_Quantification"
-    run_method 5 "Bowtie2" "4e_Method_5_Bowtie2_Quantification"
+    run_method 1 "HISAT2_Ref_Guided" "4a_M1_HISAT2_Ref_Guided"
+    run_method 2 "HISAT2_De_Novo" "4b_M2_HISAT2_De_Novo"
+    run_method 3 "STAR_Alignment" "4c_M3_STAR_Alignment"
+    run_method 4 "Salmon_Saf" "4d_M4_Salmon_Saf_Quantification"
+    run_method 5 "Bowtie2" "4e_M5_RSEM_Bowtie2_Quant"
 fi
 
 log_step "All Post-Processing Complete"
