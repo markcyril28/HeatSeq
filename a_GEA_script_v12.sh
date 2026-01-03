@@ -1,67 +1,65 @@
 #!/bin/bash
-
 # ==============================================================================
 # GENE EXPRESSION ANALYSIS (GEA) PIPELINE
 # ==============================================================================
-# Description: RNA-seq analysis (Tissue/Organ-specific Expression Profiling) pipeline 
-# using various methods. 
-# Author: Mark Cyril R. Mercado
-# Version: v11
-# Date: October 2025
-
+# RNA-seq analysis pipeline using multiple alignment/quantification methods
+# Author: Mark Cyril R. Mercado | Version: v12 | Date: December 2025
 # ==============================================================================
 
-#set -euo pipefail
-
-# Initialize conda for bash
-eval "$(conda shell.bash hook)"
-
-# Activate conda environment
-#conda activate GEA_ENV
-conda activate gea
-
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$PROJECT_ROOT" || exit 1
 
-# Source modules in correct dependency order
-source "modules/logging_utils.sh"
-source "modules/config.sh"
-source "modules/shared_utils.sh"
-source "modules/pipeline_utils.sh"
-source "modules/cleanup_utils.sh"
-source "modules/methods/methods.sh"
-
-bash init_setup.sh
-
-# ============================================================================== 
-# CONFIGURATION AND RUNTIME SWITCHES
-# ============================================================================== 
+# ==============================================================================
+# IMPORTANT PARAMETERS - MODIFY THESE
+# ==============================================================================
 
 # Runtime Configuration
-THREADS=4                               # Number of threads to use for parallel operations
-JOBS=2                                  # Number of parallel jobs for GNU Parallel 
+THREADS=12                              # Threads for parallel operations
+JOBS=3									# Parallel jobs for GNU Parallel
+USE_GNU_PARALLEL="TRUE"                 # TRUE/FALSE for GNU Parallel
+keep_bam_global="n"                     # y=keep BAM files, n=delete after
 
-# Export variables for function access
-export THREADS JOBS
-
-# Pipeline Control Switches, Quality Control and Analysis Options
+# Pipeline Stages (comment/uncomment to enable/disable)
 PIPELINE_STAGES=(
 	#"MAMBA_INSTALLATION"
-	#"DOWNLOAD_SRR"
+	"DOWNLOAD_SRR"
 	"TRIM_SRR"
-	"GZIP_TRIMMED_FILES"
-	"QUALITY_CONTROL"
-	
-	## GEA Methods
+	#"GZIP_TRIMMED_FILES"
+	#"QUALITY_CONTROL"
 	#"METHOD_1_HISAT2_REF_GUIDED"
-	#"METHOD_4_SALMON_SAF"
-	#"METHOD_5_BOWTIE2_RSEM"
 	#"METHOD_2_HISAT2_DE_NOVO"
 	#"METHOD_3_STAR_ALIGNMENT"
-
+	#"METHOD_4_SALMON_SAF"
+	#"METHOD_5_BOWTIE2_RSEM"
 	#"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
 	#"DELETE_TRIMMED_FASTQ_FILES"
 )
+
+# ==============================================================================
+# CONDA ENVIRONMENT
+# ==============================================================================
+
+eval "$(conda shell.bash hook)"
+conda activate gea
+
+# ==============================================================================
+# SOURCE MODULES
+# ==============================================================================
+# Structure: logging/, a_preprocessing/, b_main_methods/, 0_input_information/
+# ==============================================================================
+
+source "modules/modules_loader.sh"
+#bash init_setup.sh
+
+# Calculate threads per job
+if [[ "$USE_GNU_PARALLEL" == "TRUE" ]]; then
+	THREADS_PER_JOB=$((THREADS / JOBS))
+	[[ $THREADS_PER_JOB -lt 1 ]] && THREADS_PER_JOB=1
+else
+	THREADS_PER_JOB=$THREADS
+fi
+export THREADS JOBS USE_GNU_PARALLEL THREADS_PER_JOB keep_bam_global
 
 # ==============================================================================
 # INPUT FILES AND DATA SOURCES
@@ -98,25 +96,25 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	# Developmental stages arranged from early to late
-	SRR3884685	# Radicles (earliest - germination)
-	SRR3884677	# Cotyledons (seed leaves)
-	SRR3884675	# Roots (root development)
-	SRR3884690	# Stems (vegetative growth)
-	SRR3884689	# Leaves (vegetative growth)
-	SRR3884684	# Senescent_leaves (leaf aging)
+	#SRR3884685	# Radicles (earliest - germination)
+	#SRR3884677	# Cotyledons (seed leaves)
+	#SRR3884675	# Roots (root development)
+	#SRR3884690	# Stems (vegetative growth)
+	#SRR3884689	# Leaves (vegetative growth)
+	#SRR3884684	# Senescent_leaves (leaf aging)
 	SRR3884686	# Buds_0.7cm (flower bud initiation) [MAIN INTEREST]
 	SRR3884687	# Opened_Buds (flower development) 	 [MAIN INTEREST]
-	SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
-	SRR3884679	# Pistils (female reproductive parts)
-	SRR3884608	# Fruits_1cm (early fruit development)
-	SRR3884620	# Fruits_Stage_1 (early fruit stage)
-	SRR3884631	# Fruits_6cm (fruit enlargement)
-	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
-	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
-	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
-	SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
-	SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
-	SRR3884678	# Fruits_peduncle (fruit attachment)
+	#SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
+	#SRR3884679	# Pistils (female reproductive parts)
+	#SRR3884608	# Fruits_1cm (early fruit development)
+	#SRR3884620	# Fruits_Stage_1 (early fruit stage)
+	#SRR3884631	# Fruits_6cm (fruit enlargement)
+	#SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
+	#SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
+	#SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
+	#SRR3884680	# Fruits_Skin_Stage_3 (late fruit development)
+	#SRR3884681	# Fruits_Flesh_Stage_3 (late fruit development)
+	#SRR3884678	# Fruits_peduncle (fruit attachment)
 )
 
 SRR_LIST_SAMN28540077=(
@@ -125,7 +123,7 @@ SRR_LIST_SAMN28540077=(
 	#SRR20722226 # Young_fruits
 	#SRR20722234	# Flowers 
 	#SRR20722228	# sepals (too large; not included)
-	#SRR4243802 # Buds, Adopted Dataset from ID: PRJNA341784 
+	SRR4243802 # Buds, Adopted Dataset from ID: PRJNA341784 
 	#SRR20722233	# leaf_buds 
 	#SRR20722230	# mature_leaves (14 GB file; not included)
 	#SRR20722227	# stems
@@ -136,9 +134,9 @@ SRR_LIST_SAMN28540068=(
 	#Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=SAMN28540068&o=acc_s%3Aa
 	SRR20722387 # mature_fruits
 	#SRR3884597 	# Flower
-	#SRR20722297 # flower_buds 
+	SRR20722297 # flower_buds 
 	#SRR20722385 # sepals (not included)
-	#SRR20722296 # leaf_buds 
+	SRR20722296 # leaf_buds 
 	#SRR20722386 # mature_leaves (not included)
 	#SRR20722383 # young_leaves (not included)
 	#SRR20722384 # stems
@@ -149,28 +147,28 @@ SRR_LIST_PRJNA865018=(
 # Set_1: A Good Dataset for SmelDMP GEA: 
 # 	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=%20%20PRJNA865018&o=acc_s%3Aa PRJNA865018
 	SRR21010466	# buds_1
-	#SRR21010456	# buds_2
-	#SRR21010454	# buds_3
-	#SRR21010462	# flowers_1
-	#SRR21010460	# flowers_2
-	#SRR21010458	# flowers_3
-	#SRR21010452	# fruits_1
-	#SRR21010450	# fruits_2
-	#SRR21010464	# fruits_3
+	SRR21010456	# buds_2
+	SRR21010454	# buds_3
+	SRR21010462	# flowers_1
+	SRR21010460	# flowers_2
+	SRR21010458	# flowers_3
+	SRR21010452	# fruits_1
+	SRR21010450	# fruits_2
+	SRR21010464	# fruits_3
 )
 
 SRR_LIST_PRJNA941250=(
 # Set_2: A Good Dataset for SmelDMP GEA:
 #	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
 	SRR23909869 # 8DBF_1
-	#SRR23909870 # 8DBF_2
-	#SRR23909871 # 8DBF_3
-	#SRR23909866 # 5DBF_1
-	#SRR23909867 # 5DBF_2
-	#SRR23909868 # 5DBF_3
-	#SRR23909863 # Fully Develop (FD) 1
-	#SRR23909864 # Fully Develop (FD) 2
-	#SRR23909865 # Fully Develop (FD) 3
+	SRR23909870 # 8DBF_2
+	SRR23909871 # 8DBF_3
+	SRR23909866 # 5DBF_1
+	SRR23909867 # 5DBF_2
+	SRR23909868 # 5DBF_3
+	SRR23909863 # Fully Develop (FD) 1
+	SRR23909864 # Fully Develop (FD) 2
+	SRR23909865 # Fully Develop (FD) 3
 )
 
 OTHER_SRR_LIST=(
@@ -192,7 +190,7 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
+	"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
 	"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
 	"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
 	"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
@@ -210,7 +208,7 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 	"$STAR_ALIGN_ROOT" "$STAR_INDEX_ROOT" "$STAR_GENOME_DIR" \
 	"$SALMON_SAF_ROOT" "$SALMON_INDEX_ROOT" "$SALMON_QUANT_ROOT" "$SALMON_SAF_MATRIX_ROOT" \
 	"$BOWTIE2_RSEM_ROOT" "$RSEM_INDEX_ROOT" "$RSEM_QUANT_ROOT" "$RSEM_MATRIX_ROOT" \
-	"logs/log_files" "logs/time_files"
+	"logs/log_files"
 
 # ==============================================================================
 # CLEANUP OPTIONS AND TESTING ESSENTIALS
@@ -243,7 +241,7 @@ RUN_DELETE_TRIMMED_FASTQ_FILES=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q
 
 run_all() {
 	# Main pipeline entrypoint: runs all steps for each FASTA and RNA-seq list
-	# Steps: Logging, Download and  Trim, HISAT2 alignment to Stringtie, and Cleanup. 
+	# Steps: Logging, Download and Trim, HISAT2 alignment to Stringtie, and Cleanup. 
 	local fasta=""
 	local rnaseq_list=()
 	# Parse arguments
@@ -279,18 +277,19 @@ run_all() {
 	if [[ $RUN_DOWNLOAD_SRR == "TRUE" ]]; then
 		log_step "STEP 01a: Download RNA-seq data"
 		download_srrs "${rnaseq_list[@]}"
+		download_srrs_parallel "${rnaseq_list[@]}"
+		#download_srrs_kingfisher "${rnaseq_list[@]}"
 	fi
 
 	if [[ $RUN_TRIM_SRR == "TRUE" ]]; then
 		log_step "STEP 01b: Trim RNA-seq data"
-		trim_srrs_trimmomatic "${rnaseq_list[@]}"
+		#trim_srrs_trimmomatic "${rnaseq_list[@]}"
+		trim_srrs_trimmomatic_parallel "${rnaseq_list[@]}"
 	fi
 
 	if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then
 		log_step "STEP 01c: Quality Control analysis"
-		for SRR in "${rnaseq_list[@]}"; do
-			run_quality_control "$SRR"
-		done
+		run_quality_control_all "${rnaseq_list[@]}"
 	fi
 
 	# Method 1: HISAT2 Reference-Guided Pipeline
@@ -382,9 +381,7 @@ fi
 # Execute the pipeline for each FASTA input file
 for fasta_input in "${ALL_FASTA_FILES[@]}"; do
 	# Run the complete pipeline for each FASTA file with all SRR samples
-	run_all \
-		--FASTA "$fasta_input" \
-		--RNASEQ_LIST "${SRR_COMBINED_LIST[@]}"
+	run_all --FASTA "$fasta_input" --RNASEQ_LIST "${SRR_COMBINED_LIST[@]}"
 done
 
 # ==============================================================================
@@ -395,11 +392,11 @@ if [[ $RUN_HEATMAP_WRAPPER == "TRUE" ]]; then
 	log_step "Heatmap Wrapper post-processing enabled"
 	
 	# Navigate to post-processing directory
-	if [[ ! -d "4_POST_PROCESSING" ]]; then
-		log_error "Directory '4_POST_PROCESSING' not found"
+	if [[ ! -d "4_POST_PROC" ]]; then
+		log_error "Directory '4_POST_PROC' not found"
 	else
-		cd 4_POST_PROCESSING || {
-			log_error "Failed to change to 4_POST_PROCESSING directory"
+		cd 4_POST_PROC || {
+			log_error "Failed to change to 4_POST_PROC directory"
 			exit 1
 		}
 		
@@ -412,7 +409,7 @@ if [[ $RUN_HEATMAP_WRAPPER == "TRUE" ]]; then
 			if bash "run_all_post_processing.sh" 2>&1; then
 				log_info "Heatmap Wrapper completed successfully"
 			else
-				local exit_code=$?
+				exit_code=$?
 				log_error "Heatmap Wrapper failed with exit code $exit_code"
 			fi
 		else
@@ -433,11 +430,11 @@ if [[ $RUN_ZIP_RESULTS == "TRUE" ]]; then
 	#tar -czvf "stringtie_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$STRINGTIE_HISAT2_DE_NOVO_ROOT"
 	#tar -czvf HISAT2_DE_NOVO_ROOT_HPC_$(date +%Y%m%d_%H%M%S).tar.gz $HISAT2_DE_NOVO_ROOT
 	#tar -czvf 4b_Method_2_HISAT2_De_Novo_$(date +%Y%m%d_%H%M%S).tar.gz 4b_Method_2_HISAT2_De_Novo/
-	log_step "Creating compressed archive for folders: 4_POST_PROCESSING and logs"
+	log_step "Creating compressed archive for folders: 4_POST_PROC and logs"
 	TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 	tar -c \
-		--exclude='4_POST_PROCESSING/4c_M3_STAR_Alignment' \
-		4_POST_PROCESSING logs | pigz -p "$THREADS" > "CMSC244_${TIMESTAMP}.tar.gz"
+		--exclude='4_POST_PROC/M3_STAR_Align' \
+		4_POST_PROC logs | pigz -p "$THREADS" > "CMSC244_${TIMESTAMP}.tar.gz"
 	log_info "Archive created: CMSC244_${TIMESTAMP}.tar.gz"
 fi
 
@@ -453,7 +450,7 @@ fi
 # ==============================================================================
 # SOFTWARE CATALOG
 # ==============================================================================
-log_software_catalog
+catalog_all_software
 
 # ==============================================================================
 # END OF SCRIPT
