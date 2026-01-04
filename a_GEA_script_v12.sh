@@ -28,7 +28,7 @@ PIPELINE_STAGES=(
 	"QUALITY_CONTROL"
 	#"DELETE_RAW_SRR"	# Feature to add
 	#"DELETE_TRIMMED_FASTQ_FILES"
-	
+
 	#"METHOD_1_HISAT2_REF_GUIDED"
 	#"METHOD_2_HISAT2_DE_NOVO"
 	#"METHOD_3_STAR_ALIGNMENT"
@@ -278,7 +278,7 @@ run_all() {
 
 	if [[ $RUN_DOWNLOAD_SRR == "TRUE" ]]; then
 		log_step "STEP 01a: Download RNA-seq data"
-		download_srrs "${rnaseq_list[@]}"
+		#download_srrs "${rnaseq_list[@]}"
 		download_srrs_parallel "${rnaseq_list[@]}"
 		#download_srrs_kingfisher "${rnaseq_list[@]}"
 	fi
