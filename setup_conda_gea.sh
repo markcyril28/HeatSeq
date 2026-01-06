@@ -77,10 +77,10 @@ else
     echo "Mamba/micromamba not found, using conda"
 fi
 
-# Function to check if all packages are installed (optimized: single conda list call)
+# Function to check if all packages are installed (optimized: single list call)
 check_packages_installed() {
     local installed_pkgs
-    installed_pkgs=$(conda list -n "${ENV_NAME}" --export 2>/dev/null | cut -d'=' -f1 | sort -u)
+    installed_pkgs=$(${CONDA_CMD} list -n "${ENV_NAME}" --export 2>/dev/null | cut -d'=' -f1 | sort -u)
     
     local missing=()
     for pkg in "${PACKAGES[@]}"; do
@@ -105,13 +105,13 @@ build_package_spec() {
 }
 
 # Create or activate environment
-if conda env list | grep -q "^${ENV_NAME} "; then
+if ${CONDA_CMD} env list | grep -q "^${ENV_NAME} "; then
     echo "Environment '${ENV_NAME}' exists"
     if [[ "$ENV_RESTART_MODE" == true ]]; then
         echo "Removing existing environment '${ENV_NAME}'..."
-        run_cmd conda env remove -n "${ENV_NAME}" -y
+        run_cmd ${CONDA_CMD} env remove -n "${ENV_NAME}" -y
         echo "Recreating environment '${ENV_NAME}'..."
-        run_cmd conda create -n "${ENV_NAME}" -y
+        run_cmd ${CONDA_CMD} create -n "${ENV_NAME}" -y
     elif [[ "$UPDATE_MODE" == true ]]; then
         # Check if all packages are installed first
         MISSING_PKGS=$(check_packages_installed)
@@ -136,7 +136,7 @@ if conda env list | grep -q "^${ENV_NAME} "; then
     fi
 else
     echo "Creating environment '${ENV_NAME}'..."
-    run_cmd conda create -n "${ENV_NAME}" -y
+    run_cmd ${CONDA_CMD} create -n "${ENV_NAME}" -y
 fi
 
 PACKAGE_SPEC=$(build_package_spec)
@@ -146,13 +146,13 @@ if [[ "$DRY_RUN" == true ]]; then
     echo "[DRY RUN] Would execute: ${CONDA_CMD} install -n ${ENV_NAME} ${CHANNELS} ${PACKAGE_SPEC} -y"
 else
     eval "${CONDA_CMD} install -n ${ENV_NAME} ${CHANNELS} ${PACKAGE_SPEC} -y" || {
-        echo "Mamba installation failed, falling back to conda..."
+        echo "${CONDA_CMD} installation failed, falling back to conda..."
         eval "conda install -n ${ENV_NAME} ${CHANNELS} ${PACKAGE_SPEC} -y"
     }
 fi
 
 # Configure SRA tools
 echo "Configuring SRA tools..."
-run_cmd conda run -n "${ENV_NAME}" vdb-config --prefetch-to-cwd
+run_cmd ${CONDA_CMD} run -n "${ENV_NAME}" vdb-config --prefetch-to-cwd
 
 echo "Installation complete. Activate with: conda activate ${ENV_NAME}"
