@@ -30,10 +30,10 @@ PIPELINE_STAGES=(
 	# Option B: Combined download+trim+cleanup (auto-deletes raw after trim)
 	#"DOWNLOAD_TRIM_and_DELETE_RAW_SRR"
 	
-	#"GZIP_TRIMMED_FILES"
+	"GZIP_TRIMMED_FILES"
 	#"QUALITY_CONTROL"
 	#"DELETE_RAW_SRR"				# Manually delete raw SRR files
-	"DELETE_TRIMMED_FASTQ_FILES"	# Manually delete trimmed files
+	#"DELETE_TRIMMED_FASTQ_FILES"	# Manually delete trimmed files
 
 	#"METHOD_1_HISAT2_REF_GUIDED"
 	#"METHOD_2_HISAT2_DE_NOVO"
@@ -198,11 +198,11 @@ OTHER_SRR_LIST=(
 )
 
 SRR_COMBINED_LIST=(
-	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
+	"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
 	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
 	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
-	#"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
-	"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
+	"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
+	#"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
 )
 
 # ==============================================================================
