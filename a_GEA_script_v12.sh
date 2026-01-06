@@ -30,10 +30,10 @@ PIPELINE_STAGES=(
 	# Option B: Combined download+trim+cleanup (auto-deletes raw after trim)
 	#"DOWNLOAD_TRIM_and_DELETE_RAW_SRR"
 	
-	"GZIP_TRIMMED_FILES"
+	#"GZIP_TRIMMED_FILES"
 	#"QUALITY_CONTROL"
-	#"DELETE_RAW_SRR"				# Manually delete raw SRR files
-	#"DELETE_TRIMMED_FASTQ_FILES"	# Manually delete trimmed files
+	"DELETE_RAW_SRR"				# Manually delete raw SRR files
+	"DELETE_TRIMMED_FASTQ_FILES"	# Manually delete trimmed files
 
 	#"METHOD_1_HISAT2_REF_GUIDED"
 	#"METHOD_2_HISAT2_DE_NOVO"
@@ -104,19 +104,19 @@ ALL_FASTA_FILES=(
 SRR_LIST_PRJNA328564=(
 	# Source: https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA328564&o=acc_s%3Aa
 	# Developmental stages arranged from early to late
-	SRR3884685	# Radicles (earliest - germination)
-	SRR3884677	# Cotyledons (seed leaves)
-	SRR3884675	# Roots (root development)
-	SRR3884690	# Stems (vegetative growth)
-	SRR3884689	# Leaves (vegetative growth)
-	SRR3884684	# Senescent_leaves (leaf aging)
-	SRR3884686	# Buds_0.7cm (flower bud initiation) [MAIN INTEREST]
-	SRR3884687	# Opened_Buds (flower development) 	 [MAIN INTEREST]
-	SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
-	SRR3884679	# Pistils (female reproductive parts)
-	SRR3884608	# Fruits_1cm (early fruit development)
+	#SRR3884685	# Radicles (earliest - germination)
+	#SRR3884677	# Cotyledons (seed leaves)
+	#SRR3884675	# Roots (root development)
+	#SRR3884690	# Stems (vegetative growth)
+	#SRR3884689	# Leaves (vegetative growth)
+	#SRR3884684	# Senescent_leaves (leaf aging)
+	#SRR3884686	# Buds_0.7cm (flower bud initiation) [MAIN INTEREST]
+	#SRR3884687	# Opened_Buds (flower development) 	 [MAIN INTEREST]
+	#SRR3884597	# Flowers (anthesis)/				 [MAIN INTEREST]	
+	#SRR3884679	# Pistils (female reproductive parts)
+	#SRR3884608	# Fruits_1cm (early fruit development)
 	SRR3884620	# Fruits_Stage_1 (early fruit stage)
-	SRR3884631	# Fruits_6cm (fruit enlargement)
+	#SRR3884631	# Fruits_6cm (fruit enlargement)
 	SRR3884642	# Fruits_Skin_Stage_2 (mid fruit development)
 	SRR3884653	# Fruits_Flesh_Stage_2 (mid fruit development)
 	SRR3884664	# Fruits_Calyx_Stage_2 (mid fruit development)
@@ -202,7 +202,7 @@ SRR_COMBINED_LIST=(
 	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
 	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
 	"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
-	#"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
+	"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
 )
 
 # ==============================================================================
