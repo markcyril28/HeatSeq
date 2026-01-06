@@ -22,12 +22,18 @@ keep_bam_global="n"                     # y=keep BAM files, n=delete after
 # Pipeline Stages (comment/uncomment to enable/disable)
 PIPELINE_STAGES=(
 	#"MAMBA_INSTALLATION"
-	"DOWNLOAD_SRR"
-	"TRIM_SRR"
+	
+	# Option A: Separate download and trim (keeps raw files)
+	#"DOWNLOAD_SRR"
+	#"TRIM_SRR"
+	
+	# Option B: Combined download+trim+cleanup (auto-deletes raw after trim)
+	"DOWNLOAD_TRIM_and_DELETE_RAW_SRR"
+	
 	"GZIP_TRIMMED_FILES"
 	"QUALITY_CONTROL"
-	#"DELETE_RAW_SRR"	# Feature to add
-	#"DELETE_TRIMMED_FASTQ_FILES"
+	#"DELETE_RAW_SRR"				# Manually delete raw SRR files
+	#"DELETE_TRIMMED_FASTQ_FILES"	# Manually delete trimmed files
 
 	#"METHOD_1_HISAT2_REF_GUIDED"
 	#"METHOD_2_HISAT2_DE_NOVO"
@@ -230,7 +236,9 @@ mkdir -p "$RAW_DIR_ROOT" "$TRIM_DIR_ROOT" "$FASTQC_ROOT" \
 RUN_MAMBA_INSTALLATION=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^MAMBA_INSTALLATION$" && echo "TRUE" || echo "FALSE")
 RUN_DOWNLOAD_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DOWNLOAD_SRR$" && echo "TRUE" || echo "FALSE")
 RUN_TRIM_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^TRIM_SRR$" && echo "TRUE" || echo "FALSE")
+RUN_DOWNLOAD_TRIM_and_DELETE_RAW_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DOWNLOAD_TRIM_and_DELETE_RAW_SRR$" && echo "TRUE" || echo "FALSE")
 RUN_GZIP_TRIMMED_FILES=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^GZIP_TRIMMED_FILES$" && echo "TRUE" || echo "FALSE")
+RUN_DELETE_RAW_SRR=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^DELETE_RAW_SRR$" && echo "TRUE" || echo "FALSE")
 RUN_QUALITY_CONTROL=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^QUALITY_CONTROL$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_1_HISAT2_REF_GUIDED=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_1_HISAT2_REF_GUIDED$" && echo "TRUE" || echo "FALSE")
 RUN_METHOD_2_HISAT2_DE_NOVO=$(printf '%s\n' "${PIPELINE_STAGES[@]}" | grep -q "^METHOD_2_HISAT2_DE_NOVO$" && echo "TRUE" || echo "FALSE")
@@ -277,16 +285,36 @@ run_all() {
 	done
 
 	if [[ $RUN_DOWNLOAD_SRR == "TRUE" ]]; then
-		log_step "STEP 01a: Download RNA-seq data"
-		#download_srrs "${rnaseq_list[@]}"
-		download_srrs_parallel "${rnaseq_list[@]}"
-		#download_srrs_kingfisher "${rnaseq_list[@]}"
+		if [[ $RUN_DOWNLOAD_TRIM_and_DELETE_RAW_SRR == "TRUE" ]]; then
+			log_warn "DOWNLOAD_SRR skipped: DOWNLOAD_TRIM_and_DELETE_RAW_SRR is enabled (use one or the other)"
+		else
+			log_step "STEP 01a: Download RNA-seq data"
+			#download_srrs "${rnaseq_list[@]}"
+			download_srrs_parallel "${rnaseq_list[@]}"
+			#download_srrs_kingfisher "${rnaseq_list[@]}"
+		fi
 	fi
 
 	if [[ $RUN_TRIM_SRR == "TRUE" ]]; then
-		log_step "STEP 01b: Trim RNA-seq data"
-		#trim_srrs_trimmomatic "${rnaseq_list[@]}"
-		trim_srrs_trimmomatic_parallel "${rnaseq_list[@]}"
+		if [[ $RUN_DOWNLOAD_TRIM_and_DELETE_RAW_SRR == "TRUE" ]]; then
+			log_warn "TRIM_SRR skipped: DOWNLOAD_TRIM_and_DELETE_RAW_SRR is enabled (use one or the other)"
+		else
+			log_step "STEP 01b: Trim RNA-seq data"
+			#trim_srrs_trimmomatic "${rnaseq_list[@]}"
+			trim_srrs_trimmomatic_parallel "${rnaseq_list[@]}"
+		fi
+	fi
+
+	if [[ $RUN_DOWNLOAD_TRIM_and_DELETE_RAW_SRR == "TRUE" ]]; then
+		log_step "STEP 01ab: Download, Trim, and Delete Raw SRR data"
+		# Enable automatic deletion of raw files after successful trimming
+		export DELETE_RAW_SRR_AFTER_DOWNLOAD_and_TRIMMING="TRUE"
+		download_and_trim_srrs_parallel "${rnaseq_list[@]}"
+	fi
+
+	if [[ $RUN_DELETE_RAW_SRR == "TRUE" ]]; then
+		log_step "STEP 01d: Delete Raw SRR files"
+		delete_raw_srr_by_srr_list "${rnaseq_list[@]}"
 	fi
 
 	if [[ $RUN_QUALITY_CONTROL == "TRUE" ]]; then

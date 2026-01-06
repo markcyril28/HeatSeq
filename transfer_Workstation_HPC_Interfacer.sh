@@ -73,3 +73,5 @@ scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/CMSC244_
 7z a -t7z -mx=9 last_transfer.7z 3_FastQC/ 4_POST_PROC/ logs/ logs_archive/
 
 scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/last_transfer.7z $PWD 
+
+scp Dataset_2_OPTIMIZATION.tar.xz mcmercado@10.0.9.31:/home/mcmercado/Training_MicroSpore/TRAINING_WD 

@@ -154,3 +154,53 @@ gzip_trimmed_fastq_files() {
 		xargs -0 -P "${JOBS:-2}" -I {} gzip {} 2>/dev/null || true
 	log_info "Compression completed."
 }
+
+# ==============================================================================
+# CLEANUP UTILITIES
+# ==============================================================================
+
+# Delete trimmed FASTQ files for a list of SRR IDs
+# Usage: delete_trimmed_fastq_by_srr_list SRR1 SRR2 SRR3 ...
+delete_trimmed_fastq_by_srr_list() {
+	local SRR_LIST=("$@")
+	[[ ${#SRR_LIST[@]} -eq 0 ]] && { log_warn "No SRR IDs provided for deletion"; return 1; }
+	
+	log_info "Deleting trimmed FASTQ files for ${#SRR_LIST[@]} SRR(s)..."
+	local deleted_count=0
+	
+	for SRR in "${SRR_LIST[@]}"; do
+		local trim_dir="$TRIM_DIR_ROOT/$SRR"
+		if [[ -d "$trim_dir" ]]; then
+			log_info "Deleting trimmed files for $SRR..."
+			rm -rf "$trim_dir"
+			((deleted_count++))
+		else
+			log_warn "Trimmed directory not found for $SRR: $trim_dir"
+		fi
+	done
+	
+	log_info "Deleted trimmed files for $deleted_count SRR(s)."
+}
+
+# Delete raw FASTQ files for a list of SRR IDs
+# Usage: delete_raw_srr_by_srr_list SRR1 SRR2 SRR3 ...
+delete_raw_srr_by_srr_list() {
+	local SRR_LIST=("$@")
+	[[ ${#SRR_LIST[@]} -eq 0 ]] && { log_warn "No SRR IDs provided for deletion"; return 1; }
+	
+	log_info "Deleting raw SRR files for ${#SRR_LIST[@]} SRR(s)..."
+	local deleted_count=0
+	
+	for SRR in "${SRR_LIST[@]}"; do
+		local raw_dir="$RAW_DIR_ROOT/$SRR"
+		if [[ -d "$raw_dir" ]]; then
+			log_info "Deleting raw files for $SRR..."
+			rm -rf "$raw_dir"
+			((deleted_count++))
+		else
+			log_warn "Raw directory not found for $SRR: $raw_dir"
+		fi
+	done
+	
+	log_info "Deleted raw files for $deleted_count SRR(s)."
+}
