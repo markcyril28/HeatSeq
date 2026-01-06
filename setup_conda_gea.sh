@@ -65,13 +65,16 @@ run_cmd() {
     fi
 }
 
-# Check if mamba is available
+# Check which package manager is available (prefer mamba > micromamba > conda)
 if command -v mamba &> /dev/null; then
     CONDA_CMD="mamba"
     echo "Using mamba for faster installation"
+elif command -v micromamba &> /dev/null; then
+    CONDA_CMD="micromamba"
+    echo "Using micromamba for faster installation"
 else
     CONDA_CMD="conda"
-    echo "Mamba not found, using conda"
+    echo "Mamba/micromamba not found, using conda"
 fi
 
 # Function to check if all packages are installed (optimized: single conda list call)
