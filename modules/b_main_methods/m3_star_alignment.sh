@@ -25,6 +25,9 @@ STAR_GENOME_LOAD="${STAR_GENOME_LOAD:-$(get_star_genome_load 2>/dev/null || echo
 STAR_READ_LENGTH="${STAR_READ_LENGTH:-100}"
 STAR_STRAND_SPECIFIC="${STAR_STRAND_SPECIFIC:-intronMotif}"
 
+# GTF annotation file for splice junction detection (required for --sjdbOverhang)
+STAR_GTF_FILE="${STAR_GTF_FILE:-0_INPUT_FASTAs/gtf/reference/Eggplant_V4.1_function_IPR_final_formatted_v3.gtf}"
+
 # ==============================================================================
 # STAR TISSUE-SPECIFIC PIPELINE
 # ==============================================================================
@@ -148,10 +151,20 @@ star_alignment_pipeline() {
 		mkdir -p "$star_index_dir"
 		
 		log_file_size "$fasta" "Input transcriptome FASTA for STAR indexing"
+		
+		# Validate GTF file exists
+		if [[ ! -f "$STAR_GTF_FILE" ]]; then
+			log_error "GTF annotation file not found: $STAR_GTF_FILE"
+			log_error "Set STAR_GTF_FILE to a valid GTF file path"
+			return 1
+		fi
+		log_info "[STAR INDEX] Using GTF annotation: $STAR_GTF_FILE"
+		
 		run_with_space_time_log --input "$fasta" --output "$star_index_dir" \
 			STAR --runMode genomeGenerate \
 				--genomeDir "$star_index_dir" \
 				--genomeFastaFiles "$fasta" \
+				--sjdbGTFfile "$STAR_GTF_FILE" \
 				--sjdbOverhang "$star_overhang" \
 				--genomeSAindexNbases 12 \
 				--runThreadN "$THREADS"
