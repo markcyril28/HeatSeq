@@ -196,12 +196,18 @@ star_alignment_pipeline() {
 			log_info "[STAR] Processing single-end reads for $SRR"
 		fi
 		
+		# Create dedicated temp directory for STAR (avoids path length issues on Windows/WSL)
+		local star_tmp_dir="_STARtmp/${SRR}"
+		mkdir -p "$star_tmp_dir"
+		rm -rf "$star_tmp_dir"  # STAR requires the tmp dir to not exist
+		
 		run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$star_genome_dir" \
 			STAR --runMode alignReads \
 				--genomeDir "$star_index_dir" \
 				--readFilesIn $star_reads \
 				--readFilesCommand zcat \
 				--outFileNamePrefix "$star_genome_dir/${SRR}_" \
+				--outTmpDir "$star_tmp_dir" \
 				--outSAMtype BAM SortedByCoordinate \
 				--outSAMstrandField "$STAR_STRAND_SPECIFIC" \
 				--outSAMunmapped Within \
@@ -214,6 +220,7 @@ star_alignment_pipeline() {
 				--alignIntronMin 20 \
 				--alignIntronMax 1000000 \
 				--alignMatesGapMax 1000000 \
+				--limitBAMsortRAM 31000000000 \
 				--twopassMode Basic \
 				--runThreadN "$THREADS"
 		

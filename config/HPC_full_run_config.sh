@@ -168,7 +168,7 @@ SRR_LIST_PRJNA941250=(
 	#SRR23909868 # 5DBF_3
 	#SRR23909863 # Fully Develop (FD) 1
 	#SRR23909864 # Fully Develop (FD) 2
-	#SRR23909865 # Fully Develop (FD) 3
+	SRR23909865 # Fully Develop (FD) 3
 )
 
 OTHER_SRR_LIST=(
