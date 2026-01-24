@@ -196,9 +196,9 @@ star_alignment_pipeline() {
 			log_info "[STAR] Processing single-end reads for $SRR"
 		fi
 		
-		# Create dedicated temp directory for STAR (avoids path length issues on Windows/WSL)
-		local star_tmp_dir="_STARtmp/${SRR}"
-		mkdir -p "$star_tmp_dir"
+		# Create dedicated temp directory for STAR inside the output directory
+		# Using absolute path within the alignment output to avoid permission/conflict issues
+		local star_tmp_dir="${star_genome_dir}/_STARtmp_${SRR}"
 		rm -rf "$star_tmp_dir"  # STAR requires the tmp dir to not exist
 		
 		run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$star_genome_dir" \
@@ -225,6 +225,10 @@ star_alignment_pipeline() {
 				--runThreadN "$THREADS"
 		
 		[[ ! -f "$bam_output" ]] && { log_error "STAR alignment failed for $SRR"; return 1; }
+		
+		# Clean up temp directory after successful alignment
+		rm -rf "$star_tmp_dir" 2>/dev/null || true
+		
 		log_info "[STAR] Successfully aligned: $SRR"
 	done
 	

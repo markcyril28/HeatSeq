@@ -20,8 +20,9 @@ source "$SCRIPT_DIR/shared_utils_method.sh"
 # RSEM CONFIGURATION - IMPORTANT PARAMETERS AT TOP
 # ==============================================================================
 
-# Bowtie2 alignment mode (options: very-sensitive-local, sensitive-local, fast-local, very-fast-local)
-BOWTIE2_MODE="${BOWTIE2_MODE:-very-sensitive-local}"
+# Bowtie2 alignment mode for RSEM (options: very_sensitive, sensitive, fast, very_fast)
+# Note: RSEM uses end-to-end mode by default, not local mode
+BOWTIE2_MODE="${BOWTIE2_MODE:-sensitive}"
 
 # ==============================================================================
 # BOWTIE2 + RSEM PIPELINE
@@ -40,20 +41,30 @@ bowtie2_rsem_pipeline() {
 		esac
 	done
 
-	[[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa [--BOWTIE2_MODE very-sensitive-local]"; return 1; }
+	[[ -z "$fasta" ]] && { log_error "Usage: --FASTA genes.fa [--BOWTIE2_MODE sensitive]"; return 1; }
 	[[ ${#rnaseq_list[@]} -eq 0 ]] && rnaseq_list=("${SRR_COMBINED_LIST[@]}")
 	
-	# Validate bowtie2 mode
+	# Validate bowtie2 mode - RSEM accepts: very_sensitive, sensitive, fast, very_fast
+	# Convert hyphenated/local modes to underscore format for RSEM compatibility
 	case "$bowtie2_mode" in
-		very-sensitive-local|sensitive-local|fast-local|very-fast-local|\
-		very-sensitive|sensitive|fast|very-fast)
-			log_info "[BOWTIE2] Using alignment mode: --$bowtie2_mode"
+		very-sensitive-local|very-sensitive|very_sensitive)
+			bowtie2_mode="very_sensitive"
+			;;
+		sensitive-local|sensitive)
+			bowtie2_mode="sensitive"
+			;;
+		fast-local|fast)
+			bowtie2_mode="fast"
+			;;
+		very-fast-local|very-fast|very_fast)
+			bowtie2_mode="very_fast"
 			;;
 		*)
-			log_warn "[BOWTIE2] Unknown mode '$bowtie2_mode', defaulting to --very-sensitive-local"
-			bowtie2_mode="very-sensitive-local"
+			log_warn "[BOWTIE2] Unknown mode '$bowtie2_mode', defaulting to 'sensitive'"
+			bowtie2_mode="sensitive"
 			;;
 	esac
+	log_info "[BOWTIE2] Using RSEM alignment mode: $bowtie2_mode"
 	
 	# Convert line endings if dos2unix is available
 	command -v dos2unix >/dev/null 2>&1 && dos2unix "$fasta" 2>/dev/null || true
@@ -86,7 +97,7 @@ bowtie2_rsem_pipeline() {
 		find_trimmed_fastq "$SRR"
 		[[ -z "$trimmed1" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
 
-		log_step "Running Bowtie2 (--$bowtie2_mode) + RSEM for $SRR"
+		log_step "Running Bowtie2 ($bowtie2_mode) + RSEM for $SRR"
 		
 		if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 			# Paired-end reads
@@ -122,7 +133,7 @@ bowtie2_rsem_pipeline() {
 	# GENERATE MATRICES
 	_create_rsem_matrices "$fasta" "$tag" "$quant_root" "$matrix_dir" "$bowtie2_mode" rnaseq_list[@]
 	
-	log_step "COMPLETED: Bowtie2-RSEM pipeline for $tag (mode: --$bowtie2_mode)"
+	log_step "COMPLETED: Bowtie2-RSEM pipeline for $tag (mode: $bowtie2_mode)"
 }
 
 # ==============================================================================
@@ -323,13 +334,13 @@ _create_rsem_summary() {
 		echo "==================================================================="
 		echo "Date: $(date)"
 		echo "Samples processed: ${#srr_list[@]}"
-		echo "Method: RSEM with Bowtie2 alignment (--$bowtie2_mode)"
+		echo "Method: RSEM with Bowtie2 alignment ($bowtie2_mode)"
 		echo ""
-		echo "Bowtie2 mode options:"
-		echo "  --very-sensitive-local: Most thorough (slower, best accuracy)"
-		echo "  --sensitive-local: Balanced"
-		echo "  --fast-local: Faster"
-		echo "  --very-fast-local: Fastest (less accurate)"
+		echo "Bowtie2 mode options (RSEM uses end-to-end mode):"
+		echo "  very_sensitive: Most thorough (slower, best accuracy)"
+		echo "  sensitive: Balanced (default)"
+		echo "  fast: Faster"
+		echo "  very_fast: Fastest (less accurate)"
 		echo ""
 		echo "Per-sample statistics:"
 		echo "-------------------------------------------------------------------"
