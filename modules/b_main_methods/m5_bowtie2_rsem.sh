@@ -223,12 +223,24 @@ _rsem_quantify_parallel() {
 	local bowtie2_mode="$3"
 	local -n srr_list=$4
 	
-	local num_samples=${#srr_list[@]}
+	# Filter out empty entries and create clean array
+	local valid_samples=()
+	for s in "${srr_list[@]}"; do
+		[[ -n "$s" ]] && valid_samples+=("$s")
+	done
+	
+	local num_samples=${#valid_samples[@]}
+	if [[ $num_samples -eq 0 ]]; then
+		log_error "[RSEM QUANT] No valid samples to process!"
+		return 1
+	fi
+	
 	local parallel_jobs="${MAX_PARALLEL_SAMPLES:-2}"
 	local threads_per_job="${THREADS_PER_RSEM_JOB:-$((THREADS / parallel_jobs))}"
 	[[ $threads_per_job -lt 1 ]] && threads_per_job=1
 	
 	log_step "[RSEM QUANT] Running PARALLEL quantification: $num_samples samples, $parallel_jobs concurrent jobs, $threads_per_job threads/job"
+	log_info "[RSEM QUANT] Sample list: ${valid_samples[*]}"
 	
 	# Export required variables and functions for parallel subshells
 	export PATH CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE
@@ -258,6 +270,12 @@ _rsem_quantify_parallel() {
 			echo "[$ts] [$level] [RSEM-$SRR] $*"
 			[[ -n "$abs_error_warn_file" ]] && echo "[$ts] [$level] [RSEM-$SRR] $*" >> "$abs_error_warn_file"
 		}
+		
+		# Validate SRR ID
+		if [[ -z "$SRR" ]]; then
+			_log_err "ERROR" "Empty SRR ID received - skipping"
+			return 1
+		fi
 		
 		# Reactivate conda environment in subshell if needed
 		if [[ -n "$CONDA_PREFIX" && -n "$CONDA_EXE" ]]; then
@@ -372,8 +390,8 @@ _rsem_quantify_parallel() {
 	}
 	export -f _rsem_parallel_worker
 	
-	# Run parallel quantification
-	printf "%s\n" "${srr_list[@]}" | parallel \
+	# Run parallel quantification with validated sample list
+	printf "%s\n" "${valid_samples[@]}" | parallel \
 		--env PATH \
 		--env CONDA_PREFIX \
 		--env CONDA_DEFAULT_ENV \
@@ -394,7 +412,7 @@ _rsem_quantify_parallel() {
 	
 	# Report results
 	local successful=$(find "$quant_root" -name "*.genes.results" 2>/dev/null | wc -l)
-	log_info "[RSEM QUANT] Parallel quantification complete: $successful/${#srr_list[@]} samples succeeded"
+	log_info "[RSEM QUANT] Parallel quantification complete: $successful/$num_samples samples succeeded"
 	
 	if [[ -f "$quant_root/parallel_rsem.log" ]]; then
 		local failed=$(awk 'NR>1 && $7!=0' "$quant_root/parallel_rsem.log" | wc -l)

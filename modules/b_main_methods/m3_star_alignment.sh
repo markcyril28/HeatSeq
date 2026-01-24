@@ -232,7 +232,28 @@ star_alignment_pipeline() {
 	for SRR in "${rnaseq_list[@]}"; do
 		local bam_output="$star_genome_dir/${SRR}_Aligned.sortedByCoord.out.bam"
 		
-		[[ -f "$bam_output" ]] && { log_info "[STAR] Alignment for $SRR already exists. Skipping."; continue; }
+		# Check if BAM exists AND has content (not 0 bytes from failed run)
+		if [[ -f "$bam_output" ]]; then
+			local bam_size
+			bam_size=$(stat -c%s "$bam_output" 2>/dev/null || stat -f%z "$bam_output" 2>/dev/null || echo "0")
+			if [[ "$bam_size" -gt 1000 ]]; then
+				log_info "[STAR] Alignment for $SRR already exists (${bam_size} bytes). Skipping."
+				continue
+			else
+				log_warn "[STAR] Found empty/corrupt BAM for $SRR (${bam_size} bytes) - removing and re-running"
+				rm -f "$bam_output"
+			fi
+		fi
+		
+		# Clean up any stale files from previous failed STAR runs for this sample
+		log_info "[STAR] Cleaning up stale files for $SRR..."
+		rm -f "${star_genome_dir}/${SRR}_Log.out" 2>/dev/null || true
+		rm -f "${star_genome_dir}/${SRR}_Log.progress.out" 2>/dev/null || true
+		rm -f "${star_genome_dir}/${SRR}_Log.final.out" 2>/dev/null || true
+		rm -f "${star_genome_dir}/${SRR}_SJ.out.tab" 2>/dev/null || true
+		rm -rf "${star_genome_dir}/${SRR}__STARgenome" 2>/dev/null || true
+		rm -rf "${star_genome_dir}/${SRR}__STARpass1" 2>/dev/null || true
+		rm -rf "${star_genome_dir}/${SRR}_STARtmp" 2>/dev/null || true
 		
 		find_trimmed_fastq "$SRR"
 		[[ -z "$trimmed1" ]] && { log_warn "Trimmed FASTQ for $SRR not found; skipping."; continue; }
@@ -275,47 +296,16 @@ star_alignment_pipeline() {
 		fi
 		rm -f "$test_file"
 		
-		# Configure STAR temp directory based on STAR_TMP_MODE
-		local star_tmp_dir="" star_tmp_arg=""
-		case "${STAR_TMP_MODE:-cwd}" in
-			system)
-				# Use system temp - most reliable for HPC
-				star_tmp_dir="${TMPDIR:-/tmp}/STAR_${USER:-$$}_${SRR}"
-				rm -rf "$star_tmp_dir"
-				star_tmp_arg="--outTmpDir $star_tmp_dir"
-				;;
-			local)
-				# Use output directory for temp
-				star_tmp_dir="${star_genome_dir}/_STARtmp_${SRR}"
-				rm -rf "$star_tmp_dir"
-				star_tmp_arg="--outTmpDir $star_tmp_dir"
-				;;
-			cwd)
-				# Use current working directory (project root) for temp
-				# Clean up any existing STAR temp directories first
-				rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
-				rm -rf "${PROJECT_ROOT}/_STARtmp_${SRR}" 2>/dev/null || true
-				rm -rf "./_STARtmp" 2>/dev/null || true
-				rm -rf "./_STARtmp_${SRR}" 2>/dev/null || true
-				star_tmp_dir="${PROJECT_ROOT}/_STARtmp_${SRR}"
-				rm -rf "$star_tmp_dir"
-				star_tmp_arg="--outTmpDir $star_tmp_dir"
-				;;
-			none|"")
-				# Let STAR manage its own temp (creates _STARtmp in cwd)
-				# Still clean up before running
-				rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
-				rm -rf "./_STARtmp" 2>/dev/null || true
-				star_tmp_arg=""
-				;;
-			*)
-				# Custom path specified
-				star_tmp_dir="${STAR_TMP_MODE}/_STARtmp_${SRR}"
-				rm -rf "$star_tmp_dir"
-				mkdir -p "$(dirname "$star_tmp_dir")"
-				star_tmp_arg="--outTmpDir $star_tmp_dir"
-				;;
-		esac
+		# Configure STAR temp directory - ALWAYS use output directory for temp
+		# This ensures all STAR operations happen on the same filesystem
+		local star_tmp_dir="${star_genome_dir}/_STARtmp_${SRR}"
+		rm -rf "$star_tmp_dir" 2>/dev/null || true
+		# Also clean up any stray temp dirs
+		rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
+		rm -rf "${PROJECT_ROOT}/_STARtmp_${SRR}" 2>/dev/null || true
+		local star_tmp_arg="--outTmpDir $star_tmp_dir"
+		
+		log_error "[STAR DEBUG] Using temp directory: $star_tmp_dir"
 		
 		# Construct output prefix - ensure no double slashes and path is clean
 		local out_prefix="${star_genome_dir}/${SRR}_"
@@ -376,7 +366,14 @@ star_alignment_pipeline() {
 		log_error "[STAR DEBUG] ============================================"
 		# ======================================================================
 		
-		# Run STAR alignment
+		# Run STAR alignment - output UNSORTED BAM first, then sort with samtools
+		# This is more reliable than STAR's internal BAM sorting which can fail
+		local unsorted_bam="${out_prefix}Aligned.out.bam"
+		
+		log_error "[STAR DEBUG] Running STAR with unsorted BAM output..."
+		log_error "[STAR DEBUG] Unsorted BAM will be: $unsorted_bam"
+		log_error "[STAR DEBUG] Will sort to: $bam_output"
+		
 		run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$star_genome_dir" \
 			STAR --runMode alignReads \
 				--genomeDir "$star_index_dir" \
@@ -384,7 +381,7 @@ star_alignment_pipeline() {
 				--readFilesCommand zcat \
 				--outFileNamePrefix "$out_prefix" \
 				$star_tmp_arg \
-				--outSAMtype BAM SortedByCoordinate \
+				--outSAMtype BAM Unsorted \
 				--outSAMstrandField "$STAR_STRAND_SPECIFIC" \
 				--outSAMunmapped Within \
 				--outFilterType BySJout \
@@ -396,11 +393,56 @@ star_alignment_pipeline() {
 				--alignIntronMin 20 \
 				--alignIntronMax 1000000 \
 				--alignMatesGapMax 1000000 \
-				--limitBAMsortRAM 31000000000 \
 				--twopassMode Basic \
 				--runThreadN "$THREADS"
 		
-		[[ ! -f "$bam_output" ]] && { log_error "STAR alignment failed for $SRR"; return 1; }
+		# Check if unsorted BAM was created
+		if [[ ! -f "$unsorted_bam" ]]; then
+			log_error "[STAR] FATAL: Unsorted BAM file not created for $SRR"
+			log_error "[STAR] Check STAR log: ${out_prefix}Log.out"
+			# Show last 30 lines of STAR log
+			log_error "[STAR] Last 30 lines of STAR log:"
+			tail -30 "${out_prefix}Log.out" 2>/dev/null | while read line; do log_error "  $line"; done
+			return 1
+		fi
+		
+		local unsorted_size
+		unsorted_size=$(stat -c%s "$unsorted_bam" 2>/dev/null || stat -f%z "$unsorted_bam" 2>/dev/null || echo "0")
+		log_error "[STAR DEBUG] Unsorted BAM size: $unsorted_size bytes"
+		
+		if [[ "$unsorted_size" -lt 1000 ]]; then
+			log_error "[STAR] FATAL: Unsorted BAM is empty/corrupt for $SRR (${unsorted_size} bytes)"
+			log_error "[STAR] Last 30 lines of STAR log:"
+			tail -30 "${out_prefix}Log.out" 2>/dev/null | while read line; do log_error "  $line"; done
+			return 1
+		fi
+		
+		# Sort BAM with samtools (more reliable than STAR's internal sorting)
+		log_info "[STAR] Sorting BAM with samtools..."
+		log_error "[STAR DEBUG] Running samtools sort..."
+		
+		if ! samtools sort -@ "$THREADS" -m 2G -o "$bam_output" "$unsorted_bam" 2>&1; then
+			log_error "[STAR] FATAL: samtools sort failed for $SRR"
+			return 1
+		fi
+		
+		# Verify sorted BAM
+		local final_bam_size
+		final_bam_size=$(stat -c%s "$bam_output" 2>/dev/null || stat -f%z "$bam_output" 2>/dev/null || echo "0")
+		if [[ "$final_bam_size" -lt 1000 ]]; then
+			log_error "[STAR] FATAL: Sorted BAM file is empty/corrupt for $SRR (${final_bam_size} bytes)"
+			return 1
+		fi
+		
+		log_info "[STAR] BAM sorted successfully: $final_bam_size bytes"
+		
+		# Remove unsorted BAM to save space
+		rm -f "$unsorted_bam"
+		log_info "[STAR] Removed unsorted BAM to save space"
+		
+		# Index the BAM
+		log_info "[STAR] Indexing BAM..."
+		samtools index -@ "$THREADS" "$bam_output" 2>&1 || log_warn "[STAR] BAM indexing failed (non-fatal)"
 		
 		# Clean up temp directories after successful alignment
 		[[ -n "$star_tmp_dir" ]] && rm -rf "$star_tmp_dir" 2>/dev/null || true
