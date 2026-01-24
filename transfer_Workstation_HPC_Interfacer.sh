@@ -75,3 +75,5 @@ scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/CMSC244_
 scp admontecillo@10.0.9.31:/home/admontecillo/MCRM_pipeline_HPC/HeatSeq/last_transfer.7z $PWD 
 
 scp Dataset_2_OPTIMIZATION.tar.xz mcmercado@10.0.9.31:/home/mcmercado/Training_MicroSpore/TRAINING_WD 
+
+scp mcmercado@10.0.9.31:~/Training_Microspore/class_balancing_1280_extended_training.zip $PWD

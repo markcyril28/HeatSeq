@@ -24,6 +24,90 @@ source "$SCRIPT_DIR/shared_utils_method.sh"
 # Note: RSEM uses end-to-end mode by default, not local mode
 BOWTIE2_MODE="${BOWTIE2_MODE:-sensitive}"
 
+# Parallel sample processing configuration
+# MAX_PARALLEL_SAMPLES: Number of samples to process in parallel (default: 2)
+# THREADS_PER_RSEM_JOB: Threads allocated per RSEM job (auto-calculated if not set)
+MAX_PARALLEL_SAMPLES="${MAX_PARALLEL_SAMPLES:-2}"
+THREADS_PER_RSEM_JOB="${THREADS_PER_RSEM_JOB:-$((THREADS / MAX_PARALLEL_SAMPLES))}"
+[[ $THREADS_PER_RSEM_JOB -lt 1 ]] && THREADS_PER_RSEM_JOB=1
+
+# ==============================================================================
+# HELPER: CHECK IF GNU PARALLEL SHOULD BE USED
+# ==============================================================================
+
+_rsem_should_use_parallel() {
+	# Check if parallel processing is enabled and available
+	[[ "${USE_GNU_PARALLEL:-FALSE}" != "TRUE" ]] && return 1
+	command -v parallel >/dev/null 2>&1 || return 1
+	return 0
+}
+
+# ==============================================================================
+# HELPER: PROCESS SINGLE SAMPLE (used by both sequential and parallel modes)
+# ==============================================================================
+
+_rsem_process_single_sample() {
+	local SRR="$1"
+	local rsem_idx="$2"
+	local quant_root="$3"
+	local bowtie2_mode="$4"
+	local threads_to_use="$5"
+	
+	local out_dir="$quant_root/$SRR"
+	mkdir -p "$out_dir"
+	
+	# Skip if already processed
+	if [[ -f "$out_dir/${SRR}.genes.results" ]]; then
+		log_info "[RSEM QUANT] RSEM results for $SRR already exist. Skipping."
+		return 0
+	fi
+	
+	# Find trimmed reads
+	find_trimmed_fastq "$SRR"
+	if [[ -z "$trimmed1" ]]; then
+		log_warn "Missing trimmed reads for $SRR. Skipping."
+		return 1
+	fi
+	
+	log_step "Running Bowtie2 ($bowtie2_mode) + RSEM for $SRR (threads: $threads_to_use)"
+	
+	local rsem_exit_code=0
+	if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
+		# Paired-end reads
+		log_info "[RSEM QUANT] Using paired-end reads for $SRR"
+		rsem-calculate-expression \
+			--paired-end \
+			--bowtie2 \
+			--bowtie2-sensitivity-level "$bowtie2_mode" \
+			--num-threads "$threads_to_use" \
+			"$trimmed1" "$trimmed2" "$rsem_idx" "$out_dir/$SRR" || rsem_exit_code=$?
+	else
+		# Single-end reads
+		log_info "[RSEM QUANT] Using single-end reads for $SRR"
+		rsem-calculate-expression \
+			--bowtie2 \
+			--bowtie2-sensitivity-level "$bowtie2_mode" \
+			--num-threads "$threads_to_use" \
+			"$trimmed1" "$rsem_idx" "$out_dir/$SRR" || rsem_exit_code=$?
+	fi
+	
+	if [[ $rsem_exit_code -ne 0 ]]; then
+		log_error "[RSEM QUANT] RSEM failed for $SRR (exit code: $rsem_exit_code)"
+		return $rsem_exit_code
+	fi
+	
+	log_file_size "$out_dir/${SRR}.genes.results" "RSEM gene results - $SRR"
+	
+	# Cleanup BAM files
+	if [[ "$keep_bam_global" != "y" ]]; then
+		log_info "[CLEANUP] Deleting RSEM BAM files for $SRR to save disk space"
+		rm -f "$out_dir/${SRR}.transcript.bam" "$out_dir/${SRR}.genome.bam" \
+			  "$out_dir/${SRR}.transcript.sorted.bam" "$out_dir/${SRR}.transcript.sorted.bam.bai"
+	fi
+	
+	return 0
+}
+
 # ==============================================================================
 # BOWTIE2 + RSEM PIPELINE
 # ==============================================================================
@@ -87,53 +171,154 @@ bowtie2_rsem_pipeline() {
 		log_file_size "$RSEM_INDEX_ROOT" "RSEM index output - $tag"
 	fi
 
-	# QUANTIFY EACH SRR
-	for SRR in "${rnaseq_list[@]}"; do
-		local out_dir="$quant_root/$SRR"
-		mkdir -p "$out_dir"
-		
-		[[ -f "$out_dir/${SRR}.genes.results" ]] && { log_info "[RSEM QUANT] RSEM results for $SRR already exist. Skipping."; continue; }
-
-		find_trimmed_fastq "$SRR"
-		[[ -z "$trimmed1" ]] && { log_warn "Missing trimmed reads for $SRR. Skipping."; continue; }
-
-		log_step "Running Bowtie2 ($bowtie2_mode) + RSEM for $SRR"
-		
-		if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
-			# Paired-end reads
-			log_info "[RSEM QUANT] Using paired-end reads for $SRR"
-			run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$out_dir" \
-				rsem-calculate-expression \
-					--paired-end \
-					--bowtie2 \
-					--bowtie2-sensitivity-level "$bowtie2_mode" \
-					--num-threads "$THREADS" \
-					"$trimmed1" "$trimmed2" "$rsem_idx" "$out_dir/$SRR"
-		else
-			# Single-end reads
-			log_info "[RSEM QUANT] Using single-end reads for $SRR"
-			run_with_space_time_log \
-				rsem-calculate-expression \
-					--bowtie2 \
-					--bowtie2-sensitivity-level "$bowtie2_mode" \
-					--num-threads "$THREADS" \
-					"$trimmed1" "$rsem_idx" "$out_dir/$SRR"
-		fi
-		
-		log_file_size "$out_dir/${SRR}.genes.results" "RSEM gene results - $SRR"
-		
-		# Cleanup BAM files
-		if [[ "$keep_bam_global" != "y" ]]; then
-			log_info "[CLEANUP] Deleting RSEM BAM files to save disk space"
-			rm -f "$out_dir/${SRR}.transcript.bam" "$out_dir/${SRR}.genome.bam" \
-				  "$out_dir/${SRR}.transcript.sorted.bam" "$out_dir/${SRR}.transcript.sorted.bam.bai"
-		fi
-	done
+	# QUANTIFY SAMPLES - PARALLEL OR SEQUENTIAL
+	if _rsem_should_use_parallel && [[ ${#rnaseq_list[@]} -gt 1 ]]; then
+		_rsem_quantify_parallel "$rsem_idx" "$quant_root" "$bowtie2_mode" rnaseq_list[@]
+	else
+		_rsem_quantify_sequential "$rsem_idx" "$quant_root" "$bowtie2_mode" rnaseq_list[@]
+	fi
 
 	# GENERATE MATRICES
 	_create_rsem_matrices "$fasta" "$tag" "$quant_root" "$matrix_dir" "$bowtie2_mode" rnaseq_list[@]
 	
 	log_step "COMPLETED: Bowtie2-RSEM pipeline for $tag (mode: $bowtie2_mode)"
+}
+
+# ==============================================================================
+# SEQUENTIAL SAMPLE QUANTIFICATION
+# ==============================================================================
+
+_rsem_quantify_sequential() {
+	local rsem_idx="$1"
+	local quant_root="$2"
+	local bowtie2_mode="$3"
+	local -n srr_list=$4
+	
+	log_info "[RSEM QUANT] Running SEQUENTIAL quantification for ${#srr_list[@]} samples (threads per job: $THREADS)"
+	
+	for SRR in "${srr_list[@]}"; do
+		_rsem_process_single_sample "$SRR" "$rsem_idx" "$quant_root" "$bowtie2_mode" "$THREADS"
+	done
+}
+
+# ==============================================================================
+# PARALLEL SAMPLE QUANTIFICATION (GNU Parallel)
+# ==============================================================================
+
+_rsem_quantify_parallel() {
+	local rsem_idx="$1"
+	local quant_root="$2"
+	local bowtie2_mode="$3"
+	local -n srr_list=$4
+	
+	local num_samples=${#srr_list[@]}
+	local parallel_jobs="${MAX_PARALLEL_SAMPLES:-2}"
+	local threads_per_job="${THREADS_PER_RSEM_JOB:-$((THREADS / parallel_jobs))}"
+	[[ $threads_per_job -lt 1 ]] && threads_per_job=1
+	
+	log_step "[RSEM QUANT] Running PARALLEL quantification: $num_samples samples, $parallel_jobs concurrent jobs, $threads_per_job threads/job"
+	
+	# Export required variables and functions for parallel subshells
+	export PATH CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE
+	export TRIM_DIR_ROOT LOG_FILE TIME_DIR TIME_FILE ERROR_WARN_FILE
+	export keep_bam_global
+	export rsem_idx quant_root bowtie2_mode threads_per_job
+	
+	# Export logging functions
+	export -f timestamp log log_info log_warn log_error log_step log_file_size 2>/dev/null || true
+	export -f find_trimmed_fastq 2>/dev/null || true
+	
+	# Define parallel worker function
+	_rsem_parallel_worker() {
+		local SRR="$1"
+		
+		# Reactivate conda environment in subshell if needed
+		if [[ -n "$CONDA_PREFIX" && -n "$CONDA_EXE" ]]; then
+			source "$(dirname "$CONDA_EXE")/../etc/profile.d/conda.sh" 2>/dev/null || true
+			conda activate "$CONDA_DEFAULT_ENV" 2>/dev/null || true
+		fi
+		
+		local out_dir="$quant_root/$SRR"
+		mkdir -p "$out_dir"
+		
+		# Skip if already processed
+		if [[ -f "$out_dir/${SRR}.genes.results" ]]; then
+			echo "[RSEM QUANT] Results for $SRR already exist. Skipping."
+			return 0
+		fi
+		
+		# Find trimmed reads
+		find_trimmed_fastq "$SRR"
+		if [[ -z "$trimmed1" ]]; then
+			echo "[WARN] Missing trimmed reads for $SRR. Skipping."
+			return 1
+		fi
+		
+		echo "[RSEM QUANT] Processing $SRR with $threads_per_job threads..."
+		
+		local rsem_exit_code=0
+		if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
+			rsem-calculate-expression \
+				--paired-end \
+				--bowtie2 \
+				--bowtie2-sensitivity-level "$bowtie2_mode" \
+				--num-threads "$threads_per_job" \
+				--quiet \
+				"$trimmed1" "$trimmed2" "$rsem_idx" "$out_dir/$SRR" 2>&1 || rsem_exit_code=$?
+		else
+			rsem-calculate-expression \
+				--bowtie2 \
+				--bowtie2-sensitivity-level "$bowtie2_mode" \
+				--num-threads "$threads_per_job" \
+				--quiet \
+				"$trimmed1" "$rsem_idx" "$out_dir/$SRR" 2>&1 || rsem_exit_code=$?
+		fi
+		
+		if [[ $rsem_exit_code -ne 0 ]]; then
+			echo "[ERROR] RSEM failed for $SRR (exit code: $rsem_exit_code)"
+			return $rsem_exit_code
+		fi
+		
+		# Cleanup BAM files
+		if [[ "$keep_bam_global" != "y" ]]; then
+			rm -f "$out_dir/${SRR}.transcript.bam" "$out_dir/${SRR}.genome.bam" \
+				  "$out_dir/${SRR}.transcript.sorted.bam" "$out_dir/${SRR}.transcript.sorted.bam.bai"
+		fi
+		
+		echo "[RSEM QUANT] Completed $SRR successfully"
+		return 0
+	}
+	export -f _rsem_parallel_worker
+	
+	# Run parallel quantification
+	printf "%s\n" "${srr_list[@]}" | parallel \
+		--env PATH \
+		--env CONDA_PREFIX \
+		--env CONDA_DEFAULT_ENV \
+		--env CONDA_EXE \
+		--env TRIM_DIR_ROOT \
+		--env keep_bam_global \
+		--env rsem_idx \
+		--env quant_root \
+		--env bowtie2_mode \
+		--env threads_per_job \
+		-j "$parallel_jobs" \
+		--joblog "$quant_root/parallel_rsem.log" \
+		--progress \
+		_rsem_parallel_worker {}
+	
+	local parallel_exit=$?
+	
+	# Report results
+	local successful=$(find "$quant_root" -name "*.genes.results" 2>/dev/null | wc -l)
+	log_info "[RSEM QUANT] Parallel quantification complete: $successful/${#srr_list[@]} samples succeeded"
+	
+	if [[ -f "$quant_root/parallel_rsem.log" ]]; then
+		local failed=$(awk 'NR>1 && $7!=0' "$quant_root/parallel_rsem.log" | wc -l)
+		[[ $failed -gt 0 ]] && log_warn "[RSEM QUANT] $failed sample(s) failed - check $quant_root/parallel_rsem.log"
+	fi
+	
+	return $parallel_exit
 }
 
 # ==============================================================================

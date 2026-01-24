@@ -54,7 +54,14 @@ unset _POST_PROC_DEFAULT
 # SAMPLE METADATA CONFIGURATION
 # ==============================================================================
 # Path to the sample conditions file (tab-separated: SRR_ID condition batch)
-SAMPLE_CONDITIONS_FILE="${SAMPLE_CONDITIONS_FILE:-0_INPUT_FASTAs/sample_conditions.txt}"
+# Convert to absolute path if relative (same pattern as POST_PROCESSING_ROOT)
+_SAMPLE_COND_DEFAULT="${SAMPLE_CONDITIONS_FILE:-0_INPUT_FASTAs/sample_conditions.txt}"
+if [[ "$_SAMPLE_COND_DEFAULT" != /* ]]; then
+	SAMPLE_CONDITIONS_FILE="$(pwd)/$_SAMPLE_COND_DEFAULT"
+else
+	SAMPLE_CONDITIONS_FILE="$_SAMPLE_COND_DEFAULT"
+fi
+unset _SAMPLE_COND_DEFAULT
 
 # ==============================================================================
 # METHOD 1: HISAT2 REFERENCE GUIDED DIRECTORIES

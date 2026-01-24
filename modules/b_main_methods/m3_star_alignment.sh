@@ -127,20 +127,29 @@ star_alignment_pipeline() {
 	fasta_base="$(basename "$fasta")"
 	fasta_tag="${fasta_base%.*}"
 	
-	# Set directories based on tissue tag
+	# Convert STAR roots to absolute paths to avoid issues when running from different directories
+	local abs_star_index_root abs_star_align_root
+	abs_star_index_root="$(cd "$PROJECT_ROOT" 2>/dev/null && mkdir -p "$STAR_INDEX_ROOT" && cd "$STAR_INDEX_ROOT" && pwd)"
+	abs_star_align_root="$(cd "$PROJECT_ROOT" 2>/dev/null && mkdir -p "$STAR_ALIGN_ROOT" && cd "$STAR_ALIGN_ROOT" && pwd)"
+	
+	# Fallback to original paths if absolute conversion fails
+	[[ -z "$abs_star_index_root" ]] && abs_star_index_root="$STAR_INDEX_ROOT"
+	[[ -z "$abs_star_align_root" ]] && abs_star_align_root="$STAR_ALIGN_ROOT"
+	
+	# Set directories based on tissue tag (using absolute paths)
 	if [[ -n "$tissue_tag" ]]; then
-		star_index_dir="$STAR_INDEX_ROOT/${fasta_tag}_${tissue_tag}_star_index"
-		star_genome_dir="$STAR_ALIGN_ROOT/${fasta_tag}_${tissue_tag}_alignments"
+		star_index_dir="${abs_star_index_root}/${fasta_tag}_${tissue_tag}_star_index"
+		star_genome_dir="${abs_star_align_root}/${fasta_tag}_${tissue_tag}_alignments"
 		log_info "[STAR] Tissue-specific alignment for: $tissue_tag (${#rnaseq_list[@]} samples)"
 	else
-		star_index_dir="$STAR_INDEX_ROOT/${fasta_tag}_star_index"
-		star_genome_dir="$STAR_ALIGN_ROOT/${fasta_tag}_alignments"
+		star_index_dir="${abs_star_index_root}/${fasta_tag}_star_index"
+		star_genome_dir="${abs_star_align_root}/${fasta_tag}_alignments"
 		log_info "[STAR] Pooled alignment: ${#rnaseq_list[@]} samples"
 	fi
 	
 	# Log resolved paths for debugging
-	log_info "[STAR] Index directory: $star_index_dir"
-	log_info "[STAR] Output directory: $star_genome_dir"
+	log_info "[STAR] Index directory (absolute): $star_index_dir"
+	log_info "[STAR] Output directory (absolute): $star_genome_dir"
 	
 	local star_overhang=$((STAR_READ_LENGTH - 1))
 	log_info "[STAR] CPU allocation: Total=$THREADS threads"
@@ -221,6 +230,24 @@ star_alignment_pipeline() {
 		rm -rf "${star_genome_dir}/${SRR}_STARtmp" 2>/dev/null || true
 		rm -rf "${star_genome_dir}/${SRR}_"*.tmp 2>/dev/null || true
 		
+		# CRITICAL: Ensure output directory exists and is writable RIGHT BEFORE STAR runs
+		# This fixes "could not create output file" errors on HPC/server environments
+		mkdir -p "$star_genome_dir"
+		if [[ ! -d "$star_genome_dir" ]]; then
+			log_error "[STAR] FATAL: Cannot create output directory: $star_genome_dir"
+			return 1
+		fi
+		
+		# Test write permissions by creating a test file
+		local test_file="${star_genome_dir}/.write_test_$$"
+		if ! touch "$test_file" 2>/dev/null; then
+			log_error "[STAR] FATAL: Output directory not writable: $star_genome_dir"
+			return 1
+		fi
+		rm -f "$test_file"
+		
+		log_info "[STAR] Output path verified writable: $star_genome_dir/${SRR}_*"
+		
 		run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$star_genome_dir" \
 			STAR --runMode alignReads \
 				--genomeDir "$star_index_dir" \
@@ -257,8 +284,8 @@ star_alignment_pipeline() {
 	# STEP 3: SALMON QUANTIFICATION
 	local tag_suffix=""
 	[[ -n "${tissue_tag:-}" ]] && tag_suffix="_${tissue_tag}"
-	local salmon_idx="$STAR_ALIGN_ROOT/${fasta_tag}${tag_suffix}_salmon_index"
-	local quant_root="$STAR_ALIGN_ROOT/${fasta_tag}${tag_suffix}_salmon_quant"
+	local salmon_idx="${abs_star_align_root}/${fasta_tag}${tag_suffix}_salmon_index"
+	local quant_root="${abs_star_align_root}/${fasta_tag}${tag_suffix}_salmon_quant"
 	mkdir -p "$quant_root"
 	
 	# Build Salmon index
