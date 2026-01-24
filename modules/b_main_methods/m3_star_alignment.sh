@@ -138,6 +138,10 @@ star_alignment_pipeline() {
 		log_info "[STAR] Pooled alignment: ${#rnaseq_list[@]} samples"
 	fi
 	
+	# Log resolved paths for debugging
+	log_info "[STAR] Index directory: $star_index_dir"
+	log_info "[STAR] Output directory: $star_genome_dir"
+	
 	local star_overhang=$((STAR_READ_LENGTH - 1))
 	log_info "[STAR] CPU allocation: Total=$THREADS threads"
 
@@ -175,6 +179,18 @@ star_alignment_pipeline() {
 	
 	# STEP 2: ALIGN READS WITH STAR (2-PASS MODE)
 	mkdir -p "$star_genome_dir"
+	
+	# Verify directory exists and is writable
+	if [[ ! -d "$star_genome_dir" ]]; then
+		log_error "Failed to create STAR output directory: $star_genome_dir"
+		return 1
+	fi
+	if [[ ! -w "$star_genome_dir" ]]; then
+		log_error "STAR output directory is not writable: $star_genome_dir"
+		return 1
+	fi
+	log_info "[STAR] Output directory verified: $star_genome_dir"
+	
 	log_step "STAR splice-aware alignment for $fasta_tag samples"
 	
 	for SRR in "${rnaseq_list[@]}"; do
@@ -200,6 +216,10 @@ star_alignment_pipeline() {
 		# Using absolute path within the alignment output to avoid permission/conflict issues
 		local star_tmp_dir="${star_genome_dir}/_STARtmp_${SRR}"
 		rm -rf "$star_tmp_dir"  # STAR requires the tmp dir to not exist
+		
+		# Clean up any stale STAR temporary files from previous failed runs
+		rm -rf "${star_genome_dir}/${SRR}_STARtmp" 2>/dev/null || true
+		rm -rf "${star_genome_dir}/${SRR}_"*.tmp 2>/dev/null || true
 		
 		run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$star_genome_dir" \
 			STAR --runMode alignReads \

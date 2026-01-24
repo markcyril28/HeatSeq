@@ -55,21 +55,22 @@ validate_count_matrix() {
 
 # Load sample metadata from file
 load_sample_metadata() {
-	local metadata_file="${1:-sample_conditions.txt}"
+	local metadata_file="${1:-${SAMPLE_CONDITIONS_FILE:-sample_conditions.txt}}"
 	local -n metadata_array=$2
 	
 	[[ ! -f "$metadata_file" ]] && { log_warn "Metadata file not found: $metadata_file"; return 1; }
 	
-	local line_count=$(wc -l < "$metadata_file")
-	[[ $line_count -lt 2 ]] && { log_error "Metadata file must contain at least 2 samples"; return 1; }
+	# Count valid sample lines (exclude comments, blanks, and header)
+	local line_count=$(grep -v '^#' "$metadata_file" | grep -v '^$' | grep -v '^SRR_ID' | wc -l)
+	[[ $line_count -lt 2 ]] && { log_error "Metadata file must contain at least 2 samples (found: $line_count)"; return 1; }
 	
 	while IFS=$'\t' read -r srr condition batch; do
-		[[ -z "$srr" || "$srr" =~ ^# ]] && continue
+		[[ -z "$srr" || "$srr" =~ ^# || "$srr" == "SRR_ID" ]] && continue
 		metadata_array["${srr}_condition"]="$condition"
 		metadata_array["${srr}_batch"]="$batch"
 	done < "$metadata_file"
 	
-	log_info "Loaded metadata: $(( ${#metadata_array[@]} / 2 )) samples"
+	log_info "Loaded metadata: $(( ${#metadata_array[@]} / 2 )) samples from $metadata_file"
 	return 0
 }
 
@@ -77,7 +78,7 @@ load_sample_metadata() {
 create_sample_metadata() {
 	local metadata_file="$1"
 	local -a sample_list=("${!2}")
-	local metadata_source="${3:-sample_conditions.txt}"
+	local metadata_source="${3:-${SAMPLE_CONDITIONS_FILE:-sample_conditions.txt}}"
 	
 	local delim=","
 	[[ "$metadata_file" == *.tsv ]] && delim=$'\t'

@@ -41,7 +41,20 @@ STAR_STRAND_SPECIFIC="${STAR_STRAND_SPECIFIC:-intronMotif}"
 # ==============================================================================
 # POST PROCESSING ROOT
 # ==============================================================================
-POST_PROCESSING_ROOT="${POST_PROCESSING_ROOT:-4_POST_PROC}"
+# Convert to absolute path if relative (prevents STAR/tool output file errors)
+_POST_PROC_DEFAULT="${POST_PROCESSING_ROOT:-4_POST_PROC}"
+if [[ "$_POST_PROC_DEFAULT" != /* ]]; then
+	POST_PROCESSING_ROOT="$(pwd)/$_POST_PROC_DEFAULT"
+else
+	POST_PROCESSING_ROOT="$_POST_PROC_DEFAULT"
+fi
+unset _POST_PROC_DEFAULT
+
+# ==============================================================================
+# SAMPLE METADATA CONFIGURATION
+# ==============================================================================
+# Path to the sample conditions file (tab-separated: SRR_ID condition batch)
+SAMPLE_CONDITIONS_FILE="${SAMPLE_CONDITIONS_FILE:-0_INPUT_FASTAs/sample_conditions.txt}"
 
 # ==============================================================================
 # METHOD 1: HISAT2 REFERENCE GUIDED DIRECTORIES
