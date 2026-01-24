@@ -28,6 +28,10 @@ STAR_STRAND_SPECIFIC="${STAR_STRAND_SPECIFIC:-intronMotif}"
 # GTF annotation file for splice junction detection (required for --sjdbOverhang)
 STAR_GTF_FILE="${STAR_GTF_FILE:-0_INPUT_FASTAs/gtf/reference/Eggplant_V4.1_function_IPR_final_formatted_v3.gtf}"
 
+# STAR temp directory configuration
+# Set to "system" to use /tmp, "local" to use output dir, "cwd" for current directory, "none" to let STAR manage, or a specific path
+STAR_TMP_MODE="${STAR_TMP_MODE:-cwd}"
+
 # ==============================================================================
 # STAR TISSUE-SPECIFIC PIPELINE
 # ==============================================================================
@@ -221,40 +225,87 @@ star_alignment_pipeline() {
 			log_info "[STAR] Processing single-end reads for $SRR"
 		fi
 		
-		# Create dedicated temp directory for STAR inside the output directory
-		# Using absolute path within the alignment output to avoid permission/conflict issues
-		local star_tmp_dir="${star_genome_dir}/_STARtmp_${SRR}"
-		rm -rf "$star_tmp_dir"  # STAR requires the tmp dir to not exist
-		
 		# Clean up any stale STAR temporary files from previous failed runs
 		rm -rf "${star_genome_dir}/${SRR}_STARtmp" 2>/dev/null || true
 		rm -rf "${star_genome_dir}/${SRR}_"*.tmp 2>/dev/null || true
+		rm -rf "${star_genome_dir}/_STARtmp_${SRR}" 2>/dev/null || true
+		# Also clean up any _STARtmp in project root (STAR default location)
+		rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
 		
 		# CRITICAL: Ensure output directory exists and is writable RIGHT BEFORE STAR runs
 		# This fixes "could not create output file" errors on HPC/server environments
 		mkdir -p "$star_genome_dir"
+		sync  # Force filesystem sync on HPC/NFS
+		sleep 1  # Brief pause for filesystem consistency
+		
 		if [[ ! -d "$star_genome_dir" ]]; then
 			log_error "[STAR] FATAL: Cannot create output directory: $star_genome_dir"
 			return 1
 		fi
 		
-		# Test write permissions by creating a test file
-		local test_file="${star_genome_dir}/.write_test_$$"
+		# Test write permissions by creating a test file with the exact output name pattern
+		local test_file="${star_genome_dir}/${SRR}_test_write_$$"
 		if ! touch "$test_file" 2>/dev/null; then
-			log_error "[STAR] FATAL: Output directory not writable: $star_genome_dir"
+			log_error "[STAR] FATAL: Cannot create output file: $test_file"
+			log_error "[STAR] Check disk space and permissions for: $star_genome_dir"
 			return 1
 		fi
 		rm -f "$test_file"
 		
-		log_info "[STAR] Output path verified writable: $star_genome_dir/${SRR}_*"
+		# Configure STAR temp directory based on STAR_TMP_MODE
+		local star_tmp_dir="" star_tmp_arg=""
+		case "${STAR_TMP_MODE:-cwd}" in
+			system)
+				# Use system temp - most reliable for HPC
+				star_tmp_dir="${TMPDIR:-/tmp}/STAR_${USER:-$$}_${SRR}"
+				rm -rf "$star_tmp_dir"
+				star_tmp_arg="--outTmpDir $star_tmp_dir"
+				;;
+			local)
+				# Use output directory for temp
+				star_tmp_dir="${star_genome_dir}/_STARtmp_${SRR}"
+				rm -rf "$star_tmp_dir"
+				star_tmp_arg="--outTmpDir $star_tmp_dir"
+				;;
+			cwd)
+				# Use current working directory (project root) for temp
+				# Clean up any existing STAR temp directories first
+				rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
+				rm -rf "${PROJECT_ROOT}/_STARtmp_${SRR}" 2>/dev/null || true
+				rm -rf "./_STARtmp" 2>/dev/null || true
+				rm -rf "./_STARtmp_${SRR}" 2>/dev/null || true
+				star_tmp_dir="${PROJECT_ROOT}/_STARtmp_${SRR}"
+				rm -rf "$star_tmp_dir"
+				star_tmp_arg="--outTmpDir $star_tmp_dir"
+				;;
+			none|"")
+				# Let STAR manage its own temp (creates _STARtmp in cwd)
+				# Still clean up before running
+				rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
+				rm -rf "./_STARtmp" 2>/dev/null || true
+				star_tmp_arg=""
+				;;
+			*)
+				# Custom path specified
+				star_tmp_dir="${STAR_TMP_MODE}/_STARtmp_${SRR}"
+				rm -rf "$star_tmp_dir"
+				mkdir -p "$(dirname "$star_tmp_dir")"
+				star_tmp_arg="--outTmpDir $star_tmp_dir"
+				;;
+		esac
 		
+		# Log full paths for debugging
+		log_info "[STAR] Output prefix: $star_genome_dir/${SRR}_"
+		[[ -n "$star_tmp_dir" ]] && log_info "[STAR] Temp directory: $star_tmp_dir"
+		
+		# Run STAR alignment - use eval to handle optional temp dir argument
 		run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$star_genome_dir" \
 			STAR --runMode alignReads \
 				--genomeDir "$star_index_dir" \
 				--readFilesIn $star_reads \
 				--readFilesCommand zcat \
-				--outFileNamePrefix "$star_genome_dir/${SRR}_" \
-				--outTmpDir "$star_tmp_dir" \
+				--outFileNamePrefix "${star_genome_dir}/${SRR}_" \
+				$star_tmp_arg \
 				--outSAMtype BAM SortedByCoordinate \
 				--outSAMstrandField "$STAR_STRAND_SPECIFIC" \
 				--outSAMunmapped Within \
@@ -273,8 +324,9 @@ star_alignment_pipeline() {
 		
 		[[ ! -f "$bam_output" ]] && { log_error "STAR alignment failed for $SRR"; return 1; }
 		
-		# Clean up temp directory after successful alignment
-		rm -rf "$star_tmp_dir" 2>/dev/null || true
+		# Clean up temp directories after successful alignment
+		[[ -n "$star_tmp_dir" ]] && rm -rf "$star_tmp_dir" 2>/dev/null || true
+		rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
 		
 		log_info "[STAR] Successfully aligned: $SRR"
 	done

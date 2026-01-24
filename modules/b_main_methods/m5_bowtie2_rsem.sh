@@ -222,11 +222,13 @@ _rsem_quantify_parallel() {
 	export PATH CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE
 	export TRIM_DIR_ROOT LOG_FILE TIME_DIR TIME_FILE ERROR_WARN_FILE
 	export keep_bam_global
-	export rsem_idx quant_root bowtie2_mode threads_per_job
+	# Convert TRIM_DIR_ROOT to absolute path for parallel subshells
+	local abs_trim_dir_root="$TRIM_DIR_ROOT"
+	[[ "$abs_trim_dir_root" != /* ]] && abs_trim_dir_root="$(pwd)/$abs_trim_dir_root"
 	
-	# Export logging functions
-	export -f timestamp log log_info log_warn log_error log_step log_file_size 2>/dev/null || true
-	export -f find_trimmed_fastq 2>/dev/null || true
+	export rsem_idx quant_root bowtie2_mode threads_per_job abs_trim_dir_root
+	
+	# Note: We inline find_trimmed_fastq logic in the worker to avoid function export issues
 	
 	# Define parallel worker function
 	_rsem_parallel_worker() {
@@ -247,14 +249,39 @@ _rsem_quantify_parallel() {
 			return 0
 		fi
 		
-		# Find trimmed reads
-		find_trimmed_fastq "$SRR"
+		# Inline find_trimmed_fastq logic (avoids function export issues)
+		local trim_dir="$abs_trim_dir_root/$SRR"
+		local trimmed1="" trimmed2=""
+		
+		if [[ -f "$trim_dir/${SRR}_1_val_1.fq.gz" && -f "$trim_dir/${SRR}_2_val_2.fq.gz" ]]; then
+			trimmed1="$trim_dir/${SRR}_1_val_1.fq.gz"
+			trimmed2="$trim_dir/${SRR}_2_val_2.fq.gz"
+		elif [[ -f "$trim_dir/${SRR}_1_val_1.fq" && -f "$trim_dir/${SRR}_2_val_2.fq" ]]; then
+			trimmed1="$trim_dir/${SRR}_1_val_1.fq"
+			trimmed2="$trim_dir/${SRR}_2_val_2.fq"
+		elif [[ -f "$trim_dir/${SRR}_trimmed.fq.gz" ]]; then
+			trimmed1="$trim_dir/${SRR}_trimmed.fq.gz"
+		elif [[ -f "$trim_dir/${SRR}_trimmed.fq" ]]; then
+			trimmed1="$trim_dir/${SRR}_trimmed.fq"
+		else
+			# Fallback: try to find any val_1/val_2 files
+			for f in "$trim_dir"/${SRR}*val_1*.fq* "$trim_dir"/${SRR}*val_1*.gz; do
+				[[ -f "$f" ]] && { trimmed1="$f"; break; }
+			done
+			for f in "$trim_dir"/${SRR}*val_2*.fq* "$trim_dir"/${SRR}*val_2*.gz; do
+				[[ -f "$f" ]] && { trimmed2="$f"; break; }
+			done
+		fi
+		
 		if [[ -z "$trimmed1" ]]; then
-			echo "[WARN] Missing trimmed reads for $SRR. Skipping."
+			echo "[WARN] Missing trimmed reads for $SRR in $trim_dir. Skipping."
+			ls -la "$trim_dir" 2>&1 || echo "[DEBUG] Directory does not exist: $trim_dir"
 			return 1
 		fi
 		
 		echo "[RSEM QUANT] Processing $SRR with $threads_per_job threads..."
+		echo "[DEBUG] trimmed1=$trimmed1"
+		[[ -n "$trimmed2" ]] && echo "[DEBUG] trimmed2=$trimmed2"
 		
 		local rsem_exit_code=0
 		if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
@@ -296,7 +323,7 @@ _rsem_quantify_parallel() {
 		--env CONDA_PREFIX \
 		--env CONDA_DEFAULT_ENV \
 		--env CONDA_EXE \
-		--env TRIM_DIR_ROOT \
+		--env abs_trim_dir_root \
 		--env keep_bam_global \
 		--env rsem_idx \
 		--env quant_root \
