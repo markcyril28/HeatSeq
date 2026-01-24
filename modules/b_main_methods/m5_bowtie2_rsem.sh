@@ -204,11 +204,20 @@ _rsem_quantify_sequential() {
 	local rsem_idx="$1"
 	local quant_root="$2"
 	local bowtie2_mode="$3"
-	local -n srr_list=$4
+	local arr_name="${4:-}"
 	
-	log_info "[RSEM QUANT] Running SEQUENTIAL quantification for ${#srr_list[@]} samples (threads per job: $THREADS)"
+	# Expand array from indirect reference
+	local samples=()
+	if [[ -n "$arr_name" ]]; then
+		local tmp_arr=("${!arr_name}")
+		for s in "${tmp_arr[@]}"; do
+			[[ -n "$s" ]] && samples+=("$s")
+		done
+	fi
 	
-	for SRR in "${srr_list[@]}"; do
+	log_info "[RSEM QUANT] Running SEQUENTIAL quantification for ${#samples[@]} samples (threads per job: $THREADS)"
+	
+	for SRR in "${samples[@]}"; do
 		_rsem_process_single_sample "$SRR" "$rsem_idx" "$quant_root" "$bowtie2_mode" "$THREADS"
 	done
 }
@@ -221,17 +230,32 @@ _rsem_quantify_parallel() {
 	local rsem_idx="$1"
 	local quant_root="$2"
 	local bowtie2_mode="$3"
-	local -n srr_list=$4
+	local arr_name="${4:-}"
 	
-	# Filter out empty entries and create clean array
+	# Debug: Log received parameters
+	log_info "[RSEM DEBUG] rsem_idx=$rsem_idx"
+	log_info "[RSEM DEBUG] quant_root=$quant_root"
+	log_info "[RSEM DEBUG] bowtie2_mode=$bowtie2_mode"
+	log_info "[RSEM DEBUG] arr_name='$arr_name'"
+	
+	# Expand array from indirect reference
 	local valid_samples=()
-	for s in "${srr_list[@]}"; do
-		[[ -n "$s" ]] && valid_samples+=("$s")
-	done
+	if [[ -n "$arr_name" ]]; then
+		local tmp_arr=("${!arr_name}")
+		for s in "${tmp_arr[@]}"; do
+			[[ -n "$s" ]] && valid_samples+=("$s")
+		done
+	fi
+	
+	# Debug: Log expanded samples
+	log_info "[RSEM DEBUG] valid_samples count: ${#valid_samples[@]}"
+	log_info "[RSEM DEBUG] valid_samples content: ${valid_samples[*]}"
 	
 	local num_samples=${#valid_samples[@]}
 	if [[ $num_samples -eq 0 ]]; then
 		log_error "[RSEM QUANT] No valid samples to process!"
+		log_error "[RSEM QUANT] arr_name='$arr_name'"
+		log_error "[RSEM QUANT] Check that --RNASEQ_LIST samples are being passed correctly"
 		return 1
 	fi
 	
@@ -432,7 +456,16 @@ _create_rsem_matrices() {
 	local quant_root="$3"
 	local matrix_dir="$4"
 	local bowtie2_mode="$5"
-	local -n srr_list=$6
+	local arr_name="${6:-}"
+
+	# Expand array from indirect reference
+	local samples=()
+	if [[ -n "$arr_name" ]]; then
+		local tmp_arr=("${!arr_name}")
+		for s in "${tmp_arr[@]}"; do
+			[[ -n "$s" ]] && samples+=("$s")
+		done
+	fi
 
 	log_step "Generating gene and transcript matrices (RSEM)"
 	
@@ -451,15 +484,15 @@ _create_rsem_matrices() {
 			--out_prefix "$matrix_dir/genes" \
 			--name_sample_by_basedir "$quant_root"/*/*.genes.results || {
 			log_warn "abundance_estimates_to_matrix.pl failed. Creating manual count matrix..."
-			_create_manual_rsem_matrix "$quant_root" "$matrix_dir" srr_list
+			_create_manual_rsem_matrix "$quant_root" "$matrix_dir" samples[@]
 		}
 	else
 		log_warn "abundance_estimates_to_matrix.pl not found. Creating manual count matrix..."
-		_create_manual_rsem_matrix "$quant_root" "$matrix_dir" srr_list
+		_create_manual_rsem_matrix "$quant_root" "$matrix_dir" samples[@]
 	fi
 	
 	# Prepare DESeq2 outputs
-	_prepare_rsem_deseq2_output "$tag" "$quant_root" "$matrix_dir" "$bowtie2_mode" srr_list
+	_prepare_rsem_deseq2_output "$tag" "$quant_root" "$matrix_dir" "$bowtie2_mode" samples[@]
 }
 
 _create_gene_trans_map_rsem() {
@@ -496,7 +529,16 @@ _create_gene_trans_map_rsem() {
 _create_manual_rsem_matrix() {
 	local quant_root="$1"
 	local matrix_dir="$2"
-	local -n srr_list=$3
+	local arr_name="${3:-}"
+	
+	# Expand array from indirect reference
+	local srr_list=()
+	if [[ -n "$arr_name" ]]; then
+		local tmp_arr=("${!arr_name}")
+		for s in "${tmp_arr[@]}"; do
+			[[ -n "$s" ]] && srr_list+=("$s")
+		done
+	fi
 	
 	local temp_gene_ids="$matrix_dir/temp_gene_ids.txt"
 	
@@ -550,7 +592,16 @@ _prepare_rsem_deseq2_output() {
 	local quant_root="$2"
 	local matrix_dir="$3"
 	local bowtie2_mode="$4"
-	local -n srr_list=$5
+	local arr_name="${5:-}"
+
+	# Expand array from indirect reference
+	local srr_list=()
+	if [[ -n "$arr_name" ]]; then
+		local tmp_arr=("${!arr_name}")
+		for s in "${tmp_arr[@]}"; do
+			[[ -n "$s" ]] && srr_list+=("$s")
+		done
+	fi
 
 	log_step "Preparing DESeq2-compatible count matrix for RSEM pipeline"
 	log_info "[NOTE] RSEM reports expected counts; for DESeq2, prefer tximport (script will be generated)."
@@ -576,7 +627,7 @@ _prepare_rsem_deseq2_output() {
 	fi
 	
 	# Create sample metadata
-	[[ ! -f "$sample_metadata" ]] && create_sample_metadata "$sample_metadata" srr_list
+	[[ ! -f "$sample_metadata" ]] && create_sample_metadata "$sample_metadata" srr_list[@]
 	
 	# Generate tximport script
 	local tximport_script="$deseq2_dir/run_tximport_rsem.R"
@@ -594,7 +645,7 @@ _prepare_rsem_deseq2_output() {
 	fi
 	
 	# Create summary
-	_create_rsem_summary "$tag" "$quant_root" "$deseq2_dir" "$bowtie2_mode" srr_list
+	_create_rsem_summary "$tag" "$quant_root" "$deseq2_dir" "$bowtie2_mode" srr_list[@]
 	
 	# Validate
 	[[ -f "$gene_count_matrix" ]] && validate_count_matrix "$gene_count_matrix" "gene" 2
@@ -609,7 +660,16 @@ _create_rsem_summary() {
 	local quant_root="$2"
 	local deseq2_dir="$3"
 	local bowtie2_mode="$4"
-	local -n srr_list=$5
+	local arr_name="${5:-}"
+	
+	# Expand array from indirect reference
+	local srr_list=()
+	if [[ -n "$arr_name" ]]; then
+		local tmp_arr=("${!arr_name}")
+		for s in "${tmp_arr[@]}"; do
+			[[ -n "$s" ]] && srr_list+=("$s")
+		done
+	fi
 	
 	local summary_file="$deseq2_dir/rsem_summary.txt"
 	[[ -f "$summary_file" ]] && return 0
