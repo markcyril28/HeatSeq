@@ -63,13 +63,19 @@ _rsem_process_single_sample() {
 	fi
 	
 	# Find trimmed reads
+	log_info "[RSEM DEBUG] Looking for trimmed reads in: $TRIM_DIR_ROOT/$SRR"
 	find_trimmed_fastq "$SRR"
 	if [[ -z "$trimmed1" ]]; then
-		log_warn "Missing trimmed reads for $SRR. Skipping."
+		log_warn "Missing trimmed reads for $SRR in $TRIM_DIR_ROOT/$SRR"
+		log_warn "[DEBUG] Directory contents:"
+		ls -la "$TRIM_DIR_ROOT/$SRR" 2>&1 | while read line; do log_warn "  $line"; done
 		return 1
 	fi
 	
 	log_step "Running Bowtie2 ($bowtie2_mode) + RSEM for $SRR (threads: $threads_to_use)"
+	log_info "[RSEM DEBUG] trimmed1=$trimmed1"
+	[[ -n "$trimmed2" ]] && log_info "[RSEM DEBUG] trimmed2=$trimmed2"
+	log_info "[RSEM DEBUG] rsem_idx=$rsem_idx"
 	
 	local rsem_exit_code=0
 	if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
@@ -80,7 +86,7 @@ _rsem_process_single_sample() {
 			--bowtie2 \
 			--bowtie2-sensitivity-level "$bowtie2_mode" \
 			--num-threads "$threads_to_use" \
-			"$trimmed1" "$trimmed2" "$rsem_idx" "$out_dir/$SRR" || rsem_exit_code=$?
+			"$trimmed1" "$trimmed2" "$rsem_idx" "$out_dir/$SRR" 2>&1 | tee "$out_dir/${SRR}.rsem.log" || rsem_exit_code=$?
 	else
 		# Single-end reads
 		log_info "[RSEM QUANT] Using single-end reads for $SRR"
@@ -88,11 +94,17 @@ _rsem_process_single_sample() {
 			--bowtie2 \
 			--bowtie2-sensitivity-level "$bowtie2_mode" \
 			--num-threads "$threads_to_use" \
-			"$trimmed1" "$rsem_idx" "$out_dir/$SRR" || rsem_exit_code=$?
+			"$trimmed1" "$rsem_idx" "$out_dir/$SRR" 2>&1 | tee "$out_dir/${SRR}.rsem.log" || rsem_exit_code=$?
 	fi
 	
 	if [[ $rsem_exit_code -ne 0 ]]; then
 		log_error "[RSEM QUANT] RSEM failed for $SRR (exit code: $rsem_exit_code)"
+		log_error "[RSEM QUANT] Check log: $out_dir/${SRR}.rsem.log"
+		# Show last 20 lines of RSEM log for quick diagnosis
+		if [[ -f "$out_dir/${SRR}.rsem.log" ]]; then
+			log_error "[RSEM QUANT] Last 20 lines of RSEM output:"
+			tail -20 "$out_dir/${SRR}.rsem.log" | while read line; do log_error "  $line"; done
+		fi
 		return $rsem_exit_code
 	fi
 	
@@ -222,17 +234,30 @@ _rsem_quantify_parallel() {
 	export PATH CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE
 	export TRIM_DIR_ROOT LOG_FILE TIME_DIR TIME_FILE ERROR_WARN_FILE
 	export keep_bam_global
+	
 	# Convert TRIM_DIR_ROOT to absolute path for parallel subshells
 	local abs_trim_dir_root="$TRIM_DIR_ROOT"
 	[[ "$abs_trim_dir_root" != /* ]] && abs_trim_dir_root="$(pwd)/$abs_trim_dir_root"
 	
-	export rsem_idx quant_root bowtie2_mode threads_per_job abs_trim_dir_root
+	# Convert ERROR_WARN_FILE to absolute path for parallel subshells
+	local abs_error_warn_file="${ERROR_WARN_FILE:-}"
+	[[ -n "$abs_error_warn_file" && "$abs_error_warn_file" != /* ]] && abs_error_warn_file="$(pwd)/$abs_error_warn_file"
+	
+	export rsem_idx quant_root bowtie2_mode threads_per_job abs_trim_dir_root abs_error_warn_file
 	
 	# Note: We inline find_trimmed_fastq logic in the worker to avoid function export issues
 	
 	# Define parallel worker function
 	_rsem_parallel_worker() {
 		local SRR="$1"
+		local ts=$(date '+%Y-%m-%d %H:%M:%S')
+		
+		# Helper to log to error file
+		_log_err() {
+			local level="$1"; shift
+			echo "[$ts] [$level] [RSEM-$SRR] $*"
+			[[ -n "$abs_error_warn_file" ]] && echo "[$ts] [$level] [RSEM-$SRR] $*" >> "$abs_error_warn_file"
+		}
 		
 		# Reactivate conda environment in subshell if needed
 		if [[ -n "$CONDA_PREFIX" && -n "$CONDA_EXE" ]]; then
@@ -252,6 +277,8 @@ _rsem_quantify_parallel() {
 		# Inline find_trimmed_fastq logic (avoids function export issues)
 		local trim_dir="$abs_trim_dir_root/$SRR"
 		local trimmed1="" trimmed2=""
+		
+		_log_err "DEBUG" "Looking for trimmed reads in: $trim_dir"
 		
 		if [[ -f "$trim_dir/${SRR}_1_val_1.fq.gz" && -f "$trim_dir/${SRR}_2_val_2.fq.gz" ]]; then
 			trimmed1="$trim_dir/${SRR}_1_val_1.fq.gz"
@@ -274,15 +301,24 @@ _rsem_quantify_parallel() {
 		fi
 		
 		if [[ -z "$trimmed1" ]]; then
-			echo "[WARN] Missing trimmed reads for $SRR in $trim_dir. Skipping."
-			ls -la "$trim_dir" 2>&1 || echo "[DEBUG] Directory does not exist: $trim_dir"
+			_log_err "ERROR" "Missing trimmed reads for $SRR in $trim_dir"
+			_log_err "ERROR" "Directory contents: $(ls -la "$trim_dir" 2>&1 || echo 'Directory does not exist')"
 			return 1
 		fi
 		
-		echo "[RSEM QUANT] Processing $SRR with $threads_per_job threads..."
-		echo "[DEBUG] trimmed1=$trimmed1"
-		[[ -n "$trimmed2" ]] && echo "[DEBUG] trimmed2=$trimmed2"
+		_log_err "INFO" "Processing $SRR with $threads_per_job threads"
+		_log_err "DEBUG" "trimmed1=$trimmed1"
+		[[ -n "$trimmed2" ]] && _log_err "DEBUG" "trimmed2=$trimmed2"
+		_log_err "DEBUG" "rsem_idx=$rsem_idx"
 		
+		# Verify RSEM index exists
+		if [[ ! -f "${rsem_idx}.grp" ]]; then
+			_log_err "ERROR" "RSEM index not found: ${rsem_idx}.grp"
+			_log_err "ERROR" "Index directory contents: $(ls -la "$(dirname "$rsem_idx")" 2>&1 || echo 'Directory does not exist')"
+			return 1
+		fi
+		
+		local rsem_log="$out_dir/${SRR}.rsem.log"
 		local rsem_exit_code=0
 		if [[ -n "$trimmed2" && -f "$trimmed2" ]]; then
 			rsem-calculate-expression \
@@ -290,20 +326,39 @@ _rsem_quantify_parallel() {
 				--bowtie2 \
 				--bowtie2-sensitivity-level "$bowtie2_mode" \
 				--num-threads "$threads_per_job" \
-				--quiet \
-				"$trimmed1" "$trimmed2" "$rsem_idx" "$out_dir/$SRR" 2>&1 || rsem_exit_code=$?
+				"$trimmed1" "$trimmed2" "$rsem_idx" "$out_dir/$SRR" 2>&1 | tee "$rsem_log" || rsem_exit_code=$?
 		else
 			rsem-calculate-expression \
 				--bowtie2 \
 				--bowtie2-sensitivity-level "$bowtie2_mode" \
 				--num-threads "$threads_per_job" \
-				--quiet \
-				"$trimmed1" "$rsem_idx" "$out_dir/$SRR" 2>&1 || rsem_exit_code=$?
+				"$trimmed1" "$rsem_idx" "$out_dir/$SRR" 2>&1 | tee "$rsem_log" || rsem_exit_code=$?
 		fi
 		
 		if [[ $rsem_exit_code -ne 0 ]]; then
-			echo "[ERROR] RSEM failed for $SRR (exit code: $rsem_exit_code)"
+			_log_err "ERROR" "RSEM failed (exit code: $rsem_exit_code)"
+			_log_err "ERROR" "RSEM log: $rsem_log"
+			# Log last 20 lines of RSEM output to error log
+			if [[ -f "$rsem_log" ]]; then
+				_log_err "ERROR" "Last 20 lines of RSEM output:"
+				tail -20 "$rsem_log" 2>/dev/null | while IFS= read -r line; do
+					_log_err "ERROR" "  $line"
+				done
+			fi
 			return $rsem_exit_code
+		fi
+		
+		# Verify output was created
+		if [[ ! -f "$out_dir/${SRR}.genes.results" ]]; then
+			_log_err "ERROR" "RSEM completed but output file not found: $out_dir/${SRR}.genes.results"
+			_log_err "ERROR" "Output directory contents: $(ls -la "$out_dir" 2>&1)"
+			if [[ -f "$rsem_log" ]]; then
+				_log_err "ERROR" "Last 20 lines of RSEM output:"
+				tail -20 "$rsem_log" 2>/dev/null | while IFS= read -r line; do
+					_log_err "ERROR" "  $line"
+				done
+			fi
+			return 1
 		fi
 		
 		# Cleanup BAM files
@@ -312,7 +367,7 @@ _rsem_quantify_parallel() {
 				  "$out_dir/${SRR}.transcript.sorted.bam" "$out_dir/${SRR}.transcript.sorted.bam.bai"
 		fi
 		
-		echo "[RSEM QUANT] Completed $SRR successfully"
+		_log_err "INFO" "Completed successfully"
 		return 0
 	}
 	export -f _rsem_parallel_worker
@@ -324,6 +379,7 @@ _rsem_quantify_parallel() {
 		--env CONDA_DEFAULT_ENV \
 		--env CONDA_EXE \
 		--env abs_trim_dir_root \
+		--env abs_error_warn_file \
 		--env keep_bam_global \
 		--env rsem_idx \
 		--env quant_root \

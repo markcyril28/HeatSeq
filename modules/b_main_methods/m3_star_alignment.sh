@@ -131,14 +131,33 @@ star_alignment_pipeline() {
 	fasta_base="$(basename "$fasta")"
 	fasta_tag="${fasta_base%.*}"
 	
-	# Convert STAR roots to absolute paths to avoid issues when running from different directories
+	# Get absolute paths - using realpath for robustness, fallback to manual resolution
 	local abs_star_index_root abs_star_align_root
-	abs_star_index_root="$(cd "$PROJECT_ROOT" 2>/dev/null && mkdir -p "$STAR_INDEX_ROOT" && cd "$STAR_INDEX_ROOT" && pwd)"
-	abs_star_align_root="$(cd "$PROJECT_ROOT" 2>/dev/null && mkdir -p "$STAR_ALIGN_ROOT" && cd "$STAR_ALIGN_ROOT" && pwd)"
 	
-	# Fallback to original paths if absolute conversion fails
-	[[ -z "$abs_star_index_root" ]] && abs_star_index_root="$STAR_INDEX_ROOT"
-	[[ -z "$abs_star_align_root" ]] && abs_star_align_root="$STAR_ALIGN_ROOT"
+	# First ensure the directories exist
+	mkdir -p "$STAR_INDEX_ROOT" "$STAR_ALIGN_ROOT" 2>/dev/null || true
+	
+	# Get absolute paths using realpath if available, otherwise use cd/pwd
+	if command -v realpath >/dev/null 2>&1; then
+		abs_star_index_root="$(realpath -m "$STAR_INDEX_ROOT" 2>/dev/null)" || abs_star_index_root=""
+		abs_star_align_root="$(realpath -m "$STAR_ALIGN_ROOT" 2>/dev/null)" || abs_star_align_root=""
+	fi
+	
+	# Fallback: use cd/pwd method
+	if [[ -z "$abs_star_index_root" ]]; then
+		abs_star_index_root="$(cd "$STAR_INDEX_ROOT" 2>/dev/null && pwd)" || abs_star_index_root="$STAR_INDEX_ROOT"
+	fi
+	if [[ -z "$abs_star_align_root" ]]; then
+		abs_star_align_root="$(cd "$STAR_ALIGN_ROOT" 2>/dev/null && pwd)" || abs_star_align_root="$STAR_ALIGN_ROOT"
+	fi
+	
+	# If still relative, prepend PROJECT_ROOT
+	[[ "$abs_star_index_root" != /* ]] && abs_star_index_root="${PROJECT_ROOT}/${abs_star_index_root}"
+	[[ "$abs_star_align_root" != /* ]] && abs_star_align_root="${PROJECT_ROOT}/${abs_star_align_root}"
+	
+	# Clean up any double slashes
+	abs_star_index_root="${abs_star_index_root//\/\//\/}"
+	abs_star_align_root="${abs_star_align_root//\/\//\/}"
 	
 	# Set directories based on tissue tag (using absolute paths)
 	if [[ -n "$tissue_tag" ]]; then
@@ -150,6 +169,10 @@ star_alignment_pipeline() {
 		star_genome_dir="${abs_star_align_root}/${fasta_tag}_alignments"
 		log_info "[STAR] Pooled alignment: ${#rnaseq_list[@]} samples"
 	fi
+	
+	# Clean up any double slashes in final paths
+	star_index_dir="${star_index_dir//\/\//\/}"
+	star_genome_dir="${star_genome_dir//\/\//\/}"
 	
 	# Log resolved paths for debugging
 	log_info "[STAR] Index directory (absolute): $star_index_dir"
@@ -294,17 +317,72 @@ star_alignment_pipeline() {
 				;;
 		esac
 		
-		# Log full paths for debugging
-		log_info "[STAR] Output prefix: $star_genome_dir/${SRR}_"
-		[[ -n "$star_tmp_dir" ]] && log_info "[STAR] Temp directory: $star_tmp_dir"
+		# Construct output prefix - ensure no double slashes and path is clean
+		local out_prefix="${star_genome_dir}/${SRR}_"
+		# Remove any double slashes
+		out_prefix="${out_prefix//\/\//\/}"
 		
-		# Run STAR alignment - use eval to handle optional temp dir argument
+		# ======================================================================
+		# DEBUG INFO - Output to error log for troubleshooting
+		# ======================================================================
+		log_error "[STAR DEBUG] ============================================"
+		log_error "[STAR DEBUG] Sample: $SRR"
+		log_error "[STAR DEBUG] Output prefix: $out_prefix"
+		log_error "[STAR DEBUG] Expected BAM: ${out_prefix}Aligned.sortedByCoord.out.bam"
+		log_error "[STAR DEBUG] Output directory: $star_genome_dir"
+		log_error "[STAR DEBUG] Index directory: $star_index_dir"
+		log_error "[STAR DEBUG] Temp mode: ${STAR_TMP_MODE:-cwd}"
+		[[ -n "$star_tmp_dir" ]] && log_error "[STAR DEBUG] Temp directory: $star_tmp_dir"
+		log_error "[STAR DEBUG] Input reads: $star_reads"
+		log_error "[STAR DEBUG] Current working dir: $(pwd)"
+		log_error "[STAR DEBUG] PROJECT_ROOT: $PROJECT_ROOT"
+		
+		# Check and log disk space
+		local available_space disk_info
+		disk_info=$(df -Ph "$star_genome_dir" 2>&1) || disk_info="df command failed"
+		log_error "[STAR DEBUG] Disk info for output dir:"
+		log_error "$disk_info"
+		
+		available_space=$(df -P "$star_genome_dir" 2>/dev/null | awk 'NR==2 {print $4}')
+		if [[ -n "$available_space" ]]; then
+			local available_gb=$((available_space / 1024 / 1024))
+			log_error "[STAR DEBUG] Available disk space: ${available_gb} GB"
+			if [[ $available_gb -lt 10 ]]; then
+				log_error "[STAR] FATAL: Less than 10GB available - STAR needs more disk space"
+				return 1
+			fi
+		fi
+		
+		# Verify paths exist and are accessible
+		log_error "[STAR DEBUG] Checking paths..."
+		log_error "[STAR DEBUG] star_genome_dir exists: $([[ -d "$star_genome_dir" ]] && echo YES || echo NO)"
+		log_error "[STAR DEBUG] star_genome_dir writable: $([[ -w "$star_genome_dir" ]] && echo YES || echo NO)"
+		log_error "[STAR DEBUG] star_index_dir exists: $([[ -d "$star_index_dir" ]] && echo YES || echo NO)"
+		log_error "[STAR DEBUG] Index SAindex exists: $([[ -f "$star_index_dir/SAindex" ]] && echo YES || echo NO)"
+		
+		# List output directory contents
+		log_error "[STAR DEBUG] Output dir contents:"
+		ls -la "$star_genome_dir" 2>&1 | head -20 | while read line; do log_error "  $line"; done
+		
+		# Test creating the exact BAM filename
+		local test_bam="${out_prefix}Aligned.sortedByCoord.out.bam.test"
+		if touch "$test_bam" 2>/dev/null; then
+			log_error "[STAR DEBUG] Test BAM creation: SUCCESS"
+			rm -f "$test_bam"
+		else
+			log_error "[STAR DEBUG] Test BAM creation: FAILED - cannot create $test_bam"
+		fi
+		
+		log_error "[STAR DEBUG] ============================================"
+		# ======================================================================
+		
+		# Run STAR alignment
 		run_with_space_time_log --input "$TRIM_DIR_ROOT/$SRR" --output "$star_genome_dir" \
 			STAR --runMode alignReads \
 				--genomeDir "$star_index_dir" \
 				--readFilesIn $star_reads \
 				--readFilesCommand zcat \
-				--outFileNamePrefix "${star_genome_dir}/${SRR}_" \
+				--outFileNamePrefix "$out_prefix" \
 				$star_tmp_arg \
 				--outSAMtype BAM SortedByCoordinate \
 				--outSAMstrandField "$STAR_STRAND_SPECIFIC" \
@@ -338,6 +416,9 @@ star_alignment_pipeline() {
 	[[ -n "${tissue_tag:-}" ]] && tag_suffix="_${tissue_tag}"
 	local salmon_idx="${abs_star_align_root}/${fasta_tag}${tag_suffix}_salmon_index"
 	local quant_root="${abs_star_align_root}/${fasta_tag}${tag_suffix}_salmon_quant"
+	# Clean up double slashes
+	salmon_idx="${salmon_idx//\/\//\/}"
+	quant_root="${quant_root//\/\//\/}"
 	mkdir -p "$quant_root"
 	
 	# Build Salmon index
