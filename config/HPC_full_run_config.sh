@@ -7,7 +7,7 @@
 # Runtime Configuration
 THREADS=32                              # Threads for parallel operations
 JOBS=4									# Parallel jobs for GNU Parallel
-USE_GNU_PARALLEL="FALSE"                 # TRUE/FALSE for GNU Parallel
+USE_GNU_PARALLEL="TRUE"                 # TRUE/FALSE for GNU Parallel
 keep_bam_global="n"                     # y=keep BAM files, n=delete after
 
 # Pipeline Stages (comment/uncomment to enable/disable)
@@ -29,9 +29,9 @@ PIPELINE_STAGES=(
 
 	"METHOD_1_HISAT2_REF_GUIDED"
 	#"METHOD_2_HISAT2_DE_NOVO"
-	#"METHOD_3_STAR_ALIGNMENT"
+	"METHOD_3_STAR_ALIGNMENT"
 	#"METHOD_4_SALMON_SAF"
-	#"METHOD_5_BOWTIE2_RSEM"
+	"METHOD_5_BOWTIE2_RSEM"
 
 	#"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
@@ -70,7 +70,8 @@ export THREADS JOBS USE_GNU_PARALLEL THREADS_PER_JOB keep_bam_global
 #All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
 Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/fasta/reference_genomes/Eggplant_V4.1_transcripts.function.fa"
 #ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/gtf/reference/All_Smel_Genes_Full_Name_reformatted.gtf"
-ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/gtf/reference/All_Smel_Genes_Full_Name_reformatted_TEST.gtf"
+#ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/gtf/reference/All_Smel_Genes_Full_Name_reformatted_TEST.gtf"
+ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/gtf/reference/Eggplant_V4.1_function_IPR_reformatted_v4.gtf"
 decoy="0_INPUT_FASTAs/fasta/experimental/TEST.fasta"
 gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 
@@ -78,8 +79,8 @@ gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
 	#"0_INPUT_FASTAs/fasta/reference_genomes/All_Smel_Genes_Full_Name.fasta"
-	"0_INPUT_FASTAs/fasta/reference_genomes/All_Smel_Genes_Full_Name_TEST.fasta"
-	#"0_INPUT_FASTAs/fasta/reference_genomes/Eggplant_V4.1_transcripts.function.fa"
+	#"0_INPUT_FASTAs/fasta/reference_genomes/All_Smel_Genes_Full_Name_TEST.fasta"
+	"0_INPUT_FASTAs/fasta/reference_genomes/Eggplant_V4.1_transcripts.function.fa"
 	#"0_INPUT_FASTAs/fasta/experimental/TEST.fasta"
 	#"0_INPUT_FASTAs/fasta/experimental/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/fasta/experimental/SmelDMP_CDS_Control_Best.fasta"
@@ -164,14 +165,14 @@ SRR_LIST_PRJNA941250=(
 # Set_2: A Good Dataset for SmelDMP GEA:
 #	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
 	SRR23909869 # 8DBF_1
-	#SRR23909870 # 8DBF_2
-	#SRR23909871 # 8DBF_3
+	SRR23909870 # 8DBF_2
+	SRR23909871 # 8DBF_3
 	SRR23909866 # 5DBF_1
-	#SRR23909867 # 5DBF_2
-	#SRR23909868 # 5DBF_3
+	SRR23909867 # 5DBF_2
+	SRR23909868 # 5DBF_3
 	SRR23909863 # Fully Develop (FD) 1
-	#SRR23909864 # Fully Develop (FD) 2
-	#SRR23909865 # Fully Develop (FD) 3
+	SRR23909864 # Fully Develop (FD) 2
+	SRR23909865 # Fully Develop (FD) 3
 )
 
 OTHER_SRR_LIST=(
@@ -196,7 +197,7 @@ SRR_COMBINED_LIST=(
 	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
 	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
 	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
-	#"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
+	"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
 	"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
 )
 
