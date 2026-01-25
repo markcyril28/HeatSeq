@@ -29,9 +29,9 @@ PIPELINE_STAGES=(
 
 	#"METHOD_1_HISAT2_REF_GUIDED"
 	#"METHOD_2_HISAT2_DE_NOVO"
-	"METHOD_3_STAR_ALIGNMENT"
+	#"METHOD_3_STAR_ALIGNMENT"
 	#"METHOD_4_SALMON_SAF"
-	#"METHOD_5_BOWTIE2_RSEM"
+	"METHOD_5_BOWTIE2_RSEM"
 
 	#"HEATMAP_WRAPPER"
 	#"ZIP_RESULTS"
@@ -162,14 +162,14 @@ SRR_LIST_PRJNA941250=(
 # Set_2: A Good Dataset for SmelDMP GEA:
 #	https://www.ncbi.nlm.nih.gov/Traces/study/?acc=PRJNA941250&o=acc_s%3Aa PRJNA941250 # Buds, Opened Buds
 	SRR23909869 # 8DBF_1
-	SRR23909870 # 8DBF_2
-	SRR23909871 # 8DBF_3
+	#SRR23909870 # 8DBF_2
+	#SRR23909871 # 8DBF_3
 	SRR23909866 # 5DBF_1
-	SRR23909867 # 5DBF_2
-	SRR23909868 # 5DBF_3
+	#SRR23909867 # 5DBF_2
+	#SRR23909868 # 5DBF_3
 	SRR23909863 # Fully Develop (FD) 1
-	SRR23909864 # Fully Develop (FD) 2
-	SRR23909865 # Fully Develop (FD) 3
+	#SRR23909864 # Fully Develop (FD) 2
+	#SRR23909865 # Fully Develop (FD) 3
 )
 
 OTHER_SRR_LIST=(
@@ -194,7 +194,7 @@ SRR_COMBINED_LIST=(
 	#"${SRR_LIST_PRJNA328564[@]}"	# Main Dataset for GEA. 
 	#"${SRR_LIST_SAMN28540077[@]}"	# Chinese Dataset for replicability. 
 	#"${SRR_LIST_SAMN28540068[@]}"	# Chinese Dataset for replicability. 
-	"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
+	#"${SRR_LIST_PRJNA865018[@]}"	# SET_1: Good Dataset for SmelDMP GEA.
 	"${SRR_LIST_PRJNA941250[@]}"	# SET_2: Good Dataset for SmelDMP GEA.
 )
 
