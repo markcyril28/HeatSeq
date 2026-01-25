@@ -58,20 +58,30 @@ hisat2_ref_guided_pipeline() {
 		
 		local splice_sites="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_splice_sites.txt"
 		local exons="$HISAT2_REF_GUIDED_INDEX_DIR/${fasta_tag}_exons.txt"
+		local build_opts=""
 		
-		hisat2_extract_splice_sites.py "$gtf" > "$splice_sites" || \
-			{ log_error "Failed to extract splice sites"; return 1; }
-		hisat2_extract_exons.py "$gtf" > "$exons" || \
-			{ log_error "Failed to extract exons"; return 1; }
+		# Extract splice sites and exons (may be empty for single-exon transcriptomes)
+		hisat2_extract_splice_sites.py "$gtf" > "$splice_sites" 2>/dev/null || true
+		hisat2_extract_exons.py "$gtf" > "$exons" 2>/dev/null || true
 		
-		[[ ! -s "$splice_sites" ]] && { log_error "Empty splice sites file"; return 1; }
-		[[ ! -s "$exons" ]] && { log_error "Empty exons file"; return 1; }
+		# Build options based on available annotation data
+		if [[ -s "$splice_sites" ]]; then
+			log_info "[INDEX] Extracted $(wc -l < "$splice_sites") splice sites"
+			build_opts="$build_opts --ss $splice_sites"
+		else
+			log_warn "[INDEX] No splice sites found - GTF may contain only single-exon transcripts"
+		fi
 		
-		log_info "[INDEX] Extracted $(wc -l < "$splice_sites") splice sites, $(wc -l < "$exons") exons"
+		if [[ -s "$exons" ]]; then
+			log_info "[INDEX] Extracted $(wc -l < "$exons") exons"
+			build_opts="$build_opts --exon $exons"
+		else
+			log_warn "[INDEX] No exons extracted from GTF"
+		fi
 		
 		log_file_size "$fasta" "Input FASTA for HISAT2 index"
 		run_with_space_time_log --input "$fasta" --output "$HISAT2_REF_GUIDED_INDEX_DIR" \
-			hisat2-build -p "${THREADS}" --ss "$splice_sites" --exon "$exons" "$fasta" "$index_prefix"
+			hisat2-build -p "${THREADS}" $build_opts "$fasta" "$index_prefix"
 		log_file_size "$HISAT2_REF_GUIDED_INDEX_DIR" "HISAT2 index output"
 	fi
 
