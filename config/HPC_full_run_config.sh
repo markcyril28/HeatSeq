@@ -6,7 +6,7 @@
 
 # Runtime Configuration
 THREADS=32                              # Threads for parallel operations
-JOBS=8									# Parallel jobs for GNU Parallel
+JOBS=4									# Parallel jobs for GNU Parallel
 USE_GNU_PARALLEL="TRUE"                 # TRUE/FALSE for GNU Parallel
 keep_bam_global="n"                     # y=keep BAM files, n=delete after
 
