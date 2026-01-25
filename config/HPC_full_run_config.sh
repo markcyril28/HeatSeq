@@ -69,7 +69,8 @@ export THREADS JOBS USE_GNU_PARALLEL THREADS_PER_JOB keep_bam_global
 # Legacy GTF and FASTA references (commented out)
 #All_SmelGIF_GTF_FILE="0_INPUT_FASTAs/All_SmelDMP_Head_Gene_Name_v4.gtf"
 Eggplant_V4_1_transcripts_function_FASTA_FILE="0_INPUT_FASTAs/fasta/reference_genomes/Eggplant_V4.1_transcripts.function.fa"
-ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/gtf/reference/All_Smel_Genes_Full_Name_reformatted.gtf"
+#ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/gtf/reference/All_Smel_Genes_Full_Name_reformatted.gtf"
+ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE="0_INPUT_FASTAs/gtf/reference/All_Smel_Genes_Full_Name_reformatted_TEST.gtf"
 decoy="0_INPUT_FASTAs/fasta/experimental/TEST.fasta"
 gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 
