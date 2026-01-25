@@ -114,8 +114,10 @@ hisat2_ref_guided_pipeline() {
 			log_info "[STRINGTIE] Assembly exists for $SRR/$fasta_tag - skipping"
 		else
 			log_step "Assembling transcripts: $SRR -> $fasta_tag"
+			# -e: only estimate abundance for transcripts in reference GTF (no novel transcripts)
+			# This preserves original gene_id values instead of creating MSTRG.* IDs
 			run_with_space_time_log --input "$bam" --output "$out_dir" \
-				stringtie -p "$THREADS" "$bam" -G "$gtf" -o "$out_gtf" \
+				stringtie -e -p "$THREADS" "$bam" -G "$gtf" -o "$out_gtf" \
 					-A "$out_dir/${SRR}_${fasta_tag}_ref_guided_gene_abundances.tsv" \
 					-B -C "$out_dir/${SRR}_${fasta_tag}_ref_guided_cov_refs.gtf"
 		fi
