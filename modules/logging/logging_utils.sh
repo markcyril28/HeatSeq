@@ -148,6 +148,28 @@ enable_exit_trap() {
 	trap 'log_info "Script finished. See log: $LOG_FILE"; log_info "Time metrics: $TIME_FILE"; log_info "Errors & Warnings: $ERROR_WARN_FILE"' EXIT
 }
 
+# Log pipeline configuration settings
+log_configuration() {
+	log_step "PIPELINE CONFIGURATION"
+	log_info "Run ID: ${RUN_ID:-N/A}"
+	log_info "Threads: ${THREADS:-N/A}"
+	log_info "Jobs: ${JOBS:-N/A}"
+	log_info "Threads per job: ${THREADS_PER_JOB:-N/A}"
+	log_info "GNU Parallel: ${USE_GNU_PARALLEL:-FALSE}"
+	log_info "Keep BAM files: ${keep_bam_global:-n}"
+	log_info "Project root: ${PROJECT_ROOT:-N/A}"
+	
+	# Log active pipeline stages if defined
+	if [[ -n "${PIPELINE_STAGES[*]:-}" ]]; then
+		log_info "Active pipeline stages:"
+		for stage in "${PIPELINE_STAGES[@]}"; do
+			log_info "  - $stage"
+		done
+	fi
+	
+	log_step "END CONFIGURATION"
+}
+
 capture_stderr_errors() {
 	# Monitor stderr/stdout stream and capture errors to error log
 	# Usage: command 2>&1 | capture_stderr_errors

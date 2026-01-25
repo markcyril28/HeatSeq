@@ -76,8 +76,8 @@ gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 # FASTA Files for Analysis
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
-	#"0_INPUT_FASTAs/fasta/reference_genomes/All_Smel_Genes.fasta"
-	"0_INPUT_FASTAs/fasta/reference_genomes/Eggplant_V4.1_transcripts.function.fa"
+	"0_INPUT_FASTAs/fasta/reference_genomes/All_Smel_Genes_Full_Name.fasta"
+	#"0_INPUT_FASTAs/fasta/reference_genomes/Eggplant_V4.1_transcripts.function.fa"
 	#"0_INPUT_FASTAs/fasta/experimental/TEST.fasta"
 	#"0_INPUT_FASTAs/fasta/experimental/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
 	#"0_INPUT_FASTAs/fasta/experimental/SmelDMP_CDS_Control_Best.fasta"
