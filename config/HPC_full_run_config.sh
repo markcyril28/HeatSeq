@@ -77,6 +77,7 @@ gtf_file="${ALL_Smel_Genes_Full_Name_reformatted_GTF_FILE}"
 ALL_FASTA_FILES=(
 	# List of FASTA files to process
 	"0_INPUT_FASTAs/fasta/reference_genomes/All_Smel_Genes_Full_Name.fasta"
+	"0_INPUT_FASTAs/fasta/reference_genomes/All_Smel_Genes_Full_Name_TEST.fasta"
 	#"0_INPUT_FASTAs/fasta/reference_genomes/Eggplant_V4.1_transcripts.function.fa"
 	#"0_INPUT_FASTAs/fasta/experimental/TEST.fasta"
 	#"0_INPUT_FASTAs/fasta/experimental/SmelGIF_with_Cell_Cycle_Control_genes.fasta"
@@ -164,10 +165,10 @@ SRR_LIST_PRJNA941250=(
 	SRR23909869 # 8DBF_1
 	#SRR23909870 # 8DBF_2
 	#SRR23909871 # 8DBF_3
-	SRR23909866 # 5DBF_1
+	#SRR23909866 # 5DBF_1
 	#SRR23909867 # 5DBF_2
 	#SRR23909868 # 5DBF_3
-	SRR23909863 # Fully Develop (FD) 1
+	#SRR23909863 # Fully Develop (FD) 1
 	#SRR23909864 # Fully Develop (FD) 2
 	#SRR23909865 # Fully Develop (FD) 3
 )
