@@ -25,6 +25,11 @@ STAR_GENOME_LOAD="${STAR_GENOME_LOAD:-$(get_star_genome_load 2>/dev/null || echo
 STAR_READ_LENGTH="${STAR_READ_LENGTH:-100}"
 STAR_STRAND_SPECIFIC="${STAR_STRAND_SPECIFIC:-intronMotif}"
 
+# Delete transient big files after alignment (saves disk space)
+# Set to "true" to delete intermediate files (2-pass genome, unsorted BAM, etc.)
+# Set to "false" to keep all files for debugging
+STAR_DELETE_TRANSIENT="${STAR_DELETE_TRANSIENT:-true}"
+
 # GTF annotation file for splice junction detection (required for --sjdbOverhang)
 STAR_GTF_FILE="${STAR_GTF_FILE:-0_INPUT_FASTAs/gtf/reference/Eggplant_V4.1_function_IPR_final_formatted_v3.gtf}"
 
@@ -160,13 +165,18 @@ star_alignment_pipeline() {
 	abs_star_align_root="${abs_star_align_root//\/\//\/}"
 	
 	# Set directories based on tissue tag (using absolute paths)
+	# Structure: operation_type/fasta_tag[_tissue_tag]/
+	# This keeps all alignments together, all salmon_quant together, etc.
+	local ref_tag="${fasta_tag}"
+	[[ -n "$tissue_tag" ]] && ref_tag="${fasta_tag}_${tissue_tag}"
+	
 	if [[ -n "$tissue_tag" ]]; then
-		star_index_dir="${abs_star_index_root}/${fasta_tag}_${tissue_tag}_star_index"
-		star_genome_dir="${abs_star_align_root}/${fasta_tag}_${tissue_tag}_alignments"
+		star_index_dir="${abs_star_index_root}/5_star/index/${ref_tag}"
+		star_genome_dir="${abs_star_align_root}/5_star/alignments/${ref_tag}"
 		log_info "[STAR] Tissue-specific alignment for: $tissue_tag (${#rnaseq_list[@]} samples)"
 	else
-		star_index_dir="${abs_star_index_root}/${fasta_tag}_star_index"
-		star_genome_dir="${abs_star_align_root}/${fasta_tag}_alignments"
+		star_index_dir="${abs_star_index_root}/5_star/index/${fasta_tag}"
+		star_genome_dir="${abs_star_align_root}/5_star/alignments/${fasta_tag}"
 		log_info "[STAR] Pooled alignment: ${#rnaseq_list[@]} samples"
 	fi
 	
@@ -448,16 +458,35 @@ star_alignment_pipeline() {
 		[[ -n "$star_tmp_dir" ]] && rm -rf "$star_tmp_dir" 2>/dev/null || true
 		rm -rf "${PROJECT_ROOT}/_STARtmp" 2>/dev/null || true
 		
+		# Delete transient big files if enabled (saves significant disk space)
+		if [[ "${STAR_DELETE_TRANSIENT:-true}" == "true" ]]; then
+			log_info "[STAR] Cleaning up transient files for $SRR..."
+			
+			# Remove 2-pass intermediate directories (can be several GB each)
+			rm -rf "${star_genome_dir}/${SRR}__STARgenome" 2>/dev/null || true
+			rm -rf "${star_genome_dir}/${SRR}__STARpass1" 2>/dev/null || true
+			
+			# Remove any leftover temp directories
+			rm -rf "${star_genome_dir}/${SRR}_STARtmp" 2>/dev/null || true
+			rm -rf "${star_genome_dir}/_STARtmp_${SRR}" 2>/dev/null || true
+			
+			# Remove progress log (Log.out and Log.final.out are kept for diagnostics)
+			rm -f "${star_genome_dir}/${SRR}_Log.progress.out" 2>/dev/null || true
+			
+			log_info "[STAR] Transient files cleaned up for $SRR"
+		fi
+		
 		log_info "[STAR] Successfully aligned: $SRR"
 	done
 	
 	log_info "[STAR] All samples aligned successfully"
 	
 	# STEP 3: SALMON QUANTIFICATION
-	local tag_suffix=""
-	[[ -n "${tissue_tag:-}" ]] && tag_suffix="_${tissue_tag}"
-	local salmon_idx="${abs_star_align_root}/${fasta_tag}${tag_suffix}_salmon_index"
-	local quant_root="${abs_star_align_root}/${fasta_tag}${tag_suffix}_salmon_quant"
+	# Structure: 6_salmon/index/fasta_tag[_tissue_tag]/ and 6_salmon/quant/fasta_tag[_tissue_tag]/SRR/
+	local ref_suffix="${fasta_tag}"
+	[[ -n "${tissue_tag:-}" ]] && ref_suffix="${fasta_tag}_${tissue_tag}"
+	local salmon_idx="${abs_star_align_root}/6_salmon/index/${ref_suffix}"
+	local quant_root="${abs_star_align_root}/6_salmon/quant/${ref_suffix}"
 	# Clean up double slashes
 	salmon_idx="${salmon_idx//\/\//\/}"
 	quant_root="${quant_root//\/\//\/}"
